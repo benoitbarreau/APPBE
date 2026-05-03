@@ -205,10 +205,7 @@ select {
 .cable-edge-line1 {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-}
-.cable-edge-line1 .cable-edge-len + .cable-edge-unit {
-  margin-left: 0;
+  gap: 3px;
 }
 .cable-edge-line1 .cable-edge-len {
   margin-right: -1px;
@@ -237,6 +234,9 @@ select {
 .cable-edge-type {
   color: #000;
   font-weight: 700;
+  padding: 0 !important;
+  text-align: left !important;
+  min-width: 1ch;
 }
 .cable-edge-len,
 .cable-edge-unit {
@@ -261,6 +261,8 @@ select {
   font-weight: 700;
   font-size: 9px;
   margin-top: -1px;
+  padding: 0 !important;
+  min-width: 1ch;
 }
 .cable-edge-label-text::placeholder {
   color: transparent;

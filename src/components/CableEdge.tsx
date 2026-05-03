@@ -120,7 +120,7 @@ export function CableEdge({
             <input
               className="cable-edge-type"
               value={cable.cableType}
-              size={Math.max(cable.cableType.length, 4)}
+              style={{ width: `${Math.max(cable.cableType.length, 1)}ch` }}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
             <input
@@ -139,7 +139,7 @@ export function CableEdge({
           <input
             className="cable-edge-label-text"
             value={cable.label ?? ""}
-            size={Math.max((cable.label ?? "").length, 6)}
+            style={{ width: `${Math.max((cable.label ?? "").length, 1)}ch` }}
             placeholder=""
             onChange={(e) => updateCable(cable.id, { label: e.target.value })}
           />
