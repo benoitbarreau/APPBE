@@ -33,7 +33,7 @@ function buildPolyline(points: Point[]): string {
 function buildPathWithBumps(
   points: Point[],
   bumpsPerSeg: Map<number, Point[]>,
-  r = 6,
+  r = 9,
 ): string {
   if (points.length < 2) return "";
   let d = `M ${points[0].x} ${points[0].y}`;
@@ -317,11 +317,58 @@ export function CableEdge({
       .filter((o): o is Rect => o !== null);
   };
 
-  const obstacles = buildObstacles(cable);
+  // Step 1: compute earlier cables' segments first (we need them to (a)
+  // avoid routing on top of them and (b) draw bumps where we cross).
+  const cableIdx = allCables.findIndex((c) => c.id === id);
+  const earlierSegs: Seg[] = [];
+  for (let ci = 0; ci < cableIdx; ci++) {
+    const ec = allCables[ci];
+    const eFrom = getHandlePos(
+      nodeLookup,
+      ec.fromNodeId,
+      ec.fromPortId,
+      ec.fromPortSide ?? "out",
+    );
+    const eTo = getHandlePos(
+      nodeLookup,
+      ec.toNodeId,
+      ec.toPortId,
+      ec.toPortSide ?? "in",
+    );
+    if (!eFrom || !eTo) continue;
+    const eObstacles = buildObstacles(ec);
+    const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObstacles);
+    const ePts = [eFrom, ...ewps, eTo];
+    for (let i = 0; i < ePts.length - 1; i++) {
+      const a = ePts[i];
+      const b = ePts[i + 1];
+      earlierSegs.push({
+        a,
+        b,
+        isH: Math.abs(a.y - b.y) < 1,
+        isV: Math.abs(a.x - b.x) < 1,
+      });
+    }
+  }
+
+  // Step 2: turn earlier V segments into thin obstacles so our default Z
+  // route picks a midX away from them. Skip H segments because they're
+  // perpendicular to our own V segment and we want them to cross with a
+  // bump rather than detour around.
+  const cableObstacles: Rect[] = earlierSegs
+    .filter((s) => s.isV)
+    .map((s) => ({
+      x: s.a.x - 1,
+      y: Math.min(s.a.y, s.b.y),
+      width: 2,
+      height: Math.abs(s.b.y - s.a.y),
+    }));
+
+  const obstacles = [...buildObstacles(cable), ...cableObstacles];
   const waypoints = effectiveWaypoints(source, target, stored, obstacles);
   const allPoints: Point[] = [source, ...waypoints, target];
 
-  // Build segments for current cable
+  // Step 3: my segments
   const segs: Seg[] = [];
   for (let i = 0; i < allPoints.length - 1; i++) {
     const a = allPoints[i];
@@ -329,41 +376,9 @@ export function CableEdge({
     segs.push({ a, b, isH: Math.abs(a.y - b.y) < 1, isV: Math.abs(a.x - b.x) < 1 });
   }
 
-  // Compute bump points where current cable crosses earlier cables.
-  // Convention: a cable bumps over cables earlier in the array.
-  const cableIdx = allCables.findIndex((c) => c.id === id);
+  // Step 4: bumps where my segments cross earlier segments perpendicularly.
   const bumpsPerSeg = new Map<number, Point[]>();
-  if (cableIdx > 0) {
-    const earlierSegs: Seg[] = [];
-    for (let ci = 0; ci < cableIdx; ci++) {
-      const ec = allCables[ci];
-      const eFrom = getHandlePos(
-        nodeLookup,
-        ec.fromNodeId,
-        ec.fromPortId,
-        ec.fromPortSide ?? "out",
-      );
-      const eTo = getHandlePos(
-        nodeLookup,
-        ec.toNodeId,
-        ec.toPortId,
-        ec.toPortSide ?? "in",
-      );
-      if (!eFrom || !eTo) continue;
-      const eObstacles = buildObstacles(ec);
-      const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObstacles);
-      const ePts = [eFrom, ...ewps, eTo];
-      for (let i = 0; i < ePts.length - 1; i++) {
-        const a = ePts[i];
-        const b = ePts[i + 1];
-        earlierSegs.push({
-          a,
-          b,
-          isH: Math.abs(a.y - b.y) < 1,
-          isV: Math.abs(a.x - b.x) < 1,
-        });
-      }
-    }
+  if (earlierSegs.length > 0) {
     for (let i = 0; i < segs.length; i++) {
       const myseg = segs[i];
       const list: Point[] = [];
