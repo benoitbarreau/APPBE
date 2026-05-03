@@ -1,9 +1,9 @@
 import dagre from "@dagrejs/dagre";
 import type { Cable, PlacedProduct, Product } from "./types";
 
-const NODE_WIDTH = 240;
-const ROW_HEIGHT = 22;
-const NODE_HEADER_HEIGHT = 60;
+const NODE_WIDTH = 180;
+const ROW_HEIGHT = 16;
+const NODE_HEADER_HEIGHT = 50;
 
 export function layoutNodes(
   nodes: PlacedProduct[],

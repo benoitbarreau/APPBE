@@ -297,8 +297,8 @@ export function CableEdge({
         const p = allProducts.find((pr) => pr.id === n.productId);
         const rows = Math.max(p?.inputs.length ?? 0, p?.outputs.length ?? 0, 1);
         const middleCount = p?.middle?.length ?? 0;
-        const fullW = 240;
-        const fullH = 60 + rows * 22 + middleCount * 22;
+        const fullW = 180;
+        const fullH = 50 + rows * 16 + middleCount * 16;
         const isFrom = n.id === forCable?.fromNodeId;
         const isTo = n.id === forCable?.toNodeId;
         if (isFrom && isTo) return null;

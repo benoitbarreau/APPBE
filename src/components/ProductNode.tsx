@@ -16,7 +16,6 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const inputs = product.inputs;
   const outputs = product.outputs;
   const middle = product.middle ?? [];
-  const rows = Math.max(inputs.length, outputs.length, 1);
 
   const portUsedOn = (portId: string, side: "midL" | "midR"): boolean =>
     cables.some(
@@ -32,14 +31,13 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   return (
     <div
       className={"product-node" + (selected ? " selected" : "")}
-      style={{ minHeight: 60 + rows * 22 + middle.length * 22 }}
+      title={`${product.manufacturer} ${product.reference} — ${product.category}`}
     >
       <div className="product-node-header">
         <div className="product-node-name">{node.name}</div>
         <div className="product-node-ref">
           {product.manufacturer} · {product.reference}
         </div>
-        <div className="product-node-cat">{product.category}</div>
       </div>
       <div className="product-node-body">
         <div className="port-col">
