@@ -36,6 +36,8 @@ export function DiagramCanvas() {
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
+  const selectedNodeId = useAppStore((s) => s.selectedNodeId);
+  const selectedCableId = useAppStore((s) => s.selectedCableId);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -44,8 +46,9 @@ export function DiagramCanvas() {
         type: "product",
         position: n.position,
         data: { nodeId: n.id },
+        selected: n.id === selectedNodeId,
       })),
-    [nodes],
+    [nodes, selectedNodeId],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -64,9 +67,10 @@ export function DiagramCanvas() {
           style: { stroke: color, strokeWidth: 2 },
           markerStart: c.reversed ? arrow : undefined,
           markerEnd: c.reversed ? undefined : arrow,
+          selected: c.id === selectedCableId,
         } satisfies Edge;
       }),
-    [cables, signals],
+    [cables, signals, selectedCableId],
   );
 
   const onNodesChange = useCallback(

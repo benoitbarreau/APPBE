@@ -145,16 +145,13 @@ export function CableEdge({
   const onWaypointMouseDown = (i: number, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const list = cable.waypoints ?? [];
-    const orig = { ...list[i] };
+    const orig = { ...waypoints[i] };
+    const baseEffective = waypoints.map((p) => ({ ...p }));
     const start = { x: e.clientX, y: e.clientY };
     const onMove = (ev: MouseEvent) => {
       const dx = (ev.clientX - start.x) / zoom;
       const dy = (ev.clientY - start.y) / zoom;
-      const cur =
-        useAppStore.getState().cables.find((c) => c.id === cable.id)
-          ?.waypoints ?? [];
-      const next = [...cur];
+      const next = [...baseEffective];
       next[i] = { x: orig.x + dx, y: orig.y + dy };
       updateCable(cable.id, { waypoints: next });
     };
@@ -167,7 +164,7 @@ export function CableEdge({
   };
 
   const removeWaypoint = (i: number) => {
-    const next = (cable.waypoints ?? []).filter((_, idx) => idx !== i);
+    const next = waypoints.filter((_, idx) => idx !== i);
     updateCable(cable.id, { waypoints: next });
   };
 
@@ -255,7 +252,7 @@ export function CableEdge({
   };
 
   const addWaypointAt = (segIndex: number, wp: Point) => {
-    const next = [...(cable.waypoints ?? [])];
+    const next = [...waypoints];
     next.splice(segIndex, 0, wp);
     updateCable(cable.id, { waypoints: next });
   };
@@ -279,7 +276,29 @@ export function CableEdge({
       {/* Handles only when selected */}
       {selected && (
         <>
-          {/* Mid-segment grip pills - drag to slide a segment */}
+          {/* Invisible thick hit areas - any drag on a segment slides it */}
+          {segments.map((seg, i) => {
+            const dx = seg.b.x - seg.a.x;
+            const dy = seg.b.y - seg.a.y;
+            const isH = Math.abs(dy) < 1;
+            const isV = Math.abs(dx) < 1;
+            const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
+            return (
+              <line
+                key={`hit-${i}`}
+                x1={seg.a.x}
+                y1={seg.a.y}
+                x2={seg.b.x}
+                y2={seg.b.y}
+                stroke="transparent"
+                strokeWidth={22}
+                style={{ cursor, pointerEvents: "stroke" }}
+                onMouseDown={(e) => onSegmentMouseDown(seg, e)}
+              />
+            );
+          })}
+
+          {/* Mid-segment grip pills - visual handle */}
           {segments.map((seg, i) => {
             const dx = seg.b.x - seg.a.x;
             const dy = seg.b.y - seg.a.y;
@@ -289,8 +308,8 @@ export function CableEdge({
             if (len < 30) return null;
             const midX = (seg.a.x + seg.b.x) / 2;
             const midY = (seg.a.y + seg.b.y) / 2;
-            const w = isV ? 16 : isH ? 6 : 14;
-            const h = isV ? 6 : isH ? 16 : 6;
+            const w = isV ? 22 : isH ? 8 : 18;
+            const h = isV ? 8 : isH ? 22 : 8;
             const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
             return (
               <rect
@@ -303,7 +322,7 @@ export function CableEdge({
                 ry={3}
                 fill={color}
                 stroke="#fff"
-                strokeWidth={1.5}
+                strokeWidth={2}
                 style={{ cursor, pointerEvents: "all" }}
                 onMouseDown={(e) => onSegmentMouseDown(seg, e)}
               />
