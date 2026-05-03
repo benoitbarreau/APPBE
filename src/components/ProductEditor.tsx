@@ -80,6 +80,24 @@ export function ProductEditor({
     }));
   };
 
+  const movePort = (from: PortListKey, idx: number, to: PortListKey) => {
+    if (from === to) return;
+    setDraft((d) => {
+      const fromList = getList(d, from);
+      const port = fromList[idx];
+      if (!port) return d;
+      const newDirection: PortDirection =
+        to === "inputs" ? "in" : to === "outputs" ? "out" : "bi";
+      const moved: Port = { ...port, direction: newDirection };
+      const toList = getList(d, to);
+      return {
+        ...d,
+        [from]: fromList.filter((_, i) => i !== idx),
+        [to]: [...toList, moved],
+      };
+    });
+  };
+
   const save = () => {
     if (!draft.reference.trim() || !draft.manufacturer.trim()) {
       alert("Référence et marque obligatoires");
@@ -130,25 +148,31 @@ export function ProductEditor({
           <PortsEditor
             title="Gauche"
             ports={draft.inputs}
+            section="inputs"
             onAdd={() => addPort("inputs")}
             onChange={(i, patch) => setPort("inputs", i, patch)}
             onRemove={(i) => removePort("inputs", i)}
+            onMove={(i, to) => movePort("inputs", i, to)}
             defaultDirection="in"
           />
           <PortsEditor
             title="Droite"
             ports={draft.outputs}
+            section="outputs"
             onAdd={() => addPort("outputs")}
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
+            onMove={(i, to) => movePort("outputs", i, to)}
             defaultDirection="out"
           />
           <PortsEditor
             title="Milieu (deux côtés, le côté opposé se bloque dès qu'un est raccordé)"
             ports={draft.middle ?? []}
+            section="middle"
             onAdd={() => addPort("middle")}
             onChange={(i, patch) => setPort("middle", i, patch)}
             onRemove={(i) => removePort("middle", i)}
+            onMove={(i, to) => movePort("middle", i, to)}
             defaultDirection="bi"
           />
         </div>
@@ -168,18 +192,28 @@ export function ProductEditor({
   );
 }
 
+const SECTION_LABELS: Record<PortListKey, string> = {
+  inputs: "Gauche",
+  outputs: "Droite",
+  middle: "Milieu",
+};
+
 function PortsEditor({
   title,
   ports,
+  section,
   onAdd,
   onChange,
   onRemove,
+  onMove,
 }: {
   title: string;
   ports: Port[];
+  section: PortListKey;
   onAdd: () => void;
   onChange: (i: number, patch: Partial<Port>) => void;
   onRemove: (i: number) => void;
+  onMove: (i: number, to: PortListKey) => void;
   defaultDirection: PortDirection;
 }) {
   const signals = useAppStore((s) => s.signals);
@@ -206,6 +240,18 @@ function PortsEditor({
             {signalOptions.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={section}
+            title="Déplacer dans une autre section"
+            onChange={(e) => onMove(i, e.target.value as PortListKey)}
+            className="port-section-select"
+          >
+            {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
+              <option key={s} value={s}>
+                {SECTION_LABELS[s]}
               </option>
             ))}
           </select>

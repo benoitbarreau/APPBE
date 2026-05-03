@@ -850,3 +850,7 @@ select {
 .port-edit-row > input {
   flex: 1;
 }
+.port-section-select {
+  width: 90px;
+  font-size: 11px;
+}
