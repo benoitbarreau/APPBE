@@ -693,7 +693,6 @@ select {
   flex-direction: column;
   gap: 1px;
   padding: 3px 0;
-  border-top: 1px dashed var(--border);
 }
 .middle-row {
   position: relative;
