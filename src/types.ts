@@ -19,12 +19,15 @@ export interface Product {
   middle?: Port[];
 }
 
+export type PortPlacement = "left" | "right" | "middle";
+
 export interface PlacedProduct {
   id: string;
   productId: string;
   name: string;
   position: { x: number; y: number };
   zoneId?: string;
+  portOverrides?: Record<string, PortPlacement>;
 }
 
 export interface Zone {

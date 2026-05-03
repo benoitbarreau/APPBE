@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import type {
   Cable,
   PlacedProduct,
+  PortPlacement,
+  PortSide,
   Product,
   ProjectMeta,
   SignalDef,
@@ -68,6 +70,13 @@ interface State {
   upsertZone: (z: Zone) => void;
   removeZone: (id: string) => void;
   setNodeZone: (nodeId: string, zoneId: string | undefined) => void;
+
+  setNodePortPlacement: (
+    nodeId: string,
+    portId: string,
+    placement: PortPlacement,
+  ) => void;
+  resetNodePortPlacement: (nodeId: string, portId: string) => void;
 
   resetProject: () => void;
 }
@@ -195,6 +204,47 @@ export const useAppStore = create<State>()(
           nodes: s.nodes.map((n) =>
             n.id === nodeId ? { ...n, zoneId } : n,
           ),
+        })),
+
+      setNodePortPlacement: (nodeId, portId, placement) =>
+        set((s) => {
+          const sideFor = (current: PortSide | undefined): PortSide => {
+            if (placement === "left") return "in";
+            if (placement === "right") return "out";
+            // middle: keep midL/midR if already on a middle handle, else default midL
+            if (current === "midL" || current === "midR") return current;
+            return "midL";
+          };
+          return {
+            nodes: s.nodes.map((n) =>
+              n.id === nodeId
+                ? {
+                    ...n,
+                    portOverrides: { ...(n.portOverrides ?? {}), [portId]: placement },
+                  }
+                : n,
+            ),
+            cables: s.cables.map((c) => {
+              let next = c;
+              if (c.fromNodeId === nodeId && c.fromPortId === portId) {
+                next = { ...next, fromPortSide: sideFor(c.fromPortSide) };
+              }
+              if (c.toNodeId === nodeId && c.toPortId === portId) {
+                next = { ...next, toPortSide: sideFor(c.toPortSide) };
+              }
+              return next;
+            }),
+          };
+        }),
+
+      resetNodePortPlacement: (nodeId, portId) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId || !n.portOverrides) return n;
+            const next = { ...n.portOverrides };
+            delete next[portId];
+            return { ...n, portOverrides: next };
+          }),
         })),
 
       resetProject: () => set({ nodes: [], cables: [] }),

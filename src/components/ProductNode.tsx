@@ -1,5 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore } from "../store";
+import { getEffectivePorts } from "../ports";
 import { type Port } from "../types";
 
 type ProductNodeType = Node<{ nodeId: string }, "product">;
@@ -25,9 +26,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const setNodeZone = useAppStore((s) => s.setNodeZone);
   if (!node || !product) return null;
 
-  const inputs = product.inputs;
-  const outputs = product.outputs;
-  const middle = product.middle ?? [];
+  const { inputs, outputs, middle } = getEffectivePorts(product, node);
   const zone = zones.find((z) => z.id === node.zoneId);
   const headerBg = zone?.color;
   const headerColor = headerBg

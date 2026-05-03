@@ -43,7 +43,11 @@ import { CableEdge } from "./CableEdge";
 const nodeTypes = { product: ProductNode };
 const edgeTypes = { cable: CableEdge };
 
-export function DiagramCanvas() {
+export function DiagramCanvas({
+  onEditInstance,
+}: {
+  onEditInstance?: (nodeId: string) => void;
+}) {
   const nodes = useAppStore((s) => s.nodes);
   const cables = useAppStore((s) => s.cables);
   const products = useAppStore((s) => s.products);
@@ -158,6 +162,13 @@ export function DiagramCanvas() {
     [reverseCable],
   );
 
+  const onNodeDoubleClick = useCallback(
+    (_e: React.MouseEvent, n: Node) => {
+      onEditInstance?.(n.id);
+    },
+    [onEditInstance],
+  );
+
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       if (!newConnection.source || !newConnection.target) return;
@@ -192,6 +203,7 @@ export function DiagramCanvas() {
       onConnect={onConnect}
       onReconnect={onReconnect}
       onEdgeDoubleClick={onEdgeDoubleClick}
+      onNodeDoubleClick={onNodeDoubleClick}
       reconnectRadius={20}
       connectionMode={ConnectionMode.Loose}
       deleteKeyCode={["Delete", "Backspace"]}

@@ -854,3 +854,27 @@ select {
   width: 90px;
   font-size: 11px;
 }
+
+.instance-ports-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.instance-ports-table th {
+  text-align: left;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.instance-ports-table td {
+  padding: 4px 6px;
+  border-bottom: 1px dashed var(--border);
+  vertical-align: middle;
+}
+.instance-ports-table select {
+  width: 100%;
+  font-size: 11px;
+}

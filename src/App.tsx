@@ -9,11 +9,13 @@ import { EtiquettesList } from "./components/EtiquettesList";
 import { Legend } from "./components/Legend";
 import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
+import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
 
 export default function App() {
   const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [rightTab, setRightTab] = useState<
     "cables" | "etiquettes" | "legend" | "zones"
@@ -94,7 +96,7 @@ export default function App() {
 
         <main className="canvas">
           <ReactFlowProvider>
-            <DiagramCanvas />
+            <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
           </ReactFlowProvider>
           <Cartouche />
         </main>
@@ -135,6 +137,12 @@ export default function App() {
 
       {editing !== null && (
         <ProductEditor productId={editing} onClose={() => setEditing(null)} />
+      )}
+      {editingInstance !== null && (
+        <InstancePortsConfig
+          nodeId={editingInstance}
+          onClose={() => setEditingInstance(null)}
+        />
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>
