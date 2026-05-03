@@ -25,14 +25,70 @@ function buildPolyline(points: Point[]): string {
   return d;
 }
 
+type Rect = { x: number; y: number; width: number; height: number };
+
+function segmentCrossesRect(a: Point, b: Point, r: Rect): boolean {
+  const padding = 8;
+  const x1 = r.x - padding;
+  const y1 = r.y - padding;
+  const x2 = r.x + r.width + padding;
+  const y2 = r.y + r.height + padding;
+  if (Math.abs(a.y - b.y) < 1) {
+    if (a.y < y1 || a.y > y2) return false;
+    const lo = Math.min(a.x, b.x);
+    const hi = Math.max(a.x, b.x);
+    return hi > x1 && lo < x2;
+  }
+  if (Math.abs(a.x - b.x) < 1) {
+    if (a.x < x1 || a.x > x2) return false;
+    const lo = Math.min(a.y, b.y);
+    const hi = Math.max(a.y, b.y);
+    return hi > y1 && lo < y2;
+  }
+  return false;
+}
+
+function routeCollides(
+  source: Point,
+  target: Point,
+  waypoints: Point[],
+  obstacles: Rect[],
+): boolean {
+  const all = [source, ...waypoints, target];
+  for (let i = 0; i < all.length - 1; i++) {
+    for (const o of obstacles) {
+      if (segmentCrossesRect(all[i], all[i + 1], o)) return true;
+    }
+  }
+  return false;
+}
+
 // Snap stored waypoints so the rendered polyline only ever has H or V
 // segments. The direction of the first segment is inferred from where the
 // user has placed wp[0] - whichever axis is closer to source. The chain
 // then alternates and the final segment is snapped to land on target.
-function orthogonalize(source: Point, target: Point, stored: Point[]): Point[] {
+function orthogonalize(
+  source: Point,
+  target: Point,
+  stored: Point[],
+  obstacles: Rect[] = [],
+): Point[] {
   if (stored.length === 0) {
     if (Math.abs(source.y - target.y) < 1) return [];
     const midX = (source.x + target.x) / 2;
+    const candidates: number[] = [midX];
+    for (const o of obstacles) {
+      candidates.push(o.x - 30);
+      candidates.push(o.x + o.width + 30);
+    }
+    candidates.sort((a, b) => Math.abs(a - midX) - Math.abs(b - midX));
+    for (const x of candidates) {
+      const wps = [
+        { x, y: source.y },
+        { x, y: target.y },
+      ];
+      if (!routeCollides(source, target, wps, obstacles)) return wps;
+    }
     return [
       { x: midX, y: source.y },
       { x: midX, y: target.y },
@@ -86,10 +142,11 @@ function effectiveWaypoints(
   source: Point,
   target: Point,
   stored: Point[],
+  obstacles: Rect[] = [],
 ): Point[] {
   let wps = stored;
   for (let pass = 0; pass < 5; pass++) {
-    const ortho = orthogonalize(source, target, wps);
+    const ortho = orthogonalize(source, target, wps, obstacles);
     const simple = simplify(source, target, ortho);
     if (simple.length === wps.length) return simple;
     wps = simple;
@@ -112,6 +169,8 @@ export function CableEdge({
   const cable = useAppStore((s) => s.cables.find((c) => c.id === id));
   const updateCable = useAppStore((s) => s.updateCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
+  const allNodes = useAppStore((s) => s.nodes);
+  const allProducts = useAppStore((s) => s.products);
   const zoom = useStore((s) => s.transform[2]);
 
   const dragRef = useRef<{
@@ -125,7 +184,23 @@ export function CableEdge({
   const stored = cable?.waypoints ?? [];
   const source = { x: sourceX, y: sourceY };
   const target = { x: targetX, y: targetY };
-  const waypoints = effectiveWaypoints(source, target, stored);
+  const obstacles: Rect[] = allNodes
+    .filter((n) => n.id !== cable?.fromNodeId && n.id !== cable?.toNodeId)
+    .map((n) => {
+      const p = allProducts.find((pr) => pr.id === n.productId);
+      const rows = Math.max(
+        p?.inputs.length ?? 0,
+        p?.outputs.length ?? 0,
+        1,
+      );
+      return {
+        x: n.position.x,
+        y: n.position.y,
+        width: 240,
+        height: 60 + rows * 22,
+      };
+    });
+  const waypoints = effectiveWaypoints(source, target, stored, obstacles);
   const allPoints: Point[] = [source, ...waypoints, target];
 
   const path = buildPolyline(allPoints);
@@ -296,6 +371,16 @@ export function CableEdge({
 
   return (
     <>
+      {/* White halo - creates a visual "bridge" when this cable crosses one rendered earlier */}
+      <path
+        d={path}
+        stroke="#ffffff"
+        strokeWidth={selected ? 11 : 9}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ pointerEvents: "none" }}
+      />
       <BaseEdge
         id={id}
         path={path}
