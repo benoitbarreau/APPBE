@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAppStore } from "../store";
-import { SIGNAL_COLORS, type Cable } from "../types";
+import { type Cable } from "../types";
 
 export function CableList() {
   const cables = useAppStore((s) => s.cables);
@@ -142,7 +142,7 @@ function CableRow({
   onChange: (patch: Partial<Cable>) => void;
   onRemove: () => void;
 }) {
-  const color = SIGNAL_COLORS[cable.signal];
+  const color = useAppStore((s) => s.signals[cable.signal]?.color) ?? "#888";
   return (
     <div className={"cable-row" + (selected ? " selected" : "")}>
       <div className="cable-row-top">

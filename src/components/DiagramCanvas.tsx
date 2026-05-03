@@ -17,7 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { useAppStore } from "../store";
-import { SIGNAL_COLORS, type SignalType } from "../types";
+import { type SignalType } from "../types";
 import { ProductNode } from "./ProductNode";
 import { CableEdge } from "./CableEdge";
 
@@ -28,6 +28,7 @@ export function DiagramCanvas() {
   const nodes = useAppStore((s) => s.nodes);
   const cables = useAppStore((s) => s.cables);
   const products = useAppStore((s) => s.products);
+  const signals = useAppStore((s) => s.signals);
   const updateNode = useAppStore((s) => s.updateNode);
   const removeNode = useAppStore((s) => s.removeNode);
   const removeCable = useAppStore((s) => s.removeCable);
@@ -49,7 +50,7 @@ export function DiagramCanvas() {
   const rfEdges: Edge[] = useMemo(
     () =>
       cables.map((c) => {
-        const color = SIGNAL_COLORS[c.signal] ?? "#888";
+        const color = signals[c.signal]?.color ?? "#888";
         const line1 = `${c.cableType} ${c.lengthMeters}M`;
         const line2 = c.label ? `${c.number} - ${c.label}` : c.number;
         return {
@@ -64,7 +65,7 @@ export function DiagramCanvas() {
           markerEnd: { type: MarkerType.ArrowClosed, color },
         } satisfies Edge;
       }),
-    [cables],
+    [cables, signals],
   );
 
   const onNodesChange = useCallback(

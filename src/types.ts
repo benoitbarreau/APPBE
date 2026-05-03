@@ -1,20 +1,4 @@
-export type SignalType =
-  | "HDMI"
-  | "RJ45"
-  | "USB"
-  | "USB-C"
-  | "RS232"
-  | "DTP"
-  | "EBUS"
-  | "AUDIO"
-  | "HP"
-  | "DANTE"
-  | "POE"
-  | "POWER"
-  | "DP"
-  | "JACK"
-  | "XLR"
-  | "FIBER";
+export type SignalType = string;
 
 export type PortDirection = "in" | "out" | "bi";
 
@@ -64,59 +48,29 @@ export interface ProjectMeta {
   date: string;
 }
 
-export const SIGNAL_COLORS: Record<SignalType, string> = {
-  HDMI: "#8B4FBA",
-  RJ45: "#7FC97F",
-  USB: "#A0522D",
-  "USB-C": "#A0522D",
-  RS232: "#00BFD8",
-  DTP: "#5BC0EB",
-  EBUS: "#1F4E96",
-  AUDIO: "#F5C432",
-  HP: "#E63946",
-  DANTE: "#7FC97F",
-  POE: "#7FC97F",
-  POWER: "#000000",
-  DP: "#8B4FBA",
-  JACK: "#F5C432",
-  XLR: "#F5C432",
-  FIBER: "#FF6F00",
-};
+export interface SignalDef {
+  id: string;
+  label: string;
+  color: string;
+  defaultCable: string;
+  numberPrefix: string;
+}
 
-export const SIGNAL_NUMBER_PREFIX: Record<SignalType, string> = {
-  HDMI: "HDMI",
-  RJ45: "IP",
-  USB: "USB",
-  "USB-C": "USBC",
-  RS232: "COM",
-  DTP: "DTP",
-  EBUS: "EB",
-  AUDIO: "AU",
-  HP: "HP",
-  DANTE: "DA",
-  POE: "POE",
-  POWER: "P",
-  DP: "DP",
-  JACK: "JK",
-  XLR: "XLR",
-  FIBER: "FB",
-};
-
-export const SIGNAL_DEFAULT_CABLE: Record<SignalType, string> = {
-  HDMI: "HDMI 2.0",
-  RJ45: "RJ45 Cat6",
-  USB: "USB 2.0 A/A",
-  "USB-C": "USB-C 3.0",
-  RS232: "RS232 DB9",
-  DTP: "STP22-2",
-  EBUS: "STP22-2",
-  AUDIO: "Mini-Jack 3.5",
-  HP: "HP 2x2.5mm²",
-  DANTE: "RJ45 Cat6 Dante",
-  POE: "RJ45 Cat6 PoE+",
-  POWER: "Cordon secteur",
-  DP: "DisplayPort",
-  JACK: "Mini-Jack 3.5",
-  XLR: "XLR 3 broches",
-  FIBER: "Fibre OM4",
+export const DEFAULT_SIGNAL_DEFS: Record<string, SignalDef> = {
+  HDMI: { id: "HDMI", label: "HDMI / DP", color: "#8B4FBA", defaultCable: "HDMI 2.0", numberPrefix: "HDMI" },
+  RJ45: { id: "RJ45", label: "RJ45 / IP", color: "#7FC97F", defaultCable: "RJ45 Cat6", numberPrefix: "IP" },
+  USB: { id: "USB", label: "USB", color: "#A0522D", defaultCable: "USB 2.0 A/A", numberPrefix: "USB" },
+  "USB-C": { id: "USB-C", label: "USB-C", color: "#A0522D", defaultCable: "USB-C 3.0", numberPrefix: "USBC" },
+  RS232: { id: "RS232", label: "RS232", color: "#00BFD8", defaultCable: "RS232 DB9", numberPrefix: "COM" },
+  DTP: { id: "DTP", label: "DTP / XTP / HDBaseT", color: "#5BC0EB", defaultCable: "STP22-2", numberPrefix: "DTP" },
+  EBUS: { id: "EBUS", label: "eBUS / Cresnet", color: "#1F4E96", defaultCable: "STP22-2", numberPrefix: "EB" },
+  AUDIO: { id: "AUDIO", label: "Audio", color: "#F5C432", defaultCable: "Mini-Jack 3.5", numberPrefix: "AU" },
+  HP: { id: "HP", label: "HP", color: "#E63946", defaultCable: "HP 2x2.5mm²", numberPrefix: "HP" },
+  DANTE: { id: "DANTE", label: "Dante", color: "#7FC97F", defaultCable: "RJ45 Cat6 Dante", numberPrefix: "DA" },
+  POE: { id: "POE", label: "PoE", color: "#7FC97F", defaultCable: "RJ45 Cat6 PoE+", numberPrefix: "POE" },
+  POWER: { id: "POWER", label: "Secteur", color: "#000000", defaultCable: "Cordon secteur", numberPrefix: "P" },
+  DP: { id: "DP", label: "DisplayPort", color: "#8B4FBA", defaultCable: "DisplayPort", numberPrefix: "DP" },
+  JACK: { id: "JACK", label: "Jack", color: "#F5C432", defaultCable: "Mini-Jack 3.5", numberPrefix: "JK" },
+  XLR: { id: "XLR", label: "XLR", color: "#F5C432", defaultCable: "XLR 3 broches", numberPrefix: "XLR" },
+  FIBER: { id: "FIBER", label: "Fibre", color: "#FF6F00", defaultCable: "Fibre OM4", numberPrefix: "FB" },
 };

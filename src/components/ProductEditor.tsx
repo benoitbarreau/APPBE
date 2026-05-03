@@ -1,31 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store";
 import {
-  SIGNAL_COLORS,
   type Port,
   type PortDirection,
   type Product,
   type SignalType,
 } from "../types";
-
-const SIGNAL_OPTIONS: SignalType[] = [
-  "HDMI",
-  "RJ45",
-  "USB",
-  "USB-C",
-  "RS232",
-  "DTP",
-  "EBUS",
-  "AUDIO",
-  "HP",
-  "DANTE",
-  "POE",
-  "POWER",
-  "DP",
-  "JACK",
-  "XLR",
-  "FIBER",
-];
 
 const emptyProduct = (): Product => ({
   id: "",
@@ -183,6 +163,8 @@ function PortsEditor({
   onRemove: (i: number) => void;
   defaultDirection: PortDirection;
 }) {
+  const signals = useAppStore((s) => s.signals);
+  const signalOptions = useMemo(() => Object.values(signals), [signals]);
   return (
     <div className="ports-editor">
       <div className="ports-editor-header">
@@ -192,7 +174,7 @@ function PortsEditor({
       {ports.length === 0 && <div className="muted">Aucune.</div>}
       {ports.map((p, i) => (
         <div key={i} className="port-edit-row">
-          <span className="port-dot" style={{ background: SIGNAL_COLORS[p.signal] }} />
+          <span className="port-dot" style={{ background: signals[p.signal]?.color ?? "#888" }} />
           <input
             value={p.label}
             onChange={(e) => onChange(i, { label: e.target.value })}
@@ -202,9 +184,9 @@ function PortsEditor({
             value={p.signal}
             onChange={(e) => onChange(i, { signal: e.target.value as SignalType })}
           >
-            {SIGNAL_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
+            {signalOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
               </option>
             ))}
           </select>

@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Cable, PlacedProduct, Product, ProjectMeta, SignalType } from "./types";
-import { SIGNAL_DEFAULT_CABLE, SIGNAL_NUMBER_PREFIX } from "./types";
+import type {
+  Cable,
+  PlacedProduct,
+  Product,
+  ProjectMeta,
+  SignalDef,
+  SignalType,
+} from "./types";
+import { DEFAULT_SIGNAL_DEFS } from "./types";
 import { BUILTIN_CATALOG } from "./catalog";
 
 const DEFAULT_PROJECT_META: ProjectMeta = {
@@ -23,6 +30,7 @@ interface State {
   products: Product[];
   nodes: PlacedProduct[];
   cables: Cable[];
+  signals: Record<string, SignalDef>;
   projectMeta: ProjectMeta;
   selectedNodeId: string | null;
   selectedCableId: string | null;
@@ -46,6 +54,9 @@ interface State {
 
   updateProjectMeta: (patch: Partial<ProjectMeta>) => void;
 
+  upsertSignal: (def: SignalDef) => void;
+  removeSignal: (id: string) => void;
+
   resetProject: () => void;
 }
 
@@ -54,15 +65,13 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-export const defaultCableFor = (signal: SignalType): string =>
-  SIGNAL_DEFAULT_CABLE[signal] ?? "Câble générique";
-
 export const useAppStore = create<State>()(
   persist(
     (set) => ({
       products: BUILTIN_CATALOG,
       nodes: [],
       cables: [],
+      signals: { ...DEFAULT_SIGNAL_DEFS },
       projectMeta: DEFAULT_PROJECT_META,
       selectedNodeId: null,
       selectedCableId: null,
@@ -100,7 +109,8 @@ export const useAppStore = create<State>()(
       addCable: (c) => {
         const id = uid();
         set((s) => {
-          const prefix = SIGNAL_NUMBER_PREFIX[c.signal];
+          const def = s.signals[c.signal];
+          const prefix = def?.numberPrefix ?? c.signal;
           const used = s.cables
             .map((x) => x.number)
             .filter((n): n is string => !!n && n.startsWith(prefix))
@@ -114,7 +124,7 @@ export const useAppStore = create<State>()(
               {
                 id,
                 number,
-                cableType: c.cableType ?? defaultCableFor(c.signal),
+                cableType: c.cableType ?? def?.defaultCable ?? "Câble",
                 ...c,
               } as Cable,
             ],
@@ -135,11 +145,20 @@ export const useAppStore = create<State>()(
       updateProjectMeta: (patch) =>
         set((s) => ({ projectMeta: { ...s.projectMeta, ...patch } })),
 
+      upsertSignal: (def) =>
+        set((s) => ({ signals: { ...s.signals, [def.id]: def } })),
+      removeSignal: (id) =>
+        set((s) => {
+          const next = { ...s.signals };
+          delete next[id];
+          return { signals: next };
+        }),
+
       resetProject: () => set({ nodes: [], cables: [] }),
     }),
     {
       name: "av-diagram-generator",
-      version: 2,
+      version: 3,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> | undefined;
         if (!state) return state as unknown as State;
@@ -147,14 +166,20 @@ export const useAppStore = create<State>()(
           const counters: Record<string, number> = {};
           state.cables = state.cables.map((c) => {
             if (c.number) return c;
-            const prefix = SIGNAL_NUMBER_PREFIX[c.signal] ?? "X";
+            const prefix = DEFAULT_SIGNAL_DEFS[c.signal]?.numberPrefix ?? "X";
             counters[prefix] = (counters[prefix] ?? 0) + 1;
             return { ...c, number: `${prefix}${counters[prefix]}` };
           });
         }
         if (!state.projectMeta) state.projectMeta = DEFAULT_PROJECT_META;
+        if (fromVersion < 3 || !state.signals) {
+          state.signals = { ...DEFAULT_SIGNAL_DEFS };
+        }
         return state as unknown as State;
       },
     },
   ),
 );
+
+export const defaultCableFor = (signal: SignalType): string =>
+  useAppStore.getState().signals[signal]?.defaultCable ?? "Câble générique";

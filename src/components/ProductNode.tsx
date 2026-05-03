@@ -1,6 +1,6 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore } from "../store";
-import { SIGNAL_COLORS, type Port } from "../types";
+import { type Port } from "../types";
 
 type ProductNodeType = Node<{ nodeId: string }, "product">;
 
@@ -53,14 +53,13 @@ function PortRow({
   side: "in" | "out";
   nodeId: string;
 }) {
-  const color = SIGNAL_COLORS[port.signal] ?? "#888";
+  const color = useAppStore((s) => s.signals[port.signal]?.color) ?? "#888";
   const handleId = `${side}:${port.id}`;
   const handleStyle: React.CSSProperties = {
     background: color,
-    width: 12,
-    height: 12,
-    border: "2px solid #fff",
-    boxShadow: `0 0 0 1px ${color}`,
+    width: 4,
+    height: 4,
+    border: "1px solid #fff",
     top: "50%",
     ...(side === "in"
       ? { left: 0, transform: "translate(-50%, -50%)" }
