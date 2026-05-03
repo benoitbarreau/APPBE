@@ -194,6 +194,7 @@ export function DiagramCanvas() {
       onEdgeDoubleClick={onEdgeDoubleClick}
       reconnectRadius={20}
       connectionMode={ConnectionMode.Loose}
+      deleteKeyCode={["Delete", "Backspace"]}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultEdgeOptions={{ type: "cable" }}
