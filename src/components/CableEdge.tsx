@@ -54,6 +54,49 @@ function orthogonalize(source: Point, target: Point, stored: Point[]): Point[] {
   return wps;
 }
 
+// Drop waypoints that no longer matter: zero-length steps and collinear
+// corners (where prev/cur/next sit on the same H or V line, so cur is
+// just a point on a longer straight segment). Iterates until stable.
+function simplify(source: Point, target: Point, waypoints: Point[]): Point[] {
+  const eq = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  let wps = waypoints;
+  for (let pass = 0; pass < 10; pass++) {
+    const next: Point[] = [];
+    const all = [source, ...wps, target];
+    for (let i = 1; i < all.length - 1; i++) {
+      const prev = next.length > 0 ? next[next.length - 1] : source;
+      const cur = all[i];
+      const after = all[i + 1];
+      // Same as previous -> degenerate, drop.
+      if (eq(prev.x, cur.x) && eq(prev.y, cur.y)) continue;
+      // Same as next -> degenerate, drop.
+      if (eq(cur.x, after.x) && eq(cur.y, after.y)) continue;
+      // prev/cur/after collinear -> cur is on a straight bar, drop.
+      if (eq(prev.y, cur.y) && eq(cur.y, after.y)) continue;
+      if (eq(prev.x, cur.x) && eq(cur.x, after.x)) continue;
+      next.push(cur);
+    }
+    if (next.length === wps.length) return wps;
+    wps = next;
+  }
+  return wps;
+}
+
+function effectiveWaypoints(
+  source: Point,
+  target: Point,
+  stored: Point[],
+): Point[] {
+  let wps = stored;
+  for (let pass = 0; pass < 5; pass++) {
+    const ortho = orthogonalize(source, target, wps);
+    const simple = simplify(source, target, ortho);
+    if (simple.length === wps.length) return simple;
+    wps = simple;
+  }
+  return wps;
+}
+
 export function CableEdge({
   id,
   sourceX,
@@ -82,7 +125,7 @@ export function CableEdge({
   const stored = cable?.waypoints ?? [];
   const source = { x: sourceX, y: sourceY };
   const target = { x: targetX, y: targetY };
-  const waypoints = orthogonalize(source, target, stored);
+  const waypoints = effectiveWaypoints(source, target, stored);
   const allPoints: Point[] = [source, ...waypoints, target];
 
   const path = buildPolyline(allPoints);
