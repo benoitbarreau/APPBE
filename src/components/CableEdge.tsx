@@ -249,11 +249,16 @@ export function CableEdge({
       <BaseEdge
         id={id}
         path={path}
-        style={{ ...style, strokeWidth: selected ? 3 : 2 }}
+        style={{
+          ...style,
+          strokeWidth: selected ? 5 : 4,
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+        }}
         markerEnd={markerEnd}
         markerStart={markerStart}
       />
-      {/* Invisible thick hit areas per segment - allow drag of any bar */}
+      {/* Invisible thick hit areas per segment - allow drag anywhere on the bar */}
       {segments.map((seg, i) => {
         const dx = seg.b.x - seg.a.x;
         const dy = seg.b.y - seg.a.y;
@@ -262,36 +267,68 @@ export function CableEdge({
         const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
         return (
           <line
-            key={i}
+            key={`hit-${i}`}
             x1={seg.a.x}
             y1={seg.a.y}
             x2={seg.b.x}
             y2={seg.b.y}
             stroke="transparent"
-            strokeWidth={16}
+            strokeWidth={18}
             style={{ cursor, pointerEvents: "stroke" }}
             onMouseDown={(e) => onSegmentMouseDown(seg, e)}
           />
         );
       })}
-      {selected &&
-        waypoints.map((wp, i) => (
-          <circle
-            key={i}
-            cx={wp.x}
-            cy={wp.y}
-            r={5}
-            fill={color}
-            stroke="#fff"
-            strokeWidth={2}
-            style={{ cursor: "move", pointerEvents: "all" }}
-            onMouseDown={(e) => onWaypointMouseDown(i, e)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              removeWaypoint(i);
-            }}
-          />
-        ))}
+      {/* Mid-segment grip pills - visible drag handles */}
+      {waypoints.length > 0 &&
+        segments.map((seg, i) => {
+          const dx = seg.b.x - seg.a.x;
+          const dy = seg.b.y - seg.a.y;
+          const isH = Math.abs(dy) < 1;
+          const isV = Math.abs(dx) < 1;
+          if (!isH && !isV) return null;
+          const len = Math.hypot(dx, dy);
+          if (len < 30) return null;
+          const midX = (seg.a.x + seg.b.x) / 2;
+          const midY = (seg.a.y + seg.b.y) / 2;
+          const w = isH ? 6 : 16;
+          const h = isH ? 16 : 6;
+          const cursor = isH ? "ns-resize" : "ew-resize";
+          return (
+            <rect
+              key={`grip-${i}`}
+              x={midX - w / 2}
+              y={midY - h / 2}
+              width={w}
+              height={h}
+              rx={3}
+              ry={3}
+              fill={color}
+              stroke="#fff"
+              strokeWidth={1.5}
+              style={{ cursor, pointerEvents: "all" }}
+              onMouseDown={(e) => onSegmentMouseDown(seg, e)}
+            />
+          );
+        })}
+      {/* Waypoint corner handles - white circles with colored ring */}
+      {waypoints.map((wp, i) => (
+        <circle
+          key={`wp-${i}`}
+          cx={wp.x}
+          cy={wp.y}
+          r={selected ? 6 : 5}
+          fill="#fff"
+          stroke={color}
+          strokeWidth={selected ? 3 : 2.5}
+          style={{ cursor: "move", pointerEvents: "all" }}
+          onMouseDown={(e) => onWaypointMouseDown(i, e)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            removeWaypoint(i);
+          }}
+        />
+      ))}
       <EdgeLabelRenderer>
         <div
           className={"cable-edge-label" + (selected ? " selected" : "")}
