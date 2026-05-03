@@ -674,11 +674,16 @@ select {
   padding: 1px 8px;
   white-space: nowrap;
   min-height: 16px;
-  overflow: hidden;
 }
 .port-row .port-label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 9px;
+}
+.port-row.out .port-label {
+  text-align: right;
 }
 .port-row.out {
   justify-content: flex-end;
@@ -697,11 +702,12 @@ select {
   justify-content: center;
   padding: 1px 14px;
   min-height: 16px;
-  overflow: hidden;
 }
 .middle-row .port-label {
   text-align: center;
-  font-size: 10px;
+  font-size: 9px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
