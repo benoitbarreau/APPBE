@@ -101,6 +101,16 @@ export function ProductEditor({
     });
   };
 
+  const reorderPort = (side: PortListKey, fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    setDraft((d) => {
+      const list = [...getList(d, side)];
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      return { ...d, [side]: list };
+    });
+  };
+
   const save = () => {
     if (!draft.reference.trim() || !draft.manufacturer.trim()) {
       alert("Référence et marque obligatoires");
@@ -283,6 +293,7 @@ export function ProductEditor({
             onChange={(i, patch) => setPort("inputs", i, patch)}
             onRemove={(i) => removePort("inputs", i)}
             onMove={(i, to) => movePort("inputs", i, to)}
+            onReorder={(from, to) => reorderPort("inputs", from, to)}
             defaultDirection="in"
           />
           <PortsEditor
@@ -293,6 +304,7 @@ export function ProductEditor({
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
             onMove={(i, to) => movePort("outputs", i, to)}
+            onReorder={(from, to) => reorderPort("outputs", from, to)}
             defaultDirection="out"
           />
           <PortsEditor
@@ -303,6 +315,7 @@ export function ProductEditor({
             onChange={(i, patch) => setPort("middle", i, patch)}
             onRemove={(i) => removePort("middle", i)}
             onMove={(i, to) => movePort("middle", i, to)}
+            onReorder={(from, to) => reorderPort("middle", from, to)}
             defaultDirection="bi"
           />
         </div>
@@ -359,6 +372,7 @@ function PortsEditor({
   onChange,
   onRemove,
   onMove,
+  onReorder,
 }: {
   title: string;
   ports: Port[];
@@ -367,10 +381,12 @@ function PortsEditor({
   onChange: (i: number, patch: Partial<Port>) => void;
   onRemove: (i: number) => void;
   onMove: (i: number, to: PortListKey) => void;
+  onReorder: (fromIdx: number, toIdx: number) => void;
   defaultDirection: PortDirection;
 }) {
   const signals = useAppStore((s) => s.signals);
   const signalOptions = useMemo(() => Object.values(signals), [signals]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   return (
     <div className="ports-editor">
       <div className="ports-editor-header">
@@ -379,7 +395,28 @@ function PortsEditor({
       </div>
       {ports.length === 0 && <div className="muted">Aucune.</div>}
       {ports.map((p, i) => (
-        <div key={i} className="port-edit-row">
+        <div
+          key={i}
+          className={"port-edit-row" + (dragIdx === i ? " dragging" : "")}
+          draggable
+          onDragStart={(e) => {
+            setDragIdx(i);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
+            setDragIdx(null);
+          }}
+          onDragEnd={() => setDragIdx(null)}
+        >
+          <span className="instance-drag-handle" title="Glisser pour réordonner">
+            ≡
+          </span>
           <span className="port-dot" style={{ background: signals[p.signal]?.color ?? "#888" }} />
           <input
             value={p.label}

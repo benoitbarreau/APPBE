@@ -846,6 +846,10 @@ select {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+  cursor: grab;
+}
+.port-edit-row.dragging {
+  opacity: 0.4;
 }
 .port-edit-row > input {
   flex: 1;
