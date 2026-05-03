@@ -6,7 +6,6 @@ import {
   MarkerType,
   MiniMap,
   ReactFlow,
-  useReactFlow,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -36,8 +35,7 @@ export function DiagramCanvas() {
   const addCable = useAppStore((s) => s.addCable);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
-  const updateCable = useAppStore((s) => s.updateCable);
-  const { screenToFlowPosition } = useReactFlow();
+  const reverseCable = useAppStore((s) => s.reverseCable);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -130,14 +128,10 @@ export function DiagramCanvas() {
   );
 
   const onEdgeDoubleClick = useCallback(
-    (e: React.MouseEvent, edge: Edge) => {
-      const cable = useAppStore.getState().cables.find((c) => c.id === edge.id);
-      if (!cable) return;
-      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const waypoints = [...(cable.waypoints ?? []), pos];
-      updateCable(cable.id, { waypoints });
+    (_e: React.MouseEvent, edge: Edge) => {
+      reverseCable(edge.id);
     },
-    [screenToFlowPosition, updateCable],
+    [reverseCable],
   );
 
   return (
