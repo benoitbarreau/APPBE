@@ -77,9 +77,6 @@ function PortRow({
         data-nodeid={nodeId}
       />
       <span className="port-label">{port.label}</span>
-      <span className="port-signal" style={{ color }}>
-        {port.signal}
-      </span>
     </div>
   );
 }
