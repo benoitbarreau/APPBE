@@ -70,7 +70,7 @@ function PortRow({
     <div className={"port-row " + side} title={`${port.signal} — ${port.label}`}>
       <Handle
         id={handleId}
-        type={side === "in" ? "target" : "source"}
+        type="source"
         position={side === "in" ? Position.Left : Position.Right}
         style={handleStyle}
         isConnectable

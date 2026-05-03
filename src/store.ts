@@ -125,6 +125,8 @@ export const useAppStore = create<State>()(
               {
                 id,
                 number,
+                fromPortSide: "out",
+                toPortSide: "in",
                 cableType: c.cableType ?? def?.defaultCable ?? "Câble",
                 ...c,
               } as Cable,

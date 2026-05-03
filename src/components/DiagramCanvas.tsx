@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import {
   Background,
   BackgroundVariant,
+  ConnectionMode,
   Controls,
   MarkerType,
   MiniMap,
@@ -17,7 +18,20 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { useAppStore } from "../store";
-import { type SignalType } from "../types";
+import { type PortSide, type Product, type SignalType } from "../types";
+
+function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
+  if (!handleId) return null;
+  const m = handleId.match(/^(in|out):(.*)$/);
+  if (!m) return null;
+  return { side: m[1] as PortSide, portId: m[2] };
+}
+
+function findPort(product: Product | undefined, side: PortSide, portId: string) {
+  if (!product) return undefined;
+  const list = side === "in" ? product.inputs : product.outputs;
+  return list.find((p) => p.id === portId);
+}
 import { ProductNode } from "./ProductNode";
 import { CableEdge } from "./CableEdge";
 
@@ -57,13 +71,15 @@ export function DiagramCanvas() {
       cables.map((c) => {
         const color = signals[c.signal]?.color ?? "#888";
         const arrow = { type: MarkerType.ArrowClosed, color };
+        const fromSide: PortSide = c.fromPortSide ?? "out";
+        const toSide: PortSide = c.toPortSide ?? "in";
         return {
           id: c.id,
           type: "cable",
           source: c.fromNodeId,
           target: c.toNodeId,
-          sourceHandle: `out:${c.fromPortId}`,
-          targetHandle: `in:${c.toPortId}`,
+          sourceHandle: `${fromSide}:${c.fromPortId}`,
+          targetHandle: `${toSide}:${c.toPortId}`,
           data: { color },
           style: { stroke: color, strokeWidth: 2 },
           markerStart: c.reversed ? arrow : undefined,
@@ -102,29 +118,26 @@ export function DiagramCanvas() {
 
   const onConnect = useCallback(
     (conn: Connection) => {
-      if (!conn.source || !conn.target || !conn.sourceHandle || !conn.targetHandle) return;
-      const fromPortId = conn.sourceHandle.replace(/^out:/, "");
-      const toPortId = conn.targetHandle.replace(/^in:/, "");
+      if (!conn.source || !conn.target) return;
+      const from = parseHandle(conn.sourceHandle);
+      const to = parseHandle(conn.targetHandle);
+      if (!from || !to) return;
       const fromNode = nodes.find((n) => n.id === conn.source);
       const toNode = nodes.find((n) => n.id === conn.target);
       if (!fromNode || !toNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
-      const toProduct = products.find((p) => p.id === toNode.productId);
-      const fromPort = fromProduct?.outputs.find((p) => p.id === fromPortId);
-      const toPort = toProduct?.inputs.find((p) => p.id === toPortId);
-      if (!fromPort || !toPort) return;
-      if (fromPort.signal !== toPort.signal) {
-        const ok = window.confirm(
-          `Signal mismatch: ${fromPort.signal} -> ${toPort.signal}. Créer la liaison quand même ?`,
-        );
-        if (!ok) return;
-      }
+      const fromPort = findPort(fromProduct, from.side, from.portId);
+      if (!fromPort) return;
+      // No restriction: any port to any port. Cable signal/color is taken
+      // from the source port (where the user started the drag).
       const signal: SignalType = fromPort.signal;
       addCable({
         fromNodeId: fromNode.id,
-        fromPortId,
+        fromPortId: from.portId,
+        fromPortSide: from.side,
         toNodeId: toNode.id,
-        toPortId,
+        toPortId: to.portId,
+        toPortSide: to.side,
         signal,
         lengthMeters: 5,
       });
@@ -141,36 +154,23 @@ export function DiagramCanvas() {
 
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
-      if (
-        !newConnection.source ||
-        !newConnection.target ||
-        !newConnection.sourceHandle ||
-        !newConnection.targetHandle
-      )
-        return;
-      const fromPortId = newConnection.sourceHandle.replace(/^out:/, "");
-      const toPortId = newConnection.targetHandle.replace(/^in:/, "");
+      if (!newConnection.source || !newConnection.target) return;
+      const from = parseHandle(newConnection.sourceHandle);
+      const to = parseHandle(newConnection.targetHandle);
+      if (!from || !to) return;
       const fromNode = nodes.find((n) => n.id === newConnection.source);
-      const toNode = nodes.find((n) => n.id === newConnection.target);
-      if (!fromNode || !toNode) return;
+      if (!fromNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
-      const toProduct = products.find((p) => p.id === toNode.productId);
-      const fromPort = fromProduct?.outputs.find((p) => p.id === fromPortId);
-      const toPort = toProduct?.inputs.find((p) => p.id === toPortId);
-      if (!fromPort || !toPort) return;
-      if (fromPort.signal !== toPort.signal) {
-        const ok = window.confirm(
-          `Signal mismatch: ${fromPort.signal} -> ${toPort.signal}. Reconnecter quand même ?`,
-        );
-        if (!ok) return;
-      }
+      const fromPort = findPort(fromProduct, from.side, from.portId);
+      if (!fromPort) return;
       updateCable(oldEdge.id, {
         fromNodeId: newConnection.source,
-        fromPortId,
+        fromPortId: from.portId,
+        fromPortSide: from.side,
         toNodeId: newConnection.target,
-        toPortId,
+        toPortId: to.portId,
+        toPortSide: to.side,
         signal: fromPort.signal,
-        // Reset waypoints since the geometry has changed substantially
         waypoints: [],
       });
     },
@@ -187,6 +187,7 @@ export function DiagramCanvas() {
       onReconnect={onReconnect}
       onEdgeDoubleClick={onEdgeDoubleClick}
       reconnectRadius={20}
+      connectionMode={ConnectionMode.Loose}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultEdgeOptions={{ type: "cable" }}

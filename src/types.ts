@@ -25,13 +25,17 @@ export interface PlacedProduct {
   position: { x: number; y: number };
 }
 
+export type PortSide = "in" | "out";
+
 export interface Cable {
   id: string;
   number: string;
   fromNodeId: string;
   fromPortId: string;
+  fromPortSide?: PortSide;
   toNodeId: string;
   toPortId: string;
+  toPortSide?: PortSide;
   signal: SignalType;
   cableType: string;
   lengthMeters: number;

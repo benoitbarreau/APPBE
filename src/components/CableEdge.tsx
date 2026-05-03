@@ -7,6 +7,7 @@ import {
   type Edge,
 } from "@xyflow/react";
 import { useAppStore } from "../store";
+import type { Cable, PortSide } from "../types";
 
 export interface CableEdgeData extends Record<string, unknown> {
   color: string;
@@ -15,6 +16,7 @@ export interface CableEdgeData extends Record<string, unknown> {
 export type CableEdgeType = Edge<CableEdgeData, "cable">;
 
 type Point = { x: number; y: number };
+type Seg = { a: Point; b: Point; isH: boolean; isV: boolean };
 
 function buildPolyline(points: Point[]): string {
   if (points.length < 2) return "";
@@ -23,6 +25,107 @@ function buildPolyline(points: Point[]): string {
     d += ` L ${points[i].x} ${points[i].y}`;
   }
   return d;
+}
+
+// Insert small SVG arc bumps where the path crosses other cables (=
+// segments perpendicular to the current one). Bumps are drawn over the
+// other cable so the current cable visually goes over it.
+function buildPathWithBumps(
+  points: Point[],
+  bumpsPerSeg: Map<number, Point[]>,
+  r = 6,
+): string {
+  if (points.length < 2) return "";
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const segIdx = i - 1;
+    const isH = Math.abs(a.y - b.y) < 1;
+    const isV = Math.abs(a.x - b.x) < 1;
+    const list = bumpsPerSeg.get(segIdx) ?? [];
+    if (list.length === 0 || (!isH && !isV)) {
+      d += ` L ${b.x} ${b.y}`;
+      continue;
+    }
+    if (isH) {
+      const dirX = a.x < b.x ? 1 : -1;
+      const sorted = [...list].sort((p, q) => (p.x - q.x) * dirX);
+      const valid = sorted.filter(
+        (bump) =>
+          Math.abs(bump.x - a.x) > r + 2 && Math.abs(bump.x - b.x) > r + 2,
+      );
+      const sweep = dirX > 0 ? 0 : 1; // bump UP
+      for (const bump of valid) {
+        d += ` L ${bump.x - dirX * r} ${a.y}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${a.y}`;
+      }
+      d += ` L ${b.x} ${b.y}`;
+    } else {
+      const dirY = a.y < b.y ? 1 : -1;
+      const sorted = [...list].sort((p, q) => (p.y - q.y) * dirY);
+      const valid = sorted.filter(
+        (bump) =>
+          Math.abs(bump.y - a.y) > r + 2 && Math.abs(bump.y - b.y) > r + 2,
+      );
+      const sweep = dirY > 0 ? 0 : 1; // bump RIGHT
+      for (const bump of valid) {
+        d += ` L ${a.x} ${bump.y - dirY * r}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${a.x} ${bump.y + dirY * r}`;
+      }
+      d += ` L ${b.x} ${b.y}`;
+    }
+  }
+  return d;
+}
+
+function intersect(s1: Seg, s2: Seg): Point | null {
+  if (s1.isH && s2.isV) {
+    const x = s2.a.x;
+    const y = s1.a.y;
+    if (
+      x > Math.min(s1.a.x, s1.b.x) &&
+      x < Math.max(s1.a.x, s1.b.x) &&
+      y > Math.min(s2.a.y, s2.b.y) &&
+      y < Math.max(s2.a.y, s2.b.y)
+    )
+      return { x, y };
+  }
+  if (s1.isV && s2.isH) {
+    const x = s1.a.x;
+    const y = s2.a.y;
+    if (
+      x > Math.min(s2.a.x, s2.b.x) &&
+      x < Math.max(s2.a.x, s2.b.x) &&
+      y > Math.min(s1.a.y, s1.b.y) &&
+      y < Math.max(s1.a.y, s1.b.y)
+    )
+      return { x, y };
+  }
+  return null;
+}
+
+function getHandlePos(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nodeLookup: Map<string, any>,
+  nodeId: string,
+  portId: string,
+  side: PortSide,
+): Point | null {
+  const node = nodeLookup.get(nodeId);
+  if (!node?.internals?.handleBounds) return null;
+  const handleId = `${side}:${portId}`;
+  const sources = node.internals.handleBounds.source ?? [];
+  const targets = node.internals.handleBounds.target ?? [];
+  const handle = [...sources, ...targets].find(
+    (h: { id: string }) => h.id === handleId,
+  );
+  if (!handle) return null;
+  const abs = node.internals.positionAbsolute;
+  return {
+    x: abs.x + handle.x + handle.width / 2,
+    y: abs.y + handle.y + handle.height / 2,
+  };
 }
 
 type Rect = { x: number; y: number; width: number; height: number };
@@ -167,11 +270,13 @@ export function CableEdge({
   selected,
 }: EdgeProps<CableEdgeType>) {
   const cable = useAppStore((s) => s.cables.find((c) => c.id === id));
+  const allCables = useAppStore((s) => s.cables);
   const updateCable = useAppStore((s) => s.updateCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
   const allNodes = useAppStore((s) => s.nodes);
   const allProducts = useAppStore((s) => s.products);
   const zoom = useStore((s) => s.transform[2]);
+  const nodeLookup = useStore((s) => s.nodeLookup);
 
   const dragRef = useRef<{
     startX: number;
@@ -184,26 +289,96 @@ export function CableEdge({
   const stored = cable?.waypoints ?? [];
   const source = { x: sourceX, y: sourceY };
   const target = { x: targetX, y: targetY };
-  const obstacles: Rect[] = allNodes
-    .filter((n) => n.id !== cable?.fromNodeId && n.id !== cable?.toNodeId)
-    .map((n) => {
-      const p = allProducts.find((pr) => pr.id === n.productId);
-      const rows = Math.max(
-        p?.inputs.length ?? 0,
-        p?.outputs.length ?? 0,
-        1,
-      );
-      return {
-        x: n.position.x,
-        y: n.position.y,
-        width: 240,
-        height: 60 + rows * 22,
-      };
-    });
+
+  const buildObstacles = (forCable: Cable | undefined): Rect[] => {
+    return allNodes
+      .map((n): Rect | null => {
+        const p = allProducts.find((pr) => pr.id === n.productId);
+        const rows = Math.max(p?.inputs.length ?? 0, p?.outputs.length ?? 0, 1);
+        const fullW = 240;
+        const fullH = 60 + rows * 22;
+        const isFrom = n.id === forCable?.fromNodeId;
+        const isTo = n.id === forCable?.toNodeId;
+        if (isFrom && isTo) return null;
+        if (isFrom) {
+          const portRight = (forCable?.fromPortSide ?? "out") === "out";
+          return portRight
+            ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
+            : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
+        }
+        if (isTo) {
+          const portRight = (forCable?.toPortSide ?? "in") === "out";
+          return portRight
+            ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
+            : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
+        }
+        return { x: n.position.x, y: n.position.y, width: fullW, height: fullH };
+      })
+      .filter((o): o is Rect => o !== null);
+  };
+
+  const obstacles = buildObstacles(cable);
   const waypoints = effectiveWaypoints(source, target, stored, obstacles);
   const allPoints: Point[] = [source, ...waypoints, target];
 
-  const path = buildPolyline(allPoints);
+  // Build segments for current cable
+  const segs: Seg[] = [];
+  for (let i = 0; i < allPoints.length - 1; i++) {
+    const a = allPoints[i];
+    const b = allPoints[i + 1];
+    segs.push({ a, b, isH: Math.abs(a.y - b.y) < 1, isV: Math.abs(a.x - b.x) < 1 });
+  }
+
+  // Compute bump points where current cable crosses earlier cables.
+  // Convention: a cable bumps over cables earlier in the array.
+  const cableIdx = allCables.findIndex((c) => c.id === id);
+  const bumpsPerSeg = new Map<number, Point[]>();
+  if (cableIdx > 0) {
+    const earlierSegs: Seg[] = [];
+    for (let ci = 0; ci < cableIdx; ci++) {
+      const ec = allCables[ci];
+      const eFrom = getHandlePos(
+        nodeLookup,
+        ec.fromNodeId,
+        ec.fromPortId,
+        ec.fromPortSide ?? "out",
+      );
+      const eTo = getHandlePos(
+        nodeLookup,
+        ec.toNodeId,
+        ec.toPortId,
+        ec.toPortSide ?? "in",
+      );
+      if (!eFrom || !eTo) continue;
+      const eObstacles = buildObstacles(ec);
+      const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObstacles);
+      const ePts = [eFrom, ...ewps, eTo];
+      for (let i = 0; i < ePts.length - 1; i++) {
+        const a = ePts[i];
+        const b = ePts[i + 1];
+        earlierSegs.push({
+          a,
+          b,
+          isH: Math.abs(a.y - b.y) < 1,
+          isV: Math.abs(a.x - b.x) < 1,
+        });
+      }
+    }
+    for (let i = 0; i < segs.length; i++) {
+      const myseg = segs[i];
+      const list: Point[] = [];
+      for (const es of earlierSegs) {
+        const pt = intersect(myseg, es);
+        if (pt) list.push(pt);
+      }
+      if (list.length > 0) bumpsPerSeg.set(i, list);
+    }
+  }
+
+  const path =
+    bumpsPerSeg.size > 0
+      ? buildPathWithBumps(allPoints, bumpsPerSeg)
+      : buildPolyline(allPoints);
   const mid = Math.floor(allPoints.length / 2);
   const a = allPoints[mid - 1] ?? allPoints[0];
   const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
@@ -371,16 +546,6 @@ export function CableEdge({
 
   return (
     <>
-      {/* White halo - creates a visual "bridge" when this cable crosses one rendered earlier */}
-      <path
-        d={path}
-        stroke="#ffffff"
-        strokeWidth={selected ? 11 : 9}
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ pointerEvents: "none" }}
-      />
       <BaseEdge
         id={id}
         path={path}
