@@ -185,9 +185,10 @@ select {
 /* Edge label inline-éditable type Synodz */
 .cable-edge-label {
   pointer-events: all;
-  background: transparent;
-  padding: 0;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 2px 5px;
   border: none;
+  border-radius: 3px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -196,6 +197,7 @@ select {
   white-space: nowrap;
   cursor: move;
   user-select: none;
+  backdrop-filter: blur(1px);
 }
 .cable-edge-label.selected {
   outline: 1px dashed currentColor;
@@ -294,9 +296,9 @@ select {
   background: #f0f3f8;
 }
 
-/* Label layer above nodes so it stays readable */
+/* Label layer above nodes AND above the elevated edge SVG (zIndex 1000) */
 .react-flow__edgelabel-renderer {
-  z-index: 5;
+  z-index: 1001;
 }
 
 .cable-number {
