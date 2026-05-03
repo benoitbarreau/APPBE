@@ -13,14 +13,44 @@ Première version d'une application web pour concevoir des synoptiques d'install
 - Liste des câbles + récapitulatif quantité/longueur par type, export CSV.
 - Sauvegarde automatique du projet dans le navigateur (localStorage), export JSON du projet.
 
-## Démarrage
+## Démarrage en local
+
+Pré-requis : [Node.js 18 ou +](https://nodejs.org).
+
+### macOS / Linux
 
 ```bash
+git clone -b claude/av-diagram-generator-DvBJA https://github.com/benoitbarreau/appbe.git
+cd appbe
 npm install
 npm run dev
 ```
 
-Puis ouvrez http://localhost:5173.
+### Windows (PowerShell)
+
+```powershell
+git clone -b claude/av-diagram-generator-DvBJA https://github.com/benoitbarreau/appbe.git
+cd appbe
+npm install
+npm run dev
+```
+
+Puis ouvrez http://localhost:5173 dans un navigateur.
+
+Le projet est sauvegardé automatiquement dans le `localStorage` du navigateur. Pour repartir d'une page blanche : bouton *Réinitialiser* en haut à droite.
+
+### Build de production
+
+```bash
+npm run build      # produit dist/
+npm run preview    # sert dist/ sur http://localhost:4173
+```
+
+## Déploiement
+
+À chaque push sur `main` ou `claude/av-diagram-generator-DvBJA`, GitHub Actions construit l'app et la déploie sur GitHub Pages : <https://benoitbarreau.github.io/appbe/>.
+
+Pré-requis côté repo (à faire une seule fois) : *Settings → Pages → Build and deployment → Source = GitHub Actions*.
 
 ## Roadmap envisageable
 
