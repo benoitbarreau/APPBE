@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store";
 import { fileToResizedDataUrl } from "../image";
+import { ProductPreview } from "./ProductPreview";
 import {
   type Port,
   type PortDirection,
@@ -172,12 +173,16 @@ export function ProductEditor({
 
   return (
     <div className="modal-backdrop">
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal modal-with-preview"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>{isNew ? "Nouveau produit" : "Éditer le produit"}</h2>
           <button onClick={onClose}>✕</button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body modal-body-split">
+          <div className="modal-form">
           <div className="form-row">
             <label>Marque</label>
             <input
@@ -318,6 +323,55 @@ export function ProductEditor({
             onReorder={(from, to) => reorderPort("middle", from, to)}
             defaultDirection="bi"
           />
+          </div>
+          <aside className="modal-preview">
+            <div className="modal-preview-title">Aperçu</div>
+            <ProductPreview product={draft} />
+            {(draft.imageFront || draft.imageBack) && (
+              <div className="modal-preview-images">
+                {draft.imageFront && (
+                  <div className="modal-preview-image">
+                    <div className="modal-preview-image-label">Face</div>
+                    <img src={draft.imageFront} alt="Face" />
+                  </div>
+                )}
+                {draft.imageBack && (
+                  <div className="modal-preview-image">
+                    <div className="modal-preview-image-label">Dos</div>
+                    <img src={draft.imageBack} alt="Dos" />
+                  </div>
+                )}
+              </div>
+            )}
+            {(draft.rackHeightU || draft.rackSize) && (
+              <div className="modal-preview-meta muted">
+                {draft.rackHeightU ? `${draft.rackHeightU} U` : ""}
+                {draft.rackSize ? ` · ${draft.rackSize}"` : ""}
+                {draft.rackWidth && draft.rackSize === "19"
+                  ? draft.rackWidth === "full"
+                    ? " · pleine largeur"
+                    : draft.rackWidth === "half"
+                      ? " · 1/2 largeur"
+                      : " · 1/4 largeur"
+                  : ""}
+              </div>
+            )}
+            {draft.articleCode && (
+              <div className="modal-preview-meta muted">
+                Code : {draft.articleCode}
+              </div>
+            )}
+            {draft.productUrl && (
+              <a
+                className="modal-preview-meta"
+                href={draft.productUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Lien produit
+              </a>
+            )}
+          </aside>
         </div>
         <div className="modal-footer">
           {!isNew && (
