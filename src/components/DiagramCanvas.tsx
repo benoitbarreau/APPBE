@@ -65,18 +65,45 @@ export function DiagramCanvas({
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
 
-  const rfNodes: Node[] = useMemo(
-    () => [
-      {
-        id: PAGE_NODE_ID,
-        type: "page",
-        position: { x: PAGE_BOUNDS.x, y: PAGE_BOUNDS.y },
-        data: {},
-        selectable: false,
-        draggable: false,
-        deletable: false,
-        zIndex: -1,
-      },
+  const rfNodes: Node[] = useMemo(() => {
+    // Compute the grid of A3 pages large enough to cover the diagram.
+    // Each page is PAGE_BOUNDS.width x PAGE_BOUNDS.height in flow units;
+    // tile starting from (0, 0).
+    const NODE_W = 240;
+    const NODE_H = 220;
+    let maxRight = PAGE_BOUNDS.width;
+    let maxBottom = PAGE_BOUNDS.height;
+    let minLeft = 0;
+    let minTop = 0;
+    for (const n of nodes) {
+      if (n.position.x + NODE_W > maxRight) maxRight = n.position.x + NODE_W;
+      if (n.position.y + NODE_H > maxBottom) maxBottom = n.position.y + NODE_H;
+      if (n.position.x < minLeft) minLeft = n.position.x;
+      if (n.position.y < minTop) minTop = n.position.y;
+    }
+    const colStart = Math.min(0, Math.floor(minLeft / PAGE_BOUNDS.width));
+    const rowStart = Math.min(0, Math.floor(minTop / PAGE_BOUNDS.height));
+    const colEnd = Math.max(1, Math.ceil(maxRight / PAGE_BOUNDS.width));
+    const rowEnd = Math.max(1, Math.ceil(maxBottom / PAGE_BOUNDS.height));
+    const pages: Node[] = [];
+    let pageIdx = 1;
+    for (let r = rowStart; r < rowEnd; r++) {
+      for (let c = colStart; c < colEnd; c++) {
+        pages.push({
+          id: `${PAGE_NODE_ID}-${c}-${r}`,
+          type: "page",
+          position: { x: c * PAGE_BOUNDS.width, y: r * PAGE_BOUNDS.height },
+          data: { label: `Page ${pageIdx}` },
+          selectable: false,
+          draggable: false,
+          deletable: false,
+          zIndex: -1,
+        });
+        pageIdx++;
+      }
+    }
+    return [
+      ...pages,
       ...nodes.map((n) => ({
         id: n.id,
         type: "product",
@@ -84,9 +111,8 @@ export function DiagramCanvas({
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
       })),
-    ],
-    [nodes, selectedNodeId],
-  );
+    ];
+  }, [nodes, selectedNodeId]);
 
   const rfEdges: Edge[] = useMemo(
     () =>
