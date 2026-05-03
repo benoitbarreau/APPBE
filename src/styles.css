@@ -100,6 +100,121 @@ select {
 .canvas {
   position: relative;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.canvas > .react-flow {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Cartouche projet (style planche AV) */
+.cartouche {
+  border-top: 1px solid var(--border);
+  background: #fff;
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  height: 64px;
+  flex-shrink: 0;
+}
+.cartouche-cell {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px;
+  gap: 2px;
+}
+.cartouche-cell:last-child {
+  border-right: none;
+}
+.cartouche input {
+  border: none;
+  background: transparent;
+  padding: 1px 2px;
+  font-size: 11px;
+}
+.cartouche input:focus {
+  outline: 1px solid var(--primary);
+  background: #fafbfc;
+}
+.cartouche-title {
+  font-weight: 700;
+  font-size: 13px !important;
+}
+.cartouche-trade {
+  font-size: 11px !important;
+  color: var(--muted);
+}
+.cartouche-date {
+  font-size: 10px !important;
+  color: var(--muted);
+  font-style: italic;
+}
+.cartouche-client {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.cartouche-label {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+.cartouche-client-name {
+  font-size: 16px !important;
+  font-weight: 600;
+  flex: 1;
+  max-width: 320px;
+}
+.cartouche-be-name {
+  font-weight: 700;
+  font-size: 12px !important;
+}
+.cartouche-author {
+  font-size: 11px !important;
+  color: var(--muted);
+}
+.cartouche-version {
+  font-size: 11px !important;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Edge label deux lignes type Synodz */
+.cable-edge-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: all;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.cable-edge-label.selected {
+  outline: 1px solid currentColor;
+}
+.cable-edge-line1 {
+  font-weight: 700;
+}
+.cable-edge-line2 {
+  font-weight: 600;
+  font-size: 9px;
+  opacity: 0.95;
+}
+
+.cable-number {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  min-width: 44px;
+  text-align: center;
 }
 
 .palette {

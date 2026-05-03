@@ -41,9 +41,25 @@ export function CableList() {
   }, [cables]);
 
   const exportCsv = () => {
-    const header = ["Type de câble", "Signal", "De", "Vers", "Longueur (m)", "Libellé"].join(";");
+    const header = [
+      "N°",
+      "Type de câble",
+      "Signal",
+      "De",
+      "Vers",
+      "Longueur (m)",
+      "Libellé",
+    ].join(";");
     const lines = rows.map(({ cable, from, to }) =>
-      [cable.cableType, cable.signal, from, to, cable.lengthMeters, cable.label ?? ""]
+      [
+        cable.number,
+        cable.cableType,
+        cable.signal,
+        from,
+        to,
+        cable.lengthMeters,
+        cable.label ?? "",
+      ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(";"),
     );
@@ -130,9 +146,12 @@ function CableRow({
   return (
     <div className={"cable-row" + (selected ? " selected" : "")}>
       <div className="cable-row-top">
-        <span className="port-dot" style={{ background: color }} />
-        <span className="cable-signal" style={{ color }}>
-          {cable.signal}
+        <span
+          className="cable-number"
+          style={{ background: color, color: "#fff" }}
+          title="Numérotation auto"
+        >
+          {cable.number}
         </span>
         <input
           className="cable-type"

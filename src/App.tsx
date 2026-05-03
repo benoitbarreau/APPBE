@@ -6,6 +6,7 @@ import { ProductEditor } from "./components/ProductEditor";
 import { ImportDialog } from "./components/ImportDialog";
 import { CableList } from "./components/CableList";
 import { Legend } from "./components/Legend";
+import { Cartouche } from "./components/Cartouche";
 import { useAppStore } from "./store";
 
 export default function App() {
@@ -69,6 +70,7 @@ export default function App() {
           <ReactFlowProvider>
             <DiagramCanvas />
           </ReactFlowProvider>
+          <Cartouche />
         </main>
 
         <aside className="sidebar right">

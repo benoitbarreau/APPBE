@@ -19,8 +19,10 @@ import "@xyflow/react/dist/style.css";
 import { useAppStore } from "../store";
 import { SIGNAL_COLORS, type SignalType } from "../types";
 import { ProductNode } from "./ProductNode";
+import { CableEdge } from "./CableEdge";
 
 const nodeTypes = { product: ProductNode };
+const edgeTypes = { cable: CableEdge };
 
 export function DiagramCanvas() {
   const nodes = useAppStore((s) => s.nodes);
@@ -48,15 +50,16 @@ export function DiagramCanvas() {
     () =>
       cables.map((c) => {
         const color = SIGNAL_COLORS[c.signal] ?? "#888";
+        const line1 = `${c.cableType} ${c.lengthMeters}M`;
+        const line2 = c.label ? `${c.number} - ${c.label}` : c.number;
         return {
           id: c.id,
+          type: "cable",
           source: c.fromNodeId,
           target: c.toNodeId,
           sourceHandle: `out:${c.fromPortId}`,
           targetHandle: `in:${c.toPortId}`,
-          label: `${c.cableType} ${c.lengthMeters}M`,
-          labelStyle: { fontSize: 10, fill: color, fontWeight: 600 },
-          labelBgStyle: { fill: "#fff", fillOpacity: 0.85 },
+          data: { line1, line2, color },
           style: { stroke: color, strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
         } satisfies Edge;
@@ -130,6 +133,8 @@ export function DiagramCanvas() {
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      defaultEdgeOptions={{ type: "cable" }}
       fitView
       proOptions={{ hideAttribution: true }}
     >

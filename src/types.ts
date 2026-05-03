@@ -43,6 +43,7 @@ export interface PlacedProduct {
 
 export interface Cable {
   id: string;
+  number: string;
   fromNodeId: string;
   fromPortId: string;
   toNodeId: string;
@@ -51,6 +52,16 @@ export interface Cable {
   cableType: string;
   lengthMeters: number;
   label?: string;
+}
+
+export interface ProjectMeta {
+  campus: string;
+  client: string;
+  bureauEtude: string;
+  trade: string;
+  authorName: string;
+  version: string;
+  date: string;
 }
 
 export const SIGNAL_COLORS: Record<SignalType, string> = {
@@ -70,6 +81,25 @@ export const SIGNAL_COLORS: Record<SignalType, string> = {
   JACK: "#F5C432",
   XLR: "#F5C432",
   FIBER: "#FF6F00",
+};
+
+export const SIGNAL_NUMBER_PREFIX: Record<SignalType, string> = {
+  HDMI: "HDMI",
+  RJ45: "IP",
+  USB: "USB",
+  "USB-C": "USBC",
+  RS232: "COM",
+  DTP: "DTP",
+  EBUS: "EB",
+  AUDIO: "AU",
+  HP: "HP",
+  DANTE: "DA",
+  POE: "POE",
+  POWER: "P",
+  DP: "DP",
+  JACK: "JK",
+  XLR: "XLR",
+  FIBER: "FB",
 };
 
 export const SIGNAL_DEFAULT_CABLE: Record<SignalType, string> = {
