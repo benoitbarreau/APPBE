@@ -28,7 +28,12 @@ export default function App() {
       updateNode(p.id, { position: { x: p.x, y: p.y } });
     }
     for (const c of state.cables) {
-      if (c.labelOffset) updateCable(c.id, { labelOffset: { x: 0, y: 0 } });
+      if (c.labelOffset || (c.waypoints && c.waypoints.length > 0)) {
+        updateCable(c.id, {
+          labelOffset: { x: 0, y: 0 },
+          waypoints: [],
+        });
+      }
     }
   };
 

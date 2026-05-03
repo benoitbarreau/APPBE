@@ -38,6 +38,7 @@ export interface Cable {
   label?: string;
   labelOffset?: { x: number; y: number };
   reversed?: boolean;
+  waypoints?: { x: number; y: number }[];
 }
 
 export interface ProjectMeta {

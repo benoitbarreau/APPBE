@@ -205,7 +205,7 @@ select {
 .cable-edge-line1 {
   display: flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 1px;
 }
 .cable-edge-line1 .cable-edge-len {
   margin-right: -1px;

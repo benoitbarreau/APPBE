@@ -15,6 +15,25 @@ export interface CableEdgeData extends Record<string, unknown> {
 
 export type CableEdgeType = Edge<CableEdgeData, "cable">;
 
+type Point = { x: number; y: number };
+
+function buildOrthogonalPath(points: Point[]): { d: string; midX: number; midY: number } {
+  if (points.length < 2) return { d: "", midX: 0, midY: 0 };
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    if (prev.x !== curr.x && prev.y !== curr.y) {
+      d += ` L ${curr.x} ${prev.y}`;
+    }
+    d += ` L ${curr.x} ${curr.y}`;
+  }
+  const midIdx = Math.floor(points.length / 2);
+  const a = points[midIdx - 1] ?? points[0];
+  const b = points[midIdx] ?? points[points.length - 1];
+  return { d, midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2 };
+}
+
 export function CableEdge({
   id,
   sourceX,
@@ -42,15 +61,32 @@ export function CableEdge({
     moved: boolean;
   } | null>(null);
 
-  const [path, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    borderRadius: 6,
-  });
+  const waypoints = cable?.waypoints ?? [];
+
+  let path: string;
+  let labelX: number;
+  let labelY: number;
+  if (waypoints.length === 0) {
+    [path, labelX, labelY] = getSmoothStepPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+      borderRadius: 6,
+    });
+  } else {
+    const all: Point[] = [
+      { x: sourceX, y: sourceY },
+      ...waypoints,
+      { x: targetX, y: targetY },
+    ];
+    const r = buildOrthogonalPath(all);
+    path = r.d;
+    labelX = r.midX;
+    labelY = r.midY;
+  }
 
   const color = data?.color ?? "#888";
 
@@ -102,6 +138,32 @@ export function CableEdge({
     document.addEventListener("mouseup", onUp);
   };
 
+  const onWaypointMouseDown = (i: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const list = cable.waypoints ?? [];
+    const orig = { ...list[i] };
+    const start = { x: e.clientX, y: e.clientY };
+    const onMove = (ev: MouseEvent) => {
+      const dx = (ev.clientX - start.x) / zoom;
+      const dy = (ev.clientY - start.y) / zoom;
+      const next = [...(useAppStore.getState().cables.find((c) => c.id === cable.id)?.waypoints ?? [])];
+      next[i] = { x: orig.x + dx, y: orig.y + dy };
+      updateCable(cable.id, { waypoints: next });
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  const removeWaypoint = (i: number) => {
+    const next = (cable.waypoints ?? []).filter((_, idx) => idx !== i);
+    updateCable(cable.id, { waypoints: next });
+  };
+
   return (
     <>
       <BaseEdge
@@ -111,6 +173,24 @@ export function CableEdge({
         markerEnd={markerEnd}
         markerStart={markerStart}
       />
+      {selected &&
+        waypoints.map((wp, i) => (
+          <circle
+            key={i}
+            cx={wp.x}
+            cy={wp.y}
+            r={5}
+            fill={color}
+            stroke="#fff"
+            strokeWidth={2}
+            style={{ cursor: "move", pointerEvents: "all" }}
+            onMouseDown={(e) => onWaypointMouseDown(i, e)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              removeWaypoint(i);
+            }}
+          />
+        ))}
       <EdgeLabelRenderer>
         <div
           className={"cable-edge-label" + (selected ? " selected" : "")}
@@ -127,7 +207,7 @@ export function CableEdge({
             <input
               className="cable-edge-type"
               value={cable.cableType}
-              style={{ width: `${Math.max(cable.cableType.length, 1) + 0.7}ch` }}
+              style={{ width: `${Math.max(cable.cableType.length, 1) + 0.3}ch` }}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
             <input
@@ -136,7 +216,7 @@ export function CableEdge({
               min={0}
               step={0.5}
               value={cable.lengthMeters}
-              style={{ width: `${String(cable.lengthMeters).length + 0.5}ch` }}
+              style={{ width: `${String(cable.lengthMeters).length + 0.3}ch` }}
               onChange={(e) =>
                 updateCable(cable.id, { lengthMeters: Number(e.target.value) })
               }
