@@ -645,6 +645,14 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.product-node-cat {
+  font-size: 9px;
+  color: var(--muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .product-node-body {
   display: flex;
   justify-content: space-between;

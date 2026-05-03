@@ -34,10 +34,9 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
       title={`${product.manufacturer} ${product.reference} — ${product.category}`}
     >
       <div className="product-node-header">
-        <div className="product-node-name">{node.name}</div>
-        <div className="product-node-ref">
-          {product.manufacturer} · {product.reference}
-        </div>
+        <div className="product-node-name">{product.manufacturer}</div>
+        <div className="product-node-ref">{product.reference}</div>
+        <div className="product-node-cat">{product.category}</div>
       </div>
       <div className="product-node-body">
         <div className="port-col">
