@@ -5,6 +5,7 @@ import { ProductPalette } from "./components/ProductPalette";
 import { ProductEditor } from "./components/ProductEditor";
 import { ImportDialog } from "./components/ImportDialog";
 import { CableList } from "./components/CableList";
+import { EtiquettesList } from "./components/EtiquettesList";
 import { Legend } from "./components/Legend";
 import { Cartouche } from "./components/Cartouche";
 import { useAppStore } from "./store";
@@ -13,7 +14,9 @@ import { layoutNodes } from "./layout";
 export default function App() {
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [importing, setImporting] = useState(false);
-  const [rightTab, setRightTab] = useState<"cables" | "legend">("cables");
+  const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "legend">(
+    "cables",
+  );
 
   const addNode = useAppStore((s) => s.addNode);
   const nodes = useAppStore((s) => s.nodes);
@@ -104,13 +107,21 @@ export default function App() {
               Câbles
             </button>
             <button
+              className={rightTab === "etiquettes" ? "active" : ""}
+              onClick={() => setRightTab("etiquettes")}
+            >
+              Etiquettes
+            </button>
+            <button
               className={rightTab === "legend" ? "active" : ""}
               onClick={() => setRightTab("legend")}
             >
               Légende
             </button>
           </div>
-          {rightTab === "cables" ? <CableList /> : <Legend />}
+          {rightTab === "cables" && <CableList />}
+          {rightTab === "etiquettes" && <EtiquettesList />}
+          {rightTab === "legend" && <Legend />}
         </aside>
       </div>
 
