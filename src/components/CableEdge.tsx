@@ -1,8 +1,8 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getSmoothStepPath,
+  Position,
   useStore,
   type EdgeProps,
   type Edge,
@@ -24,6 +24,54 @@ function buildPolyline(points: Point[]): string {
     d += ` L ${points[i].x} ${points[i].y}`;
   }
   return d;
+}
+
+function computeInitialWaypoints(
+  sx: number,
+  sy: number,
+  spos: Position,
+  tx: number,
+  ty: number,
+  tpos: Position,
+): Point[] {
+  // Default Z route depending on port directions
+  const horiz = (p: Position) => p === Position.Left || p === Position.Right;
+  const sH = horiz(spos);
+  const tH = horiz(tpos);
+  if (sH && tH) {
+    if (Math.abs(sy - ty) < 1) return [];
+    const midX = (sx + tx) / 2;
+    return [
+      { x: midX, y: sy },
+      { x: midX, y: ty },
+    ];
+  }
+  if (!sH && !tH) {
+    if (Math.abs(sx - tx) < 1) return [];
+    const midY = (sy + ty) / 2;
+    return [
+      { x: sx, y: midY },
+      { x: tx, y: midY },
+    ];
+  }
+  // Mixed: single L corner
+  if (sH) {
+    return [{ x: tx, y: sy }];
+  }
+  return [{ x: sx, y: ty }];
+}
+
+function snapToOrthogonal(
+  point: Point,
+  neighbors: Point[],
+  threshold = 12,
+): Point {
+  let { x, y } = point;
+  for (const n of neighbors) {
+    if (Math.abs(x - n.x) < threshold) x = n.x;
+    if (Math.abs(y - n.y) < threshold) y = n.y;
+  }
+  return { x, y };
 }
 
 export function CableEdge({
@@ -53,6 +101,22 @@ export function CableEdge({
     moved: boolean;
   } | null>(null);
 
+  // Lazily seed orthogonal waypoints on first render of a brand-new cable.
+  useEffect(() => {
+    if (cable && cable.waypoints === undefined) {
+      const init = computeInitialWaypoints(
+        sourceX,
+        sourceY,
+        sourcePosition,
+        targetX,
+        targetY,
+        targetPosition,
+      );
+      updateCable(cable.id, { waypoints: init });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cable?.id]);
+
   const waypoints = cable?.waypoints ?? [];
   const allPoints: Point[] = [
     { x: sourceX, y: sourceY },
@@ -60,27 +124,12 @@ export function CableEdge({
     { x: targetX, y: targetY },
   ];
 
-  let path: string;
-  let labelX: number;
-  let labelY: number;
-  if (waypoints.length === 0) {
-    [path, labelX, labelY] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      sourcePosition,
-      targetPosition,
-      borderRadius: 6,
-    });
-  } else {
-    path = buildPolyline(allPoints);
-    const mid = Math.floor(allPoints.length / 2);
-    const a = allPoints[mid - 1] ?? allPoints[0];
-    const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
-    labelX = (a.x + b.x) / 2;
-    labelY = (a.y + b.y) / 2;
-  }
+  const path = buildPolyline(allPoints);
+  const mid = Math.floor(allPoints.length / 2);
+  const a = allPoints[mid - 1] ?? allPoints[0];
+  const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
+  const labelX = (a.x + b.x) / 2;
+  const labelY = (a.y + b.y) / 2;
 
   const color = data?.color ?? "#888";
 
@@ -141,11 +190,18 @@ export function CableEdge({
     const onMove = (ev: MouseEvent) => {
       const dx = (ev.clientX - start.x) / zoom;
       const dy = (ev.clientY - start.y) / zoom;
-      const next = [
-        ...(useAppStore.getState().cables.find((c) => c.id === cable.id)
-          ?.waypoints ?? []),
-      ];
-      next[i] = { x: orig.x + dx, y: orig.y + dy };
+      const cur =
+        useAppStore.getState().cables.find((c) => c.id === cable.id)
+          ?.waypoints ?? [];
+      const next = [...cur];
+      const raw = { x: orig.x + dx, y: orig.y + dy };
+      const prev = i === 0
+        ? { x: sourceX, y: sourceY }
+        : next[i - 1] ?? { x: sourceX, y: sourceY };
+      const after = i === next.length - 1
+        ? { x: targetX, y: targetY }
+        : next[i + 1] ?? { x: targetX, y: targetY };
+      next[i] = snapToOrthogonal(raw, [prev, after]);
       updateCable(cable.id, { waypoints: next });
     };
     const onUp = () => {
