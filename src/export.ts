@@ -1,18 +1,15 @@
 import { toPng, toJpeg, toSvg } from "html-to-image";
 import jsPDF from "jspdf";
-import { getNodesBounds, getViewportForBounds } from "@xyflow/react";
+import { getViewportForBounds } from "@xyflow/react";
+import { PAGE_BOUNDS } from "./page";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "pdf";
 
 interface ExportOptions {
   format: ExportFormat;
   filename?: string;
-  // Padding around the diagram bounds (in flow coords)
-  padding?: number;
-  // Pixel width of the rendered image
-  pixelWidth?: number;
-  // Pixel height of the rendered image
-  pixelHeight?: number;
+  // Region in flow coordinates to export. Defaults to the A3 page bounds.
+  bounds?: { x: number; y: number; width: number; height: number };
   // Background color
   background?: string;
 }
@@ -20,9 +17,15 @@ interface ExportOptions {
 interface ReactFlowAccess {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getNodes: () => any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getViewport: () => any;
 }
+
+// A3 landscape print dimensions
+const A3_W_MM = 420;
+const A3_H_MM = 297;
+// Working raster for the snapshot. 2x pixelRatio gives ~300dpi-equivalent
+// crispness while keeping the canvas size sensible.
+const RASTER_W = 2480; // ~150 DPI x 2 ratio = 300 DPI A3 landscape
+const RASTER_H = 1754;
 
 function downloadDataUrl(dataUrl: string, filename: string) {
   const a = document.createElement("a");
@@ -48,37 +51,35 @@ export async function exportDiagram(
   const {
     format,
     filename = `synoptique.${format}`,
-    padding = 40,
-    pixelWidth = 1920,
-    pixelHeight = 1200,
+    bounds = PAGE_BOUNDS,
     background = "#ffffff",
   } = opts;
 
   const viewport = getViewportElement();
   if (!viewport) throw new Error("React Flow viewport introuvable");
 
-  // Compute the bounds of all nodes and a viewport that fits them
-  const nodes = rf.getNodes();
-  if (nodes.length === 0) throw new Error("Aucun produit sur le synoptique");
-  const bounds = getNodesBounds(nodes);
+  if (rf.getNodes().filter((n) => n.id !== "__page__").length === 0) {
+    throw new Error("Aucun produit sur le synoptique");
+  }
+
+  // Frame the chosen bounds into the export canvas with a small margin.
   const tx = getViewportForBounds(
     bounds,
-    pixelWidth,
-    pixelHeight,
+    RASTER_W,
+    RASTER_H,
     0.5,
     2,
-    padding,
+    20,
   );
 
-  // Fonts may include OFL/ subset CSS that's not embedded in DOM clones,
-  // so disable font fetching to avoid CORS errors during the snapshot.
   const commonOpts = {
     backgroundColor: background,
-    width: pixelWidth,
-    height: pixelHeight,
+    width: RASTER_W,
+    height: RASTER_H,
+    pixelRatio: 2,
     style: {
-      width: `${pixelWidth}px`,
-      height: `${pixelHeight}px`,
+      width: `${RASTER_W}px`,
+      height: `${RASTER_H}px`,
       transform: `translate(${tx.x}px, ${tx.y}px) scale(${tx.zoom})`,
     },
     cacheBust: true,
@@ -97,7 +98,6 @@ export async function exportDiagram(
   }
   if (format === "svg") {
     const dataUrl = await toSvg(viewport, commonOpts);
-    // toSvg returns a data URL with the SVG embedded; convert to a Blob
     const svgText = decodeURIComponent(dataUrl.split(",")[1] ?? "");
     const blob = new Blob([svgText], { type: "image/svg+xml" });
     downloadBlob(blob, filename);
@@ -105,16 +105,13 @@ export async function exportDiagram(
   }
   if (format === "pdf") {
     const dataUrl = await toPng(viewport, commonOpts);
-    const orientation = pixelWidth >= pixelHeight ? "landscape" : "portrait";
-    const pdf = new jsPDF({ orientation, unit: "pt", format: "a4" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const ratio = Math.min(pageW / pixelWidth, pageH / pixelHeight);
-    const w = pixelWidth * ratio;
-    const h = pixelHeight * ratio;
-    const x = (pageW - w) / 2;
-    const y = (pageH - h) / 2;
-    pdf.addImage(dataUrl, "PNG", x, y, w, h);
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a3",
+      compress: true,
+    });
+    pdf.addImage(dataUrl, "PNG", 0, 0, A3_W_MM, A3_H_MM, undefined, "FAST");
     pdf.save(filename);
     return;
   }

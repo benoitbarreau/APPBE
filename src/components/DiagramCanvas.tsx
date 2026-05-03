@@ -38,9 +38,11 @@ function findPort(product: Product | undefined, side: PortSide, portId: string) 
   return list.find((p) => p.id === portId);
 }
 import { ProductNode } from "./ProductNode";
+import { PageNode } from "./PageNode";
 import { CableEdge } from "./CableEdge";
+import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
-const nodeTypes = { product: ProductNode };
+const nodeTypes = { product: ProductNode, page: PageNode };
 const edgeTypes = { cable: CableEdge };
 
 export function DiagramCanvas({
@@ -64,14 +66,25 @@ export function DiagramCanvas({
   const selectedCableId = useAppStore((s) => s.selectedCableId);
 
   const rfNodes: Node[] = useMemo(
-    () =>
-      nodes.map((n) => ({
+    () => [
+      {
+        id: PAGE_NODE_ID,
+        type: "page",
+        position: { x: PAGE_BOUNDS.x, y: PAGE_BOUNDS.y },
+        data: {},
+        selectable: false,
+        draggable: false,
+        deletable: false,
+        zIndex: -1,
+      },
+      ...nodes.map((n) => ({
         id: n.id,
         type: "product",
         position: n.position,
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
       })),
+    ],
     [nodes, selectedNodeId],
   );
 
