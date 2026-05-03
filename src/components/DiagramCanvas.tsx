@@ -85,6 +85,7 @@ export function DiagramCanvas() {
           markerStart: c.reversed ? arrow : undefined,
           markerEnd: c.reversed ? undefined : arrow,
           selected: c.id === selectedCableId,
+          zIndex: 1000,
         } satisfies Edge;
       }),
     [cables, signals, selectedCableId],
