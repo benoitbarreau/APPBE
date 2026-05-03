@@ -188,7 +188,7 @@ function CableRow({
       </div>
       <input
         className="cable-label"
-        placeholder="Libellé optionnel (ex. IP1 - VIGNETTAGE)"
+        placeholder="Etiquette cable (ex. IP1 - VIGNETTAGE)"
         value={cable.label ?? ""}
         onChange={(e) => onChange({ label: e.target.value })}
       />
