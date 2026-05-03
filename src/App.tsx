@@ -10,6 +10,7 @@ import { Legend } from "./components/Legend";
 import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
+import { AdminSettings } from "./components/AdminSettings";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
 
@@ -17,6 +18,7 @@ export default function App() {
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [rightTab, setRightTab] = useState<
     "cables" | "etiquettes" | "legend" | "zones"
   >("cables");
@@ -73,6 +75,9 @@ export default function App() {
             Réorganiser
           </button>
           <button onClick={exportProject}>Exporter projet</button>
+          <button onClick={() => setAdminOpen(true)} title="Administration">
+            ⚙ Admin
+          </button>
           <button
             className="danger"
             onClick={() => {
@@ -149,6 +154,7 @@ export default function App() {
         />
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
+      {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
     </div>
   );
 }

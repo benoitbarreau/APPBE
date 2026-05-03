@@ -124,10 +124,23 @@ export function ProductEditor({
     onClose();
   };
 
+  const adminCode = useAppStore((s) => s.adminCode);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const remove = () => {
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
+  const [deleteCode, setDeleteCode] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const startDelete = () => {
+    setConfirmingDelete(true);
+    setDeleteCode("");
+    setDeleteError(null);
+  };
+  const cancelDelete = () => {
+    setConfirmingDelete(false);
+    setDeleteCode("");
+    setDeleteError(null);
+  };
+  const confirmDelete = () => {
+    if (deleteCode !== adminCode) {
+      setDeleteError("Code invalide");
       return;
     }
     removeProduct(draft.id);
@@ -386,19 +399,41 @@ export function ProductEditor({
           </aside>
         </div>
         <div className="modal-footer">
-          {!isNew && (
+          {!isNew && !confirmingDelete && (
             <button
-              className={"danger" + (confirmingDelete ? " danger-confirm" : "")}
-              onClick={remove}
-              onBlur={() => setConfirmingDelete(false)}
-              title={
-                confirmingDelete
-                  ? "Cliquer encore pour confirmer la suppression"
-                  : "Supprimer ce produit du catalogue"
-              }
+              className="danger"
+              onClick={startDelete}
+              title="Supprimer ce produit du catalogue (code requis)"
             >
-              {confirmingDelete ? "Confirmer la suppression ?" : "Supprimer"}
+              Supprimer
             </button>
+          )}
+          {!isNew && confirmingDelete && (
+            <div className="delete-confirm-group">
+              <input
+                type="password"
+                placeholder="Code admin"
+                value={deleteCode}
+                onChange={(e) => {
+                  setDeleteCode(e.target.value);
+                  setDeleteError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmDelete();
+                  if (e.key === "Escape") cancelDelete();
+                }}
+                autoFocus
+              />
+              <button onClick={cancelDelete}>Annuler</button>
+              <button className="danger danger-confirm" onClick={confirmDelete}>
+                Supprimer
+              </button>
+              {deleteError && (
+                <span className="danger-text" style={{ fontSize: 11 }}>
+                  {deleteError}
+                </span>
+              )}
+            </div>
           )}
           {!isNew && (
             <button onClick={duplicate} title="Créer une copie de cette fiche">
