@@ -291,24 +291,24 @@ export function CableEdge({
   const target = { x: targetX, y: targetY };
 
   const buildObstacles = (forCable: Cable | undefined): Rect[] => {
+    const portOnRight = (s: PortSide | undefined) => s === "out" || s === "midR";
     return allNodes
       .map((n): Rect | null => {
         const p = allProducts.find((pr) => pr.id === n.productId);
         const rows = Math.max(p?.inputs.length ?? 0, p?.outputs.length ?? 0, 1);
+        const middleCount = p?.middle?.length ?? 0;
         const fullW = 240;
-        const fullH = 60 + rows * 22;
+        const fullH = 60 + rows * 22 + middleCount * 22;
         const isFrom = n.id === forCable?.fromNodeId;
         const isTo = n.id === forCable?.toNodeId;
         if (isFrom && isTo) return null;
         if (isFrom) {
-          const portRight = (forCable?.fromPortSide ?? "out") === "out";
-          return portRight
+          return portOnRight(forCable?.fromPortSide ?? "out")
             ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
             : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
         }
         if (isTo) {
-          const portRight = (forCable?.toPortSide ?? "in") === "out";
-          return portRight
+          return portOnRight(forCable?.toPortSide ?? "in")
             ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
             : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
         }

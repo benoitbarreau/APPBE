@@ -16,6 +16,7 @@ export interface Product {
   category: string;
   inputs: Port[];
   outputs: Port[];
+  middle?: Port[];
 }
 
 export interface PlacedProduct {
@@ -25,7 +26,7 @@ export interface PlacedProduct {
   position: { x: number; y: number };
 }
 
-export type PortSide = "in" | "out";
+export type PortSide = "in" | "out" | "midL" | "midR";
 
 export interface Cable {
   id: string;

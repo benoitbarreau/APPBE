@@ -666,6 +666,25 @@ select {
   white-space: nowrap;
   min-height: 18px;
 }
+.middle-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border);
+}
+.middle-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 14px;
+  min-height: 18px;
+}
+.middle-row .port-label {
+  text-align: center;
+  font-size: 10px;
+}
 .port-dot {
   width: 8px;
   height: 8px;

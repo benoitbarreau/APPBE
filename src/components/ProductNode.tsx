@@ -10,16 +10,29 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const product = useAppStore((s) =>
     s.products.find((p) => p.id === node?.productId),
   );
+  const cables = useAppStore((s) => s.cables);
   if (!node || !product) return null;
 
   const inputs = product.inputs;
   const outputs = product.outputs;
+  const middle = product.middle ?? [];
   const rows = Math.max(inputs.length, outputs.length, 1);
+
+  const portUsedOn = (portId: string, side: "midL" | "midR"): boolean =>
+    cables.some(
+      (c) =>
+        (c.fromNodeId === node.id &&
+          c.fromPortId === portId &&
+          c.fromPortSide === side) ||
+        (c.toNodeId === node.id &&
+          c.toPortId === portId &&
+          c.toPortSide === side),
+    );
 
   return (
     <div
       className={"product-node" + (selected ? " selected" : "")}
-      style={{ minHeight: 60 + rows * 22 }}
+      style={{ minHeight: 60 + rows * 22 + middle.length * 22 }}
     >
       <div className="product-node-header">
         <div className="product-node-name">{node.name}</div>
@@ -40,6 +53,19 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
           ))}
         </div>
       </div>
+      {middle.length > 0 && (
+        <div className="middle-rows">
+          {middle.map((p) => (
+            <MiddlePortRow
+              key={p.id}
+              port={p}
+              nodeId={node.id}
+              leftUsed={portUsedOn(p.id, "midL")}
+              rightUsed={portUsedOn(p.id, "midR")}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -77,6 +103,71 @@ function PortRow({
         data-nodeid={nodeId}
       />
       <span className="port-label">{port.label}</span>
+    </div>
+  );
+}
+
+function MiddlePortRow({
+  port,
+  nodeId,
+  leftUsed,
+  rightUsed,
+}: {
+  port: Port;
+  nodeId: string;
+  leftUsed: boolean;
+  rightUsed: boolean;
+}) {
+  const color = useAppStore((s) => s.signals[port.signal]?.color) ?? "#888";
+  const dim = "#cfd4dc";
+  // If left is used, right is blocked. If right is used, left is blocked.
+  const leftConnectable = !rightUsed;
+  const rightConnectable = !leftUsed;
+  const baseStyle: React.CSSProperties = {
+    width: 9,
+    height: 9,
+    border: "2px solid #fff",
+    top: "50%",
+  };
+  const leftStyle: React.CSSProperties = {
+    ...baseStyle,
+    background: leftConnectable ? color : dim,
+    boxShadow: `0 0 0 1px ${leftConnectable ? color : dim}`,
+    left: 0,
+    transform: "translate(-50%, -50%)",
+    cursor: leftConnectable ? "crosshair" : "not-allowed",
+  };
+  const rightStyle: React.CSSProperties = {
+    ...baseStyle,
+    background: rightConnectable ? color : dim,
+    boxShadow: `0 0 0 1px ${rightConnectable ? color : dim}`,
+    left: "auto",
+    right: 0,
+    transform: "translate(50%, -50%)",
+    cursor: rightConnectable ? "crosshair" : "not-allowed",
+  };
+  return (
+    <div
+      className="middle-row"
+      title={`${port.signal} — ${port.label}`}
+    >
+      <Handle
+        id={`midL:${port.id}`}
+        type="source"
+        position={Position.Left}
+        style={leftStyle}
+        isConnectable={leftConnectable}
+        data-nodeid={nodeId}
+      />
+      <span className="port-label">{port.label}</span>
+      <Handle
+        id={`midR:${port.id}`}
+        type="source"
+        position={Position.Right}
+        style={rightStyle}
+        isConnectable={rightConnectable}
+        data-nodeid={nodeId}
+      />
     </div>
   );
 }

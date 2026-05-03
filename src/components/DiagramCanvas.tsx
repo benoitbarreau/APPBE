@@ -22,14 +22,19 @@ import { type PortSide, type Product, type SignalType } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
   if (!handleId) return null;
-  const m = handleId.match(/^(in|out):(.*)$/);
+  const m = handleId.match(/^(in|out|midL|midR):(.*)$/);
   if (!m) return null;
   return { side: m[1] as PortSide, portId: m[2] };
 }
 
 function findPort(product: Product | undefined, side: PortSide, portId: string) {
   if (!product) return undefined;
-  const list = side === "in" ? product.inputs : product.outputs;
+  const list =
+    side === "in"
+      ? product.inputs
+      : side === "out"
+        ? product.outputs
+        : product.middle ?? [];
   return list.find((p) => p.id === portId);
 }
 import { ProductNode } from "./ProductNode";

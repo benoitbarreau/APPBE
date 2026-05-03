@@ -7,6 +7,8 @@ import {
   type SignalType,
 } from "../types";
 
+type PortListKey = "inputs" | "outputs" | "middle";
+
 const emptyProduct = (): Product => ({
   id: "",
   reference: "",
@@ -14,6 +16,7 @@ const emptyProduct = (): Product => ({
   category: "",
   inputs: [],
   outputs: [],
+  middle: [],
 });
 
 export function ProductEditor({
@@ -43,30 +46,38 @@ export function ProductEditor({
 
   const isNew = productId === "new" || !products.some((p) => p.id === productId);
 
-  const setPort = (side: "inputs" | "outputs", idx: number, patch: Partial<Port>) => {
+  const getList = (d: Product, side: PortListKey): Port[] =>
+    side === "middle" ? d.middle ?? [] : d[side];
+
+  const setPort = (side: PortListKey, idx: number, patch: Partial<Port>) => {
     setDraft((d) => ({
       ...d,
-      [side]: d[side].map((p, i) => (i === idx ? { ...p, ...patch } : p)),
+      [side]: getList(d, side).map((p, i) => (i === idx ? { ...p, ...patch } : p)),
     }));
   };
 
-  const addPort = (side: "inputs" | "outputs") => {
-    setDraft((d) => ({
-      ...d,
-      [side]: [
-        ...d[side],
-        {
-          id: `${side}-${d[side].length + 1}`,
-          label: side === "inputs" ? `IN ${d.inputs.length + 1}` : `OUT ${d.outputs.length + 1}`,
-          signal: "HDMI",
-          direction: side === "inputs" ? "in" : "out",
-        } as Port,
-      ],
-    }));
+  const addPort = (side: PortListKey) => {
+    setDraft((d) => {
+      const list = getList(d, side);
+      const labelPrefix =
+        side === "inputs" ? "IN" : side === "outputs" ? "OUT" : "MID";
+      const direction: PortDirection =
+        side === "inputs" ? "in" : side === "outputs" ? "out" : "bi";
+      const newPort: Port = {
+        id: `${side}-${list.length + 1}-${Date.now()}`,
+        label: `${labelPrefix} ${list.length + 1}`,
+        signal: "HDMI",
+        direction,
+      };
+      return { ...d, [side]: [...list, newPort] };
+    });
   };
 
-  const removePort = (side: "inputs" | "outputs", idx: number) => {
-    setDraft((d) => ({ ...d, [side]: d[side].filter((_, i) => i !== idx) }));
+  const removePort = (side: PortListKey, idx: number) => {
+    setDraft((d) => ({
+      ...d,
+      [side]: getList(d, side).filter((_, i) => i !== idx),
+    }));
   };
 
   const save = () => {
@@ -117,7 +128,7 @@ export function ProductEditor({
           </div>
 
           <PortsEditor
-            title="Entrées"
+            title="Gauche"
             ports={draft.inputs}
             onAdd={() => addPort("inputs")}
             onChange={(i, patch) => setPort("inputs", i, patch)}
@@ -125,12 +136,20 @@ export function ProductEditor({
             defaultDirection="in"
           />
           <PortsEditor
-            title="Sorties"
+            title="Droite"
             ports={draft.outputs}
             onAdd={() => addPort("outputs")}
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
             defaultDirection="out"
+          />
+          <PortsEditor
+            title="Milieu (deux côtés, le côté opposé se bloque dès qu'un est raccordé)"
+            ports={draft.middle ?? []}
+            onAdd={() => addPort("middle")}
+            onChange={(i, patch) => setPort("middle", i, patch)}
+            onRemove={(i) => removePort("middle", i)}
+            defaultDirection="bi"
           />
         </div>
         <div className="modal-footer">
