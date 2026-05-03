@@ -51,8 +51,6 @@ export function DiagramCanvas() {
     () =>
       cables.map((c) => {
         const color = signals[c.signal]?.color ?? "#888";
-        const line1 = `${c.cableType} ${c.lengthMeters}M`;
-        const line2 = c.label ? `${c.number} - ${c.label}` : c.number;
         return {
           id: c.id,
           type: "cable",
@@ -60,7 +58,7 @@ export function DiagramCanvas() {
           target: c.toNodeId,
           sourceHandle: `out:${c.fromPortId}`,
           targetHandle: `in:${c.toPortId}`,
-          data: { line1, line2, color },
+          data: { color },
           style: { stroke: color, strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
         } satisfies Edge;
