@@ -9,6 +9,9 @@ export interface Port {
   direction: PortDirection;
 }
 
+export type RackSize = "19" | "10";
+export type RackWidth = "full" | "half" | "quarter";
+
 export interface Product {
   id: string;
   reference: string;
@@ -17,6 +20,13 @@ export interface Product {
   inputs: Port[];
   outputs: Port[];
   middle?: Port[];
+  articleCode?: string;
+  productUrl?: string;
+  rackHeightU?: number;
+  rackSize?: RackSize;
+  rackWidth?: RackWidth;
+  imageFront?: string;
+  imageBack?: string;
 }
 
 export type PortPlacement = "left" | "right" | "middle";

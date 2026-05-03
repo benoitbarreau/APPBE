@@ -858,6 +858,47 @@ select {
 .modal-instance {
   width: min(720px, 95vw);
 }
+
+.form-row-image {
+  align-items: flex-start;
+}
+.image-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.image-field-preview {
+  position: relative;
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px;
+  background: #fafbfc;
+  width: max-content;
+  margin-bottom: 4px;
+}
+.image-field-preview img {
+  display: block;
+  max-width: 220px;
+  max-height: 100px;
+  object-fit: contain;
+}
+.image-field-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 11px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+.danger-text {
+  color: var(--danger);
+}
 .instance-section {
   border: 1px solid var(--border);
   border-radius: 6px;

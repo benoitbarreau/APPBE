@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store";
+import { fileToResizedDataUrl } from "../image";
 import {
   type Port,
   type PortDirection,
   type Product,
+  type RackSize,
+  type RackWidth,
   type SignalType,
 } from "../types";
 
@@ -145,6 +148,90 @@ export function ProductEditor({
             />
           </div>
 
+          <div className="form-row">
+            <label>Code article</label>
+            <input
+              value={draft.articleCode ?? ""}
+              onChange={(e) => setDraft({ ...draft, articleCode: e.target.value })}
+              placeholder="ex. 60-1822-12"
+            />
+          </div>
+          <div className="form-row">
+            <label>URL produit</label>
+            <input
+              type="url"
+              value={draft.productUrl ?? ""}
+              onChange={(e) => setDraft({ ...draft, productUrl: e.target.value })}
+              placeholder="https://…"
+            />
+          </div>
+          <div className="form-row">
+            <label>Hauteur rack (U)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={draft.rackHeightU ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDraft({
+                  ...draft,
+                  rackHeightU: v === "" ? undefined : Number(v),
+                });
+              }}
+              placeholder="ex. 1, 2, 3…"
+              style={{ width: 120 }}
+            />
+          </div>
+          <div className="form-row">
+            <label>Largeur rack</label>
+            <select
+              value={draft.rackSize ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDraft({
+                  ...draft,
+                  rackSize: (v || undefined) as RackSize | undefined,
+                  // Reset rackWidth if not 19"
+                  rackWidth:
+                    v === "19" ? draft.rackWidth ?? "full" : undefined,
+                });
+              }}
+              style={{ width: 110 }}
+            >
+              <option value="">— aucune —</option>
+              <option value="19">19 pouces</option>
+              <option value="10">10 pouces</option>
+            </select>
+            {draft.rackSize === "19" && (
+              <select
+                value={draft.rackWidth ?? "full"}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    rackWidth: e.target.value as RackWidth,
+                  })
+                }
+                style={{ width: 130, marginLeft: 6 }}
+              >
+                <option value="full">Largeur complète</option>
+                <option value="half">1/2 largeur</option>
+                <option value="quarter">1/4 largeur</option>
+              </select>
+            )}
+          </div>
+
+          <ImageField
+            label="Image de face"
+            value={draft.imageFront}
+            onChange={(v) => setDraft({ ...draft, imageFront: v })}
+          />
+          <ImageField
+            label="Image de dos"
+            value={draft.imageBack}
+            onChange={(v) => setDraft({ ...draft, imageBack: v })}
+          />
+
           <PortsEditor
             title="Gauche"
             ports={draft.inputs}
@@ -260,6 +347,58 @@ function PortsEditor({
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ImageField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (next: string | undefined) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const dataUrl = await fileToResizedDataUrl(file, 800, 0.85);
+      onChange(dataUrl);
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Échec du chargement");
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div className="form-row form-row-image">
+      <label>{label}</label>
+      <div className="image-field">
+        {value && (
+          <div className="image-field-preview">
+            <img src={value} alt={label} />
+            <button
+              className="image-field-remove"
+              onClick={() => onChange(undefined)}
+              title="Retirer l'image"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <input type="file" accept="image/*" onChange={onFile} disabled={busy} />
+        {busy && <span className="muted">Chargement…</span>}
+        {err && <span className="muted danger-text">{err}</span>}
+      </div>
     </div>
   );
 }
