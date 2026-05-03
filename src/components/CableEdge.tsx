@@ -26,10 +26,12 @@ export function CableEdge({
   data,
   style,
   markerEnd,
+  markerStart,
   selected,
 }: EdgeProps<CableEdgeType>) {
   const cable = useAppStore((s) => s.cables.find((c) => c.id === id));
   const updateCable = useAppStore((s) => s.updateCable);
+  const reverseCable = useAppStore((s) => s.reverseCable);
   const zoom = useStore((s) => s.transform[2]);
 
   const dragRef = useRef<{
@@ -37,6 +39,7 @@ export function CableEdge({
     startY: number;
     origX: number;
     origY: number;
+    moved: boolean;
   } | null>(null);
 
   const [path, labelX, labelY] = getSmoothStepPath({
@@ -58,6 +61,7 @@ export function CableEdge({
         path={path}
         style={{ ...style, strokeWidth: selected ? 3 : 2 }}
         markerEnd={markerEnd}
+        markerStart={markerStart}
       />
     );
   }
@@ -66,24 +70,26 @@ export function CableEdge({
   const offsetY = cable.labelOffset?.y ?? 0;
 
   const onLabelMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const tag = (e.target as HTMLElement).tagName;
-    if (tag === "INPUT") return;
     e.stopPropagation();
-    e.preventDefault();
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "INPUT" || tag === "BUTTON") return;
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       origX: offsetX,
       origY: offsetY,
+      moved: false,
     };
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
-      const dx = (ev.clientX - dragRef.current.startX) / zoom;
-      const dy = (ev.clientY - dragRef.current.startY) / zoom;
+      const rawDx = ev.clientX - dragRef.current.startX;
+      const rawDy = ev.clientY - dragRef.current.startY;
+      if (!dragRef.current.moved && Math.hypot(rawDx, rawDy) < 4) return;
+      dragRef.current.moved = true;
       updateCable(cable.id, {
         labelOffset: {
-          x: dragRef.current.origX + dx,
-          y: dragRef.current.origY + dy,
+          x: dragRef.current.origX + rawDx / zoom,
+          y: dragRef.current.origY + rawDy / zoom,
         },
       });
     };
@@ -103,6 +109,7 @@ export function CableEdge({
         path={path}
         style={{ ...style, strokeWidth: selected ? 3 : 2 }}
         markerEnd={markerEnd}
+        markerStart={markerStart}
       />
       <EdgeLabelRenderer>
         <div
@@ -120,7 +127,7 @@ export function CableEdge({
             <input
               className="cable-edge-type"
               value={cable.cableType}
-              style={{ width: `${Math.max(cable.cableType.length, 1)}ch` }}
+              style={{ width: `${Math.max(cable.cableType.length, 1) + 0.7}ch` }}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
             <input
@@ -129,17 +136,30 @@ export function CableEdge({
               min={0}
               step={0.5}
               value={cable.lengthMeters}
-              style={{ width: `${String(cable.lengthMeters).length}ch` }}
+              style={{ width: `${String(cable.lengthMeters).length + 0.5}ch` }}
               onChange={(e) =>
                 updateCable(cable.id, { lengthMeters: Number(e.target.value) })
               }
             />
             <span className="cable-edge-unit">M</span>
+            {selected && (
+              <button
+                type="button"
+                className="cable-edge-reverse"
+                title="Inverser le sens de la flèche"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reverseCable(cable.id);
+                }}
+              >
+                ⇄
+              </button>
+            )}
           </div>
           <input
             className="cable-edge-label-text"
             value={cable.label ?? ""}
-            style={{ width: `${Math.max((cable.label ?? "").length, 1)}ch` }}
+            style={{ width: `${Math.max((cable.label ?? "").length, 4) + 0.5}ch` }}
             placeholder=""
             onChange={(e) => updateCable(cable.id, { label: e.target.value })}
           />

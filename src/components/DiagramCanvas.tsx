@@ -51,6 +51,7 @@ export function DiagramCanvas() {
     () =>
       cables.map((c) => {
         const color = signals[c.signal]?.color ?? "#888";
+        const arrow = { type: MarkerType.ArrowClosed, color };
         return {
           id: c.id,
           type: "cable",
@@ -60,7 +61,8 @@ export function DiagramCanvas() {
           targetHandle: `in:${c.toPortId}`,
           data: { color },
           style: { stroke: color, strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color },
+          markerStart: c.reversed ? arrow : undefined,
+          markerEnd: c.reversed ? undefined : arrow,
         } satisfies Edge;
       }),
     [cables, signals],

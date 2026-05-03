@@ -48,6 +48,7 @@ interface State {
   ) => string;
   updateCable: (id: string, patch: Partial<Cable>) => void;
   removeCable: (id: string) => void;
+  reverseCable: (id: string) => void;
 
   setSelectedNode: (id: string | null) => void;
   setSelectedCable: (id: string | null) => void;
@@ -138,6 +139,12 @@ export const useAppStore = create<State>()(
         })),
       removeCable: (id) =>
         set((s) => ({ cables: s.cables.filter((c) => c.id !== id) })),
+      reverseCable: (id) =>
+        set((s) => ({
+          cables: s.cables.map((c) =>
+            c.id === id ? { ...c, reversed: !c.reversed } : c,
+          ),
+        })),
 
       setSelectedNode: (id) => set({ selectedNodeId: id, selectedCableId: null }),
       setSelectedCable: (id) => set({ selectedCableId: id, selectedNodeId: null }),

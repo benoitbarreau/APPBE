@@ -240,7 +240,7 @@ select {
 }
 .cable-edge-len,
 .cable-edge-unit {
-  color: #00BFD8;
+  color: #E91E63;
   font-weight: 700;
 }
 .cable-edge-len {
@@ -266,6 +266,32 @@ select {
 }
 .cable-edge-label-text::placeholder {
   color: transparent;
+}
+.cable-edge-reverse {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid currentColor;
+  color: currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1;
+  margin-left: 4px;
+  cursor: pointer;
+}
+.cable-edge-reverse:hover {
+  background: currentColor;
+  color: #fff !important;
+}
+.cable-row-reverse {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.cable-row-reverse:hover {
+  background: #f0f3f8;
 }
 
 /* Label layer above nodes so it stays readable */

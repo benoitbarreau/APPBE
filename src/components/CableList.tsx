@@ -8,6 +8,7 @@ export function CableList() {
   const products = useAppStore((s) => s.products);
   const updateCable = useAppStore((s) => s.updateCable);
   const removeCable = useAppStore((s) => s.removeCable);
+  const reverseCable = useAppStore((s) => s.reverseCable);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
 
   const rows = useMemo(
@@ -115,6 +116,7 @@ export function CableList() {
             selected={cable.id === selectedCableId}
             onChange={(patch) => updateCable(cable.id, patch)}
             onRemove={() => removeCable(cable.id)}
+            onReverse={() => reverseCable(cable.id)}
           />
         ))}
         {rows.length === 0 && (
@@ -134,6 +136,7 @@ function CableRow({
   selected,
   onChange,
   onRemove,
+  onReverse,
 }: {
   cable: Cable;
   from: string;
@@ -141,6 +144,7 @@ function CableRow({
   selected: boolean;
   onChange: (patch: Partial<Cable>) => void;
   onRemove: () => void;
+  onReverse: () => void;
 }) {
   const color = useAppStore((s) => s.signals[cable.signal]?.color) ?? "#888";
   return (
@@ -172,9 +176,15 @@ function CableRow({
         </button>
       </div>
       <div className="cable-row-bottom">
-        <span>{from}</span>
-        <span className="arrow">→</span>
-        <span>{to}</span>
+        <span>{cable.reversed ? to : from}</span>
+        <button
+          className="cable-row-reverse"
+          onClick={onReverse}
+          title="Inverser le sens de la flèche"
+        >
+          {cable.reversed ? "←" : "→"}
+        </button>
+        <span>{cable.reversed ? from : to}</span>
       </div>
       <input
         className="cable-label"
