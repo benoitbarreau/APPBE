@@ -26,9 +26,11 @@ const emptyProduct = (): Product => ({
 export function ProductEditor({
   productId,
   onClose,
+  onSwitchTo,
 }: {
   productId: string | "new" | null;
   onClose: () => void;
+  onSwitchTo?: (id: string) => void;
 }) {
   const products = useAppStore((s) => s.products);
   const addProduct = useAppStore((s) => s.addProduct);
@@ -146,6 +148,16 @@ export function ProductEditor({
     a.download = filename || "fiche-produit.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const duplicate = () => {
+    const newId = `dup-${Date.now()}`;
+    const refTrim = draft.reference.trim();
+    const newRef = refTrim ? `${refTrim} Copie` : "Copie";
+    const copy: Product = { ...draft, id: newId, reference: newRef };
+    addProduct(copy);
+    if (onSwitchTo) onSwitchTo(newId);
+    else onClose();
   };
 
   const importProduct = async (file: File) => {
@@ -386,6 +398,11 @@ export function ProductEditor({
               }
             >
               {confirmingDelete ? "Confirmer la suppression ?" : "Supprimer"}
+            </button>
+          )}
+          {!isNew && (
+            <button onClick={duplicate} title="Créer une copie de cette fiche">
+              Dupliquer
             </button>
           )}
           <button onClick={exportProduct}>Exporter</button>

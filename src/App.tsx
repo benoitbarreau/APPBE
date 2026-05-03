@@ -136,7 +136,11 @@ export default function App() {
       </div>
 
       {editing !== null && (
-        <ProductEditor productId={editing} onClose={() => setEditing(null)} />
+        <ProductEditor
+          productId={editing}
+          onClose={() => setEditing(null)}
+          onSwitchTo={(id) => setEditing(id)}
+        />
       )}
       {editingInstance !== null && (
         <InstancePortsConfig
