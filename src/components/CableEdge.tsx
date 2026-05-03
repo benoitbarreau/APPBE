@@ -294,12 +294,6 @@ export function CableEdge({
     document.addEventListener("mouseup", onUp);
   };
 
-  const addWaypointAt = (segIndex: number, wp: Point) => {
-    const next = [...waypoints];
-    next.splice(segIndex, 0, wp);
-    updateCable(cable.id, { waypoints: next });
-  };
-
   return (
     <>
       <BaseEdge
@@ -307,7 +301,7 @@ export function CableEdge({
         path={path}
         style={{
           ...style,
-          strokeWidth: selected ? 4 : 2,
+          strokeWidth: selected ? 5 : 3,
           strokeLinecap: "round",
           strokeLinejoin: "round",
         }}
@@ -372,7 +366,7 @@ export function CableEdge({
             );
           })}
 
-          {/* Creation dots - click to insert a new corner */}
+          {/* Creation dots - click+drag to create a new corner that follows the cursor */}
           {segments.map((seg, i) => {
             const dx = seg.b.x - seg.a.x;
             const dy = seg.b.y - seg.a.y;
@@ -391,10 +385,29 @@ export function CableEdge({
                   fill="#fff"
                   stroke={color}
                   strokeWidth={1.5}
-                  style={{ cursor: "pointer", pointerEvents: "all" }}
-                  onClick={(ev) => {
+                  style={{ cursor: "crosshair", pointerEvents: "all" }}
+                  onMouseDown={(ev) => {
                     ev.stopPropagation();
-                    addWaypointAt(i, { x, y });
+                    ev.preventDefault();
+                    const segIdx = i;
+                    const baseEffective = waypoints.map((p) => ({ ...p }));
+                    const start = { x: ev.clientX, y: ev.clientY };
+                    let inserted = false;
+                    const onMove = (mev: MouseEvent) => {
+                      const ddx = (mev.clientX - start.x) / zoom;
+                      const ddy = (mev.clientY - start.y) / zoom;
+                      if (!inserted && Math.hypot(ddx, ddy) < 4) return;
+                      inserted = true;
+                      const next = [...baseEffective];
+                      next.splice(segIdx, 0, { x: x + ddx, y: y + ddy });
+                      updateCable(cable.id, { waypoints: next });
+                    };
+                    const onUp = () => {
+                      document.removeEventListener("mousemove", onMove);
+                      document.removeEventListener("mouseup", onUp);
+                    };
+                    document.addEventListener("mousemove", onMove);
+                    document.addEventListener("mouseup", onUp);
                   }}
                 />
               );

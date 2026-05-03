@@ -36,6 +36,7 @@ export function DiagramCanvas() {
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
+  const updateCable = useAppStore((s) => s.updateCable);
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
 
@@ -138,6 +139,44 @@ export function DiagramCanvas() {
     [reverseCable],
   );
 
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (
+        !newConnection.source ||
+        !newConnection.target ||
+        !newConnection.sourceHandle ||
+        !newConnection.targetHandle
+      )
+        return;
+      const fromPortId = newConnection.sourceHandle.replace(/^out:/, "");
+      const toPortId = newConnection.targetHandle.replace(/^in:/, "");
+      const fromNode = nodes.find((n) => n.id === newConnection.source);
+      const toNode = nodes.find((n) => n.id === newConnection.target);
+      if (!fromNode || !toNode) return;
+      const fromProduct = products.find((p) => p.id === fromNode.productId);
+      const toProduct = products.find((p) => p.id === toNode.productId);
+      const fromPort = fromProduct?.outputs.find((p) => p.id === fromPortId);
+      const toPort = toProduct?.inputs.find((p) => p.id === toPortId);
+      if (!fromPort || !toPort) return;
+      if (fromPort.signal !== toPort.signal) {
+        const ok = window.confirm(
+          `Signal mismatch: ${fromPort.signal} -> ${toPort.signal}. Reconnecter quand même ?`,
+        );
+        if (!ok) return;
+      }
+      updateCable(oldEdge.id, {
+        fromNodeId: newConnection.source,
+        fromPortId,
+        toNodeId: newConnection.target,
+        toPortId,
+        signal: fromPort.signal,
+        // Reset waypoints since the geometry has changed substantially
+        waypoints: [],
+      });
+    },
+    [nodes, products, updateCable],
+  );
+
   return (
     <ReactFlow
       nodes={rfNodes}
@@ -145,7 +184,9 @@ export function DiagramCanvas() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onReconnect={onReconnect}
       onEdgeDoubleClick={onEdgeDoubleClick}
+      reconnectRadius={20}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultEdgeOptions={{ type: "cable" }}
