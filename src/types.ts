@@ -28,6 +28,9 @@ export interface PlacedProduct {
   position: { x: number; y: number };
   zoneId?: string;
   portOverrides?: Record<string, PortPlacement>;
+  portLabelOverrides?: Record<string, string>;
+  portOrder?: string[];
+  extraPorts?: Port[];
 }
 
 export interface Zone {

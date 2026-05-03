@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type {
   Cable,
   PlacedProduct,
+  Port,
   PortPlacement,
   PortSide,
   Product,
@@ -77,6 +78,11 @@ interface State {
     placement: PortPlacement,
   ) => void;
   resetNodePortPlacement: (nodeId: string, portId: string) => void;
+  setNodePortLabel: (nodeId: string, portId: string, label: string) => void;
+  resetNodePortLabel: (nodeId: string, portId: string) => void;
+  setNodePortOrder: (nodeId: string, order: string[]) => void;
+  addNodePort: (nodeId: string, port: Port) => void;
+  removeNodePort: (nodeId: string, portId: string) => void;
 
   resetProject: () => void;
 }
@@ -245,6 +251,86 @@ export const useAppStore = create<State>()(
             delete next[portId];
             return { ...n, portOverrides: next };
           }),
+        })),
+
+      setNodePortLabel: (nodeId, portId, label) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n;
+            const isExtra = (n.extraPorts ?? []).some((p) => p.id === portId);
+            if (isExtra) {
+              return {
+                ...n,
+                extraPorts: (n.extraPorts ?? []).map((p) =>
+                  p.id === portId ? { ...p, label } : p,
+                ),
+              };
+            }
+            return {
+              ...n,
+              portLabelOverrides: {
+                ...(n.portLabelOverrides ?? {}),
+                [portId]: label,
+              },
+            };
+          }),
+        })),
+
+      resetNodePortLabel: (nodeId, portId) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId || !n.portLabelOverrides) return n;
+            const next = { ...n.portLabelOverrides };
+            delete next[portId];
+            return { ...n, portLabelOverrides: next };
+          }),
+        })),
+
+      setNodePortOrder: (nodeId, order) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === nodeId ? { ...n, portOrder: order } : n,
+          ),
+        })),
+
+      addNodePort: (nodeId, port) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === nodeId
+              ? { ...n, extraPorts: [...(n.extraPorts ?? []), port] }
+              : n,
+          ),
+        })),
+
+      removeNodePort: (nodeId, portId) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n;
+            return {
+              ...n,
+              extraPorts: (n.extraPorts ?? []).filter((p) => p.id !== portId),
+              portOrder: n.portOrder?.filter((id) => id !== portId),
+              portOverrides: n.portOverrides
+                ? Object.fromEntries(
+                    Object.entries(n.portOverrides).filter(
+                      ([k]) => k !== portId,
+                    ),
+                  )
+                : undefined,
+              portLabelOverrides: n.portLabelOverrides
+                ? Object.fromEntries(
+                    Object.entries(n.portLabelOverrides).filter(
+                      ([k]) => k !== portId,
+                    ),
+                  )
+                : undefined,
+            };
+          }),
+          cables: s.cables.filter(
+            (c) =>
+              !(c.fromNodeId === nodeId && c.fromPortId === portId) &&
+              !(c.toNodeId === nodeId && c.toPortId === portId),
+          ),
         })),
 
       resetProject: () => set({ nodes: [], cables: [] }),
