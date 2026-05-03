@@ -899,6 +899,25 @@ select {
 .danger-text {
   color: var(--danger);
 }
+.button-as-label {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-block;
+  line-height: 1.4;
+}
+.button-as-label:hover {
+  border-color: #b3bcc8;
+}
+.danger-confirm {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger) !important;
+  font-weight: 700;
+}
 .instance-section {
   border: 1px solid var(--border);
   border-radius: 6px;

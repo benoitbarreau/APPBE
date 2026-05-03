@@ -111,14 +111,57 @@ export function ProductEditor({
     onClose();
   };
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const remove = () => {
-    if (!confirm("Supprimer ce produit du catalogue ?")) return;
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
     removeProduct(draft.id);
     onClose();
   };
 
+  const exportProduct = () => {
+    const data = JSON.stringify(draft, null, 2);
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const filename = `${slug(draft.manufacturer || "produit")}-${slug(
+      draft.reference || "fiche",
+    )}.json`;
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "fiche-produit.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importProduct = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Partial<Product>;
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        typeof parsed.reference !== "string" ||
+        !Array.isArray(parsed.inputs) ||
+        !Array.isArray(parsed.outputs)
+      ) {
+        alert("Fichier produit invalide");
+        return;
+      }
+      // Keep the id of the currently-edited product (or the freshly
+      // generated one for a new product) so we don't overwrite another
+      // catalog entry by accident.
+      setDraft({ ...(parsed as Product), id: draft.id });
+    } catch {
+      alert("Fichier JSON invalide");
+    }
+  };
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isNew ? "Nouveau produit" : "Éditer le produit"}</h2>
@@ -265,10 +308,33 @@ export function ProductEditor({
         </div>
         <div className="modal-footer">
           {!isNew && (
-            <button className="danger" onClick={remove}>
-              Supprimer
+            <button
+              className={"danger" + (confirmingDelete ? " danger-confirm" : "")}
+              onClick={remove}
+              onBlur={() => setConfirmingDelete(false)}
+              title={
+                confirmingDelete
+                  ? "Cliquer encore pour confirmer la suppression"
+                  : "Supprimer ce produit du catalogue"
+              }
+            >
+              {confirmingDelete ? "Confirmer la suppression ?" : "Supprimer"}
             </button>
           )}
+          <button onClick={exportProduct}>Exporter</button>
+          <label className="button-as-label">
+            Importer
+            <input
+              type="file"
+              accept="application/json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importProduct(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
           <button onClick={onClose}>Annuler</button>
           <button className="primary" onClick={save}>
             Enregistrer
