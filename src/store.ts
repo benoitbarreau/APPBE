@@ -7,8 +7,14 @@ import type {
   ProjectMeta,
   SignalDef,
   SignalType,
+  Zone,
 } from "./types";
 import { DEFAULT_SIGNAL_DEFS } from "./types";
+
+const DEFAULT_ZONES: Zone[] = [
+  { id: "baie", label: "Baie", color: "#FF8A3D" },
+  { id: "regie", label: "Régie", color: "#3D8AFF" },
+];
 import { BUILTIN_CATALOG } from "./catalog";
 
 const DEFAULT_PROJECT_META: ProjectMeta = {
@@ -31,6 +37,7 @@ interface State {
   nodes: PlacedProduct[];
   cables: Cable[];
   signals: Record<string, SignalDef>;
+  zones: Zone[];
   projectMeta: ProjectMeta;
   selectedNodeId: string | null;
   selectedCableId: string | null;
@@ -58,6 +65,10 @@ interface State {
   upsertSignal: (def: SignalDef) => void;
   removeSignal: (id: string) => void;
 
+  upsertZone: (z: Zone) => void;
+  removeZone: (id: string) => void;
+  setNodeZone: (nodeId: string, zoneId: string | undefined) => void;
+
   resetProject: () => void;
 }
 
@@ -73,6 +84,7 @@ export const useAppStore = create<State>()(
       nodes: [],
       cables: [],
       signals: { ...DEFAULT_SIGNAL_DEFS },
+      zones: [...DEFAULT_ZONES],
       projectMeta: DEFAULT_PROJECT_META,
       selectedNodeId: null,
       selectedCableId: null,
@@ -163,11 +175,33 @@ export const useAppStore = create<State>()(
           return { signals: next };
         }),
 
+      upsertZone: (z) =>
+        set((s) => {
+          const idx = s.zones.findIndex((x) => x.id === z.id);
+          if (idx === -1) return { zones: [...s.zones, z] };
+          const next = [...s.zones];
+          next[idx] = z;
+          return { zones: next };
+        }),
+      removeZone: (id) =>
+        set((s) => ({
+          zones: s.zones.filter((z) => z.id !== id),
+          nodes: s.nodes.map((n) =>
+            n.zoneId === id ? { ...n, zoneId: undefined } : n,
+          ),
+        })),
+      setNodeZone: (nodeId, zoneId) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === nodeId ? { ...n, zoneId } : n,
+          ),
+        })),
+
       resetProject: () => set({ nodes: [], cables: [] }),
     }),
     {
       name: "av-diagram-generator",
-      version: 3,
+      version: 4,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> | undefined;
         if (!state) return state as unknown as State;
@@ -183,6 +217,9 @@ export const useAppStore = create<State>()(
         if (!state.projectMeta) state.projectMeta = DEFAULT_PROJECT_META;
         if (fromVersion < 3 || !state.signals) {
           state.signals = { ...DEFAULT_SIGNAL_DEFS };
+        }
+        if (fromVersion < 4 || !state.zones) {
+          state.zones = [...DEFAULT_ZONES];
         }
         return state as unknown as State;
       },

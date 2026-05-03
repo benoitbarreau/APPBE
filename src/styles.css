@@ -653,6 +653,16 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.product-node-zone-select {
+  margin-top: 4px;
+  width: 100%;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  color: #1c1f24;
+}
 .product-node-body {
   display: flex;
   justify-content: space-between;

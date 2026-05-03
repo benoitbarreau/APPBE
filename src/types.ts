@@ -24,6 +24,13 @@ export interface PlacedProduct {
   productId: string;
   name: string;
   position: { x: number; y: number };
+  zoneId?: string;
+}
+
+export interface Zone {
+  id: string;
+  label: string;
+  color: string;
 }
 
 export type PortSide = "in" | "out" | "midL" | "midR";
