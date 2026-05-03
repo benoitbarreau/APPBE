@@ -17,21 +17,13 @@ export type CableEdgeType = Edge<CableEdgeData, "cable">;
 
 type Point = { x: number; y: number };
 
-function buildOrthogonalPath(points: Point[]): { d: string; midX: number; midY: number } {
-  if (points.length < 2) return { d: "", midX: 0, midY: 0 };
+function buildPolyline(points: Point[]): string {
+  if (points.length < 2) return "";
   let d = `M ${points[0].x} ${points[0].y}`;
   for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    if (prev.x !== curr.x && prev.y !== curr.y) {
-      d += ` L ${curr.x} ${prev.y}`;
-    }
-    d += ` L ${curr.x} ${curr.y}`;
+    d += ` L ${points[i].x} ${points[i].y}`;
   }
-  const midIdx = Math.floor(points.length / 2);
-  const a = points[midIdx - 1] ?? points[0];
-  const b = points[midIdx] ?? points[points.length - 1];
-  return { d, midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2 };
+  return d;
 }
 
 export function CableEdge({
@@ -62,6 +54,11 @@ export function CableEdge({
   } | null>(null);
 
   const waypoints = cable?.waypoints ?? [];
+  const allPoints: Point[] = [
+    { x: sourceX, y: sourceY },
+    ...waypoints,
+    { x: targetX, y: targetY },
+  ];
 
   let path: string;
   let labelX: number;
@@ -77,15 +74,12 @@ export function CableEdge({
       borderRadius: 6,
     });
   } else {
-    const all: Point[] = [
-      { x: sourceX, y: sourceY },
-      ...waypoints,
-      { x: targetX, y: targetY },
-    ];
-    const r = buildOrthogonalPath(all);
-    path = r.d;
-    labelX = r.midX;
-    labelY = r.midY;
+    path = buildPolyline(allPoints);
+    const mid = Math.floor(allPoints.length / 2);
+    const a = allPoints[mid - 1] ?? allPoints[0];
+    const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
+    labelX = (a.x + b.x) / 2;
+    labelY = (a.y + b.y) / 2;
   }
 
   const color = data?.color ?? "#888";
@@ -147,7 +141,10 @@ export function CableEdge({
     const onMove = (ev: MouseEvent) => {
       const dx = (ev.clientX - start.x) / zoom;
       const dy = (ev.clientY - start.y) / zoom;
-      const next = [...(useAppStore.getState().cables.find((c) => c.id === cable.id)?.waypoints ?? [])];
+      const next = [
+        ...(useAppStore.getState().cables.find((c) => c.id === cable.id)
+          ?.waypoints ?? []),
+      ];
       next[i] = { x: orig.x + dx, y: orig.y + dy };
       updateCable(cable.id, { waypoints: next });
     };
@@ -164,6 +161,89 @@ export function CableEdge({
     updateCable(cable.id, { waypoints: next });
   };
 
+  // Build segments for drag: each pair of consecutive points in allPoints
+  // indexA / indexB are positions in allPoints (0=source, 1..n=waypoints, n+1=target)
+  const segments = [];
+  for (let i = 0; i < allPoints.length - 1; i++) {
+    segments.push({ a: allPoints[i], b: allPoints[i + 1], indexA: i, indexB: i + 1 });
+  }
+
+  const onSegmentMouseDown = (
+    seg: { a: Point; b: Point; indexA: number; indexB: number },
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const dx = seg.b.x - seg.a.x;
+    const dy = seg.b.y - seg.a.y;
+    const isH = Math.abs(dy) < 1;
+    const isV = Math.abs(dx) < 1;
+    const start = { x: e.clientX, y: e.clientY };
+    const baseWaypoints = [...(cable.waypoints ?? [])];
+    const baseLen = baseWaypoints.length;
+
+    const onMove = (ev: MouseEvent) => {
+      const rdx = (ev.clientX - start.x) / zoom;
+      const rdy = (ev.clientY - start.y) / zoom;
+      if (Math.hypot(rdx, rdy) < 4) return;
+
+      let next = [...baseWaypoints];
+      const isAReal = seg.indexA > 0 && seg.indexA <= baseLen;
+      const isBReal = seg.indexB > 0 && seg.indexB <= baseLen;
+
+      if (isH || isV) {
+        const newPerp = isH ? seg.a.y + rdy : seg.a.x + rdx;
+        if (isAReal && isBReal) {
+          if (isH) {
+            next[seg.indexA - 1] = { ...next[seg.indexA - 1], y: newPerp };
+            next[seg.indexB - 1] = { ...next[seg.indexB - 1], y: newPerp };
+          } else {
+            next[seg.indexA - 1] = { ...next[seg.indexA - 1], x: newPerp };
+            next[seg.indexB - 1] = { ...next[seg.indexB - 1], x: newPerp };
+          }
+        } else if (isAReal && !isBReal) {
+          if (isH) {
+            next[seg.indexA - 1] = { ...next[seg.indexA - 1], y: newPerp };
+            next.splice(seg.indexB - 1, 0, { x: seg.b.x, y: newPerp });
+          } else {
+            next[seg.indexA - 1] = { ...next[seg.indexA - 1], x: newPerp };
+            next.splice(seg.indexB - 1, 0, { x: newPerp, y: seg.b.y });
+          }
+        } else if (!isAReal && isBReal) {
+          if (isH) {
+            next.splice(0, 0, { x: seg.a.x, y: newPerp });
+            next[seg.indexB] = { ...next[seg.indexB], y: newPerp };
+          } else {
+            next.splice(0, 0, { x: newPerp, y: seg.a.y });
+            next[seg.indexB] = { ...next[seg.indexB], x: newPerp };
+          }
+        } else {
+          if (isH) {
+            next.push({ x: seg.a.x, y: newPerp }, { x: seg.b.x, y: newPerp });
+          } else {
+            next.push({ x: newPerp, y: seg.a.y }, { x: newPerp, y: seg.b.y });
+          }
+        }
+      } else {
+        // Diagonal segment: insert one waypoint at the original click flow position
+        // approximated by midpoint of the segment plus the cumulative drag.
+        const insertAt = seg.indexA;
+        const wp = {
+          x: (seg.a.x + seg.b.x) / 2 + rdx,
+          y: (seg.a.y + seg.b.y) / 2 + rdy,
+        };
+        next.splice(insertAt, 0, wp);
+      }
+      updateCable(cable.id, { waypoints: next });
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
   return (
     <>
       <BaseEdge
@@ -173,6 +253,27 @@ export function CableEdge({
         markerEnd={markerEnd}
         markerStart={markerStart}
       />
+      {/* Invisible thick hit areas per segment - allow drag of any bar */}
+      {segments.map((seg, i) => {
+        const dx = seg.b.x - seg.a.x;
+        const dy = seg.b.y - seg.a.y;
+        const isH = Math.abs(dy) < 1;
+        const isV = Math.abs(dx) < 1;
+        const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
+        return (
+          <line
+            key={i}
+            x1={seg.a.x}
+            y1={seg.a.y}
+            x2={seg.b.x}
+            y2={seg.b.y}
+            stroke="transparent"
+            strokeWidth={16}
+            style={{ cursor, pointerEvents: "stroke" }}
+            onMouseDown={(e) => onSegmentMouseDown(seg, e)}
+          />
+        );
+      })}
       {selected &&
         waypoints.map((wp, i) => (
           <circle
