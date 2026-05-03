@@ -185,25 +185,27 @@ select {
 /* Edge label inline-éditable type Synodz */
 .cable-edge-label {
   pointer-events: all;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 2px 5px;
-  border-radius: 3px;
-  border: 1px solid transparent;
+  background: transparent;
+  padding: 0;
+  border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.15;
+  line-height: 1;
   font-size: 10px;
   white-space: nowrap;
+  cursor: move;
+  user-select: none;
 }
 .cable-edge-label.selected {
-  border-color: currentColor;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+  outline: 1px dashed currentColor;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 .cable-edge-line1 {
   display: flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 1px;
 }
 .cable-edge-line1 input,
 .cable-edge-label-text {
@@ -214,10 +216,16 @@ select {
   outline: none;
   font: inherit;
   text-align: center;
+  cursor: text;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 3px #fff;
 }
 .cable-edge-line1 input:focus,
 .cable-edge-label-text:focus {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.85);
   border-radius: 2px;
 }
 .cable-edge-type {
@@ -230,7 +238,7 @@ select {
   font-weight: 700;
 }
 .cable-edge-len {
-  width: 2.6em !important;
+  width: 2.4em !important;
   -moz-appearance: textfield;
 }
 .cable-edge-len::-webkit-inner-spin-button,
@@ -240,12 +248,17 @@ select {
 }
 .cable-edge-label-text {
   color: #E63946;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 9px;
+  margin-top: -1px;
 }
 .cable-edge-label-text::placeholder {
-  color: rgba(230, 57, 70, 0.4);
-  font-style: italic;
+  color: transparent;
+}
+
+/* Label layer above nodes so it stays readable */
+.react-flow__edgelabel-renderer {
+  z-index: 5;
 }
 
 .cable-number {

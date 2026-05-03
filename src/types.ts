@@ -36,6 +36,7 @@ export interface Cable {
   cableType: string;
   lengthMeters: number;
   label?: string;
+  labelOffset?: { x: number; y: number };
 }
 
 export interface ProjectMeta {

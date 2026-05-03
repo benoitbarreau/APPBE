@@ -8,6 +8,7 @@ import { CableList } from "./components/CableList";
 import { Legend } from "./components/Legend";
 import { Cartouche } from "./components/Cartouche";
 import { useAppStore } from "./store";
+import { layoutNodes } from "./layout";
 
 export default function App() {
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -17,6 +18,19 @@ export default function App() {
   const addNode = useAppStore((s) => s.addNode);
   const nodes = useAppStore((s) => s.nodes);
   const resetProject = useAppStore((s) => s.resetProject);
+  const updateNode = useAppStore((s) => s.updateNode);
+  const updateCable = useAppStore((s) => s.updateCable);
+
+  const handleAutoLayout = () => {
+    const state = useAppStore.getState();
+    const positions = layoutNodes(state.nodes, state.cables, state.products);
+    for (const p of positions) {
+      updateNode(p.id, { position: { x: p.x, y: p.y } });
+    }
+    for (const c of state.cables) {
+      if (c.labelOffset) updateCable(c.id, { labelOffset: { x: 0, y: 0 } });
+    }
+  };
 
   const handleAdd = (productId: string) => {
     const offset = nodes.length * 30;
@@ -44,6 +58,9 @@ export default function App() {
       <header className="app-header">
         <div className="brand">Générateur de synoptiques AV</div>
         <div className="header-actions">
+          <button onClick={handleAutoLayout} title="Replacer les produits pour minimiser les croisements">
+            Réorganiser
+          </button>
           <button onClick={exportProject}>Exporter projet</button>
           <button
             className="danger"
