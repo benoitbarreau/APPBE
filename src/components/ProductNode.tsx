@@ -57,9 +57,10 @@ function PortRow({
   const handleId = `${side}:${port.id}`;
   const handleStyle: React.CSSProperties = {
     background: color,
-    width: 4,
-    height: 4,
-    border: "1px solid #fff",
+    width: 9,
+    height: 9,
+    border: "2px solid #fff",
+    boxShadow: `0 0 0 1px ${color}`,
     top: "50%",
     ...(side === "in"
       ? { left: 0, transform: "translate(-50%, -50%)" }

@@ -1,8 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  Position,
   useStore,
   type EdgeProps,
   type Edge,
@@ -26,52 +25,42 @@ function buildPolyline(points: Point[]): string {
   return d;
 }
 
-function computeInitialWaypoints(
-  sx: number,
-  sy: number,
-  spos: Position,
-  tx: number,
-  ty: number,
-  tpos: Position,
-): Point[] {
-  // Default Z route depending on port directions
-  const horiz = (p: Position) => p === Position.Left || p === Position.Right;
-  const sH = horiz(spos);
-  const tH = horiz(tpos);
-  if (sH && tH) {
-    if (Math.abs(sy - ty) < 1) return [];
-    const midX = (sx + tx) / 2;
+// Returns rendering-only waypoints that form an alternating H-V chain
+// starting (and, when possible, ending) with a horizontal segment, which
+// matches our left/right port handles. Stored waypoints are taken at face
+// value but their coordinates are snapped to enforce orthogonality.
+function orthogonalize(source: Point, target: Point, stored: Point[]): Point[] {
+  if (stored.length === 0) {
+    if (Math.abs(source.y - target.y) < 1) return [];
+    const midX = (source.x + target.x) / 2;
     return [
-      { x: midX, y: sy },
-      { x: midX, y: ty },
+      { x: midX, y: source.y },
+      { x: midX, y: target.y },
     ];
   }
-  if (!sH && !tH) {
-    if (Math.abs(sx - tx) < 1) return [];
-    const midY = (sy + ty) / 2;
-    return [
-      { x: sx, y: midY },
-      { x: tx, y: midY },
-    ];
+  const wps = stored.map((p) => ({ x: p.x, y: p.y }));
+  // Segment 0 (source -> wps[0]) is H => wps[0].y = source.y
+  wps[0].y = source.y;
+  // For each pair (i-1, i) starting at i=1, snap to enforce alternation.
+  // Segment k between allPoints[k] and allPoints[k+1] alternates: H,V,H,V,...
+  // For wps index i (0-based), segment index for the pair (wps[i-1], wps[i]) is i.
+  for (let i = 1; i < wps.length; i++) {
+    if (i % 2 === 0) {
+      wps[i].y = wps[i - 1].y;
+    } else {
+      wps[i].x = wps[i - 1].x;
+    }
   }
-  // Mixed: single L corner
-  if (sH) {
-    return [{ x: tx, y: sy }];
+  // Last segment between wps[last] and target: index = wps.length.
+  const lastSegIdx = wps.length;
+  if (lastSegIdx % 2 === 0) {
+    // H -> wps[last].y must equal target.y
+    wps[wps.length - 1].y = target.y;
+  } else {
+    // V -> wps[last].x must equal target.x
+    wps[wps.length - 1].x = target.x;
   }
-  return [{ x: sx, y: ty }];
-}
-
-function snapToOrthogonal(
-  point: Point,
-  neighbors: Point[],
-  threshold = 12,
-): Point {
-  let { x, y } = point;
-  for (const n of neighbors) {
-    if (Math.abs(x - n.x) < threshold) x = n.x;
-    if (Math.abs(y - n.y) < threshold) y = n.y;
-  }
-  return { x, y };
+  return wps;
 }
 
 export function CableEdge({
@@ -80,8 +69,6 @@ export function CableEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   data,
   style,
   markerEnd,
@@ -101,28 +88,11 @@ export function CableEdge({
     moved: boolean;
   } | null>(null);
 
-  // Lazily seed orthogonal waypoints on first render of a brand-new cable.
-  useEffect(() => {
-    if (cable && cable.waypoints === undefined) {
-      const init = computeInitialWaypoints(
-        sourceX,
-        sourceY,
-        sourcePosition,
-        targetX,
-        targetY,
-        targetPosition,
-      );
-      updateCable(cable.id, { waypoints: init });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cable?.id]);
-
-  const waypoints = cable?.waypoints ?? [];
-  const allPoints: Point[] = [
-    { x: sourceX, y: sourceY },
-    ...waypoints,
-    { x: targetX, y: targetY },
-  ];
+  const stored = cable?.waypoints ?? [];
+  const source = { x: sourceX, y: sourceY };
+  const target = { x: targetX, y: targetY };
+  const waypoints = orthogonalize(source, target, stored);
+  const allPoints: Point[] = [source, ...waypoints, target];
 
   const path = buildPolyline(allPoints);
   const mid = Math.floor(allPoints.length / 2);
@@ -194,14 +164,7 @@ export function CableEdge({
         useAppStore.getState().cables.find((c) => c.id === cable.id)
           ?.waypoints ?? [];
       const next = [...cur];
-      const raw = { x: orig.x + dx, y: orig.y + dy };
-      const prev = i === 0
-        ? { x: sourceX, y: sourceY }
-        : next[i - 1] ?? { x: sourceX, y: sourceY };
-      const after = i === next.length - 1
-        ? { x: targetX, y: targetY }
-        : next[i + 1] ?? { x: targetX, y: targetY };
-      next[i] = snapToOrthogonal(raw, [prev, after]);
+      next[i] = { x: orig.x + dx, y: orig.y + dy };
       updateCable(cable.id, { waypoints: next });
     };
     const onUp = () => {
