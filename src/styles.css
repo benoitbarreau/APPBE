@@ -205,7 +205,13 @@ select {
 .cable-edge-line1 {
   display: flex;
   align-items: baseline;
-  gap: 1px;
+  gap: 4px;
+}
+.cable-edge-line1 .cable-edge-len + .cable-edge-unit {
+  margin-left: 0;
+}
+.cable-edge-line1 .cable-edge-len {
+  margin-right: -1px;
 }
 .cable-edge-line1 input,
 .cable-edge-label-text {
@@ -238,13 +244,17 @@ select {
   font-weight: 700;
 }
 .cable-edge-len {
-  width: 2.4em !important;
+  text-align: right !important;
+  padding: 0 !important;
   -moz-appearance: textfield;
+  appearance: textfield;
+  min-width: 1ch;
 }
 .cable-edge-len::-webkit-inner-spin-button,
 .cable-edge-len::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+  display: none;
 }
 .cable-edge-label-text {
   color: #E63946;

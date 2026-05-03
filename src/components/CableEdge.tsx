@@ -129,6 +129,7 @@ export function CableEdge({
               min={0}
               step={0.5}
               value={cable.lengthMeters}
+              style={{ width: `${String(cable.lengthMeters).length}ch` }}
               onChange={(e) =>
                 updateCable(cable.id, { lengthMeters: Number(e.target.value) })
               }
