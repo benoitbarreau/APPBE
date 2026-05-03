@@ -25,10 +25,10 @@ function buildPolyline(points: Point[]): string {
   return d;
 }
 
-// Returns rendering-only waypoints that form an alternating H-V chain
-// starting (and, when possible, ending) with a horizontal segment, which
-// matches our left/right port handles. Stored waypoints are taken at face
-// value but their coordinates are snapped to enforce orthogonality.
+// Snap stored waypoints so the rendered polyline only ever has H or V
+// segments. The direction of the first segment is inferred from where the
+// user has placed wp[0] - whichever axis is closer to source. The chain
+// then alternates and the final segment is snapped to land on target.
 function orthogonalize(source: Point, target: Point, stored: Point[]): Point[] {
   if (stored.length === 0) {
     if (Math.abs(source.y - target.y) < 1) return [];
@@ -39,27 +39,18 @@ function orthogonalize(source: Point, target: Point, stored: Point[]): Point[] {
     ];
   }
   const wps = stored.map((p) => ({ x: p.x, y: p.y }));
-  // Segment 0 (source -> wps[0]) is H => wps[0].y = source.y
-  wps[0].y = source.y;
-  // For each pair (i-1, i) starting at i=1, snap to enforce alternation.
-  // Segment k between allPoints[k] and allPoints[k+1] alternates: H,V,H,V,...
-  // For wps index i (0-based), segment index for the pair (wps[i-1], wps[i]) is i.
+  let dir: "H" | "V" =
+    Math.abs(wps[0].x - source.x) < Math.abs(wps[0].y - source.y) ? "V" : "H";
+  if (dir === "H") wps[0].y = source.y;
+  else wps[0].x = source.x;
   for (let i = 1; i < wps.length; i++) {
-    if (i % 2 === 0) {
-      wps[i].y = wps[i - 1].y;
-    } else {
-      wps[i].x = wps[i - 1].x;
-    }
+    dir = dir === "H" ? "V" : "H";
+    if (dir === "H") wps[i].y = wps[i - 1].y;
+    else wps[i].x = wps[i - 1].x;
   }
-  // Last segment between wps[last] and target: index = wps.length.
-  const lastSegIdx = wps.length;
-  if (lastSegIdx % 2 === 0) {
-    // H -> wps[last].y must equal target.y
-    wps[wps.length - 1].y = target.y;
-  } else {
-    // V -> wps[last].x must equal target.x
-    wps[wps.length - 1].x = target.x;
-  }
+  dir = dir === "H" ? "V" : "H";
+  if (dir === "H") wps[wps.length - 1].y = target.y;
+  else wps[wps.length - 1].x = target.x;
   return wps;
 }
 
@@ -197,7 +188,10 @@ export function CableEdge({
     const isH = Math.abs(dy) < 1;
     const isV = Math.abs(dx) < 1;
     const start = { x: e.clientX, y: e.clientY };
-    const baseWaypoints = [...(cable.waypoints ?? [])];
+    // Use the orthogonalized (effective) waypoints as base so the indices in
+    // seg.indexA/B match positions in this array. The store will be updated
+    // with the new effective waypoints.
+    const baseWaypoints = waypoints.map((p) => ({ ...p }));
     const baseLen = baseWaypoints.length;
 
     const onMove = (ev: MouseEvent) => {
