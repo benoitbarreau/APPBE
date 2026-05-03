@@ -450,28 +450,30 @@ select {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0 8px;
   flex: 1;
-}
-.port-col-out {
-  align-items: flex-end;
+  min-width: 0;
 }
 .port-row {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 0;
+  gap: 6px;
+  padding: 2px 12px;
   white-space: nowrap;
-}
-.port-row.out {
-  flex-direction: row-reverse;
+  min-height: 18px;
 }
 .port-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  display: inline-block;
+}
+.port-row.in {
+  justify-content: flex-start;
+}
+.port-row.out {
+  justify-content: flex-end;
 }
 .port-label {
   font-size: 10px;

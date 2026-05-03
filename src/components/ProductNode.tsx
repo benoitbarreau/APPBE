@@ -55,33 +55,31 @@ function PortRow({
 }) {
   const color = SIGNAL_COLORS[port.signal] ?? "#888";
   const handleId = `${side}:${port.id}`;
+  const handleStyle: React.CSSProperties = {
+    background: color,
+    width: 12,
+    height: 12,
+    border: "2px solid #fff",
+    boxShadow: `0 0 0 1px ${color}`,
+    top: "50%",
+    ...(side === "in"
+      ? { left: 0, transform: "translate(-50%, -50%)" }
+      : { left: "auto", right: 0, transform: "translate(50%, -50%)" }),
+  };
   return (
     <div className={"port-row " + side} title={`${port.signal} — ${port.label}`}>
-      {side === "in" && (
-        <Handle
-          id={handleId}
-          type="target"
-          position={Position.Left}
-          style={{ background: color, width: 10, height: 10 }}
-          isConnectable
-          data-nodeid={nodeId}
-        />
-      )}
-      <span className="port-dot" style={{ background: color }} />
+      <Handle
+        id={handleId}
+        type={side === "in" ? "target" : "source"}
+        position={side === "in" ? Position.Left : Position.Right}
+        style={handleStyle}
+        isConnectable
+        data-nodeid={nodeId}
+      />
       <span className="port-label">{port.label}</span>
       <span className="port-signal" style={{ color }}>
         {port.signal}
       </span>
-      {side === "out" && (
-        <Handle
-          id={handleId}
-          type="source"
-          position={Position.Right}
-          style={{ background: color, width: 10, height: 10 }}
-          isConnectable
-          data-nodeid={nodeId}
-        />
-      )}
     </div>
   );
 }
