@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
+import { useEffect, useRef, useState } from "react";
+import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
 import { ProductPalette } from "./components/ProductPalette";
 import { ProductEditor } from "./components/ProductEditor";
@@ -13,8 +13,18 @@ import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
+import { exportDiagram } from "./export";
 
 export default function App() {
+  return (
+    <ReactFlowProvider>
+      <AppInner />
+    </ReactFlowProvider>
+  );
+}
+
+function AppInner() {
+  const reactFlow = useReactFlow();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -66,6 +76,40 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(e.target as Node)
+      ) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
+
+  const handleExport = async (format: "png" | "jpeg" | "svg" | "pdf") => {
+    setExportMenuOpen(false);
+    try {
+      const refLabel =
+        useAppStore.getState().projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") ||
+        "synoptique";
+      await exportDiagram(reactFlow, {
+        format,
+        filename: `${refLabel}.${format}`,
+      });
+    } catch (e) {
+      alert(
+        "Échec de l'export : " +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -74,7 +118,24 @@ export default function App() {
           <button onClick={handleAutoLayout} title="Replacer les produits pour minimiser les croisements">
             Réorganiser
           </button>
-          <button onClick={exportProject}>Exporter projet</button>
+          <div className="export-menu" ref={exportMenuRef}>
+            <button onClick={() => setExportMenuOpen((v) => !v)}>
+              Exporter ▾
+            </button>
+            {exportMenuOpen && (
+              <div className="export-dropdown">
+                <button onClick={() => { setExportMenuOpen(false); exportProject(); }}>
+                  JSON (projet complet)
+                </button>
+                <button onClick={() => handleExport("png")}>PNG</button>
+                <button onClick={() => handleExport("jpeg")}>JPEG</button>
+                <button onClick={() => handleExport("svg")}>
+                  SVG (Visio, AutoCAD)
+                </button>
+                <button onClick={() => handleExport("pdf")}>PDF</button>
+              </div>
+            )}
+          </div>
           <button onClick={() => setAdminOpen(true)} title="Administration">
             ⚙ Admin
           </button>
@@ -100,9 +161,7 @@ export default function App() {
         </aside>
 
         <main className="canvas">
-          <ReactFlowProvider>
-            <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
-          </ReactFlowProvider>
+          <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
           <Cartouche />
         </main>
 

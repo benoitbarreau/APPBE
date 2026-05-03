@@ -995,6 +995,37 @@ select {
   padding: 4px 6px;
   width: 130px;
 }
+.export-menu {
+  position: relative;
+  display: inline-block;
+}
+.export-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  min-width: 180px;
+  z-index: 2000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-dropdown button {
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.export-dropdown button:hover {
+  background: #f0f3f8;
+}
 .instance-section {
   border: 1px solid var(--border);
   border-radius: 6px;
