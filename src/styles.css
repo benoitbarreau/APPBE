@@ -1129,7 +1129,7 @@ select {
 }
 
 .auth-logo {
-  height: 48px;
+  height: 150px;
   width: auto;
   object-fit: contain;
 }
