@@ -48,7 +48,7 @@ npm run preview    # sert dist/ sur http://localhost:4173
 
 ## Déploiement
 
-À chaque push sur `main` ou `claude/av-diagram-generator-DvBJA`, GitHub Actions construit l'app et la déploie sur GitHub Pages : <https://benoitbarreau.github.io/appbe/>.
+À chaque push sur `main` ou `claude/av-diagram-generator-DvBJA`, GitHub Actions construit l'app et la déploie sur GitHub Pages : <https://benoitbarreau.github.io/APPBE/>.
 
 Pré-requis côté repo (à faire une seule fois) : *Settings → Pages → Build and deployment → Source = GitHub Actions*.
 
