@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store";
+import { useAuth } from "../auth/useAuth";
 import { fileToResizedDataUrl } from "../image";
 import { ProductPreview } from "./ProductPreview";
 import {
@@ -124,25 +125,12 @@ export function ProductEditor({
     onClose();
   };
 
-  const adminCode = useAppStore((s) => s.adminCode);
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteCode, setDeleteCode] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const startDelete = () => {
-    setConfirmingDelete(true);
-    setDeleteCode("");
-    setDeleteError(null);
-  };
-  const cancelDelete = () => {
-    setConfirmingDelete(false);
-    setDeleteCode("");
-    setDeleteError(null);
-  };
+  const startDelete = () => setConfirmingDelete(true);
+  const cancelDelete = () => setConfirmingDelete(false);
   const confirmDelete = () => {
-    if (deleteCode !== adminCode) {
-      setDeleteError("Code invalide");
-      return;
-    }
     removeProduct(draft.id);
     onClose();
   };
@@ -399,40 +387,22 @@ export function ProductEditor({
           </aside>
         </div>
         <div className="modal-footer">
-          {!isNew && !confirmingDelete && (
+          {!isNew && isAdmin && !confirmingDelete && (
             <button
               className="danger"
               onClick={startDelete}
-              title="Supprimer ce produit du catalogue (code requis)"
+              title="Supprimer ce produit du catalogue"
             >
               Supprimer
             </button>
           )}
-          {!isNew && confirmingDelete && (
+          {!isNew && isAdmin && confirmingDelete && (
             <div className="delete-confirm-group">
-              <input
-                type="password"
-                placeholder="Code admin"
-                value={deleteCode}
-                onChange={(e) => {
-                  setDeleteCode(e.target.value);
-                  setDeleteError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmDelete();
-                  if (e.key === "Escape") cancelDelete();
-                }}
-                autoFocus
-              />
+              <span className="muted" style={{ fontSize: 11 }}>Confirmer la suppression ?</span>
               <button onClick={cancelDelete}>Annuler</button>
               <button className="danger danger-confirm" onClick={confirmDelete}>
                 Supprimer
               </button>
-              {deleteError && (
-                <span className="danger-text" style={{ fontSize: 11 }}>
-                  {deleteError}
-                </span>
-              )}
             </div>
           )}
           {!isNew && (

@@ -14,17 +14,19 @@ import { AdminSettings } from "./components/AdminSettings";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
 import { exportDiagram } from "./export";
+import { useAuth } from "./auth/useAuth";
 
-export default function App() {
+export default function App({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void }) {
   return (
     <ReactFlowProvider>
-      <AppInner />
+      <AppInner onOpenAdminDashboard={onOpenAdminDashboard} />
     </ReactFlowProvider>
   );
 }
 
-function AppInner() {
+function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void }) {
   const reactFlow = useReactFlow();
+  const { profile } = useAuth();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -136,8 +138,13 @@ function AppInner() {
               </div>
             )}
           </div>
-          <button onClick={() => setAdminOpen(true)} title="Administration">
-            ⚙ Admin
+          {profile?.role === 'admin' && onOpenAdminDashboard && (
+            <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
+              Tableau de bord
+            </button>
+          )}
+          <button onClick={() => setAdminOpen(true)} title="Mon compte">
+            ⚙ Mon compte
           </button>
           <button
             className="danger"

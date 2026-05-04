@@ -1106,3 +1106,275 @@ select {
   width: 90px;
   font-size: 11px;
 }
+
+/* ── Auth pages ─────────────────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  width: min(420px, 100%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-brand {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.auth-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.auth-field input {
+  padding: 8px 10px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.auth-field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.auth-field-row .auth-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.auth-btn-primary:hover {
+  background: #1a5fd6;
+  border-color: #1a5fd6;
+}
+
+.auth-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-btn-secondary {
+  background: #fff;
+  border-color: var(--border);
+  padding: 8px 16px;
+  font-size: 13px;
+  align-self: center;
+}
+
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.auth-success {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #16a34a;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.auth-link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-message {
+  font-size: 13px;
+  text-align: center;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.auth-status-icon {
+  text-align: center;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.auth-status-rejected {
+  color: var(--danger);
+}
+
+/* ── Loading screen ──────────────────────────────────────────────────────── */
+.auth-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: auth-spin 0.75s linear infinite;
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+.auth-loading-inline {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ── Admin dashboard ─────────────────────────────────────────────────────── */
+.admin-dashboard-modal {
+  width: min(880px, 96vw);
+  max-height: 90vh;
+}
+
+.admin-dashboard-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-filter-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbfc;
+}
+
+.admin-filter-count {
+  margin-left: auto;
+}
+
+/* ── User table ──────────────────────────────────────────────────────────── */
+.user-table-wrap {
+  overflow: auto;
+  flex: 1;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.user-table th,
+.user-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.user-table th {
+  background: #fafbfc;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  position: sticky;
+  top: 0;
+}
+
+.user-table-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* ── Status badges ───────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-approved {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.status-rejected {
+  background: #fef2f2;
+  color: #dc2626;
+}

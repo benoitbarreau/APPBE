@@ -42,7 +42,6 @@ interface State {
   signals: Record<string, SignalDef>;
   zones: Zone[];
   projectMeta: ProjectMeta;
-  adminCode: string;
   selectedNodeId: string | null;
   selectedCableId: string | null;
 
@@ -73,8 +72,6 @@ interface State {
   removeZone: (id: string) => void;
   setNodeZone: (nodeId: string, zoneId: string | undefined) => void;
 
-  setAdminCode: (code: string) => void;
-
   setNodePortPlacement: (
     nodeId: string,
     portId: string,
@@ -104,7 +101,6 @@ export const useAppStore = create<State>()(
       signals: { ...DEFAULT_SIGNAL_DEFS },
       zones: [...DEFAULT_ZONES],
       projectMeta: DEFAULT_PROJECT_META,
-      adminCode: "1234",
       selectedNodeId: null,
       selectedCableId: null,
 
@@ -215,8 +211,6 @@ export const useAppStore = create<State>()(
             n.id === nodeId ? { ...n, zoneId } : n,
           ),
         })),
-
-      setAdminCode: (code) => set({ adminCode: code }),
 
       setNodePortPlacement: (nodeId, portId, placement) =>
         set((s) => {
@@ -343,9 +337,9 @@ export const useAppStore = create<State>()(
     }),
     {
       name: "av-diagram-generator",
-      version: 5,
+      version: 6,
       migrate: (persisted, fromVersion) => {
-        const state = persisted as Partial<State> | undefined;
+        const state = persisted as Partial<State> & { adminCode?: unknown } | undefined;
         if (!state) return state as unknown as State;
         if (fromVersion < 2 && state.cables) {
           const counters: Record<string, number> = {};
@@ -363,9 +357,8 @@ export const useAppStore = create<State>()(
         if (fromVersion < 4 || !state.zones) {
           state.zones = [...DEFAULT_ZONES];
         }
-        if (fromVersion < 5 || typeof state.adminCode !== "string") {
-          state.adminCode = "1234";
-        }
+        // v6: adminCode removed — strip from persisted state if present
+        delete state.adminCode;
         return state as unknown as State;
       },
     },
