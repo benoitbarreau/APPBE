@@ -26,6 +26,21 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
+/** Fetch le profil avec jusqu'à 3 tentatives (réseau lent, token en cours de refresh) */
+async function fetchProfileWithRetry(userId: string): Promise<Profile | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (!error && data) return data as Profile
+    // Pause progressive avant la prochaine tentative (700 ms, 1400 ms)
+    if (attempt < 2) await new Promise(r => setTimeout(r, 700 * (attempt + 1)))
+  }
+  return null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -40,20 +55,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const timeout = setTimeout(finishLoading, 8000)
+    // Filet de sécurité : jamais bloqué plus de 10 s sur l'écran de chargement
+    const timeout = setTimeout(finishLoading, 10_000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
+      async (event, session) => {
         try {
           const currentUser = session?.user ?? null
           setUser(currentUser)
+
           if (currentUser) {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentUser.id)
-              .single()
-            setProfile(data as Profile | null)
+            // Ne re-fetcher le profil que lors du chargement initial ou d'une
+            // vraie connexion. TOKEN_REFRESHED ne nécessite pas un nouveau fetch
+            // (même utilisateur, même profil) et était la cause des "Profil
+            // introuvable" après une sauvegarde de projet.
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+              const prof = await fetchProfileWithRetry(currentUser.id)
+              setProfile(prof)
+            }
+            // Pour TOKEN_REFRESHED / USER_UPDATED : conserver le profil actuel
           } else {
             setProfile(null)
           }
@@ -85,18 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    // Clear local state immediately so UI responds at once
     setUser(null)
     setProfile(null)
-    // Clear Supabase session from localStorage before calling signOut
-    // to avoid re-auth loops even if the network call fails
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-')) localStorage.removeItem(key)
     })
     try {
       await supabase.auth.signOut()
     } catch {
-      // ignore network errors — local state already cleared
+      // Erreurs réseau ignorées — l'état local est déjà vidé
     }
   }
 
