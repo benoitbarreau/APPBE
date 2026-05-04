@@ -1536,3 +1536,62 @@ select {
   background: #fef2f2;
   color: #dc2626;
 }
+
+/* ── Project header additions ────────────────────────────────────────────── */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-sep {
+  color: var(--border);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.project-name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: inherit;
+  min-width: 120px;
+  max-width: 280px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.project-name-input:hover {
+  border-color: var(--border);
+  background: var(--hover);
+}
+
+.project-name-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--panel);
+}
+
+.header-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.btn-saved {
+  background: #16a34a !important;
+  color: #fff !important;
+  border-color: #16a34a !important;
+}
+
+/* ── Projects modal ──────────────────────────────────────────────────────── */
+.projects-modal {
+  width: min(720px, 96vw);
+  max-height: 80vh;
+}

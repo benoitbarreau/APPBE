@@ -11,10 +11,12 @@ import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
+import { ProjectsModal } from "./pages/ProjectsModal";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
 import { exportDiagram } from "./export";
 import { useAuth } from "./auth/useAuth";
+import { saveProject } from "./lib/projectsApi";
 
 export default function App({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void }) {
   return (
@@ -31,28 +33,26 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [rightTab, setRightTab] = useState<
-    "cables" | "etiquettes" | "legend" | "zones"
-  >("cables");
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "legend" | "zones">("cables");
+  const [saving, setSaving] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
 
   const addNode = useAppStore((s) => s.addNode);
   const nodes = useAppStore((s) => s.nodes);
   const resetProject = useAppStore((s) => s.resetProject);
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
+  const currentProjectName = useAppStore((s) => s.currentProjectName);
+  const setProjectName = useAppStore((s) => s.setProjectName);
 
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
     const positions = layoutNodes(state.nodes, state.cables, state.products);
-    for (const p of positions) {
-      updateNode(p.id, { position: { x: p.x, y: p.y } });
-    }
+    for (const p of positions) updateNode(p.id, { position: { x: p.x, y: p.y } });
     for (const c of state.cables) {
       if (c.labelOffset || (c.waypoints && c.waypoints.length > 0)) {
-        updateCable(c.id, {
-          labelOffset: { x: 0, y: 0 },
-          waypoints: [],
-        });
+        updateCable(c.id, { labelOffset: { x: 0, y: 0 }, waypoints: [] });
       }
     }
   };
@@ -62,18 +62,43 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
     addNode(productId, { x: 200 + offset, y: 100 + offset });
   };
 
+  const handleNew = () => {
+    if (!confirm("Créer un nouveau projet ? Les modifications non sauvegardées seront perdues.")) return;
+    resetProject();
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const state = useAppStore.getState();
+      const { nodes: n, cables, projectMeta, signals, zones, products } = state;
+      const id = await saveProject(
+        state.currentProjectId,
+        state.currentProjectName || "Sans titre",
+        { nodes: n, cables, projectMeta, signals, zones, products },
+      );
+      if (!state.currentProjectId) {
+        useAppStore.setState({ currentProjectId: id });
+      }
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 2500);
+    } catch (e) {
+      alert("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const exportProject = () => {
     const state = useAppStore.getState();
-    const data = JSON.stringify(
-      { products: state.products, nodes: state.nodes, cables: state.cables },
-      null,
-      2,
+    const blob = new Blob(
+      [JSON.stringify({ products: state.products, nodes: state.nodes, cables: state.cables }, null, 2)],
+      { type: "application/json" },
     );
-    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "synoptique.json";
+    a.download = `${currentProjectName.replace(/[^a-z0-9]+/gi, "-") || "synoptique"}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -83,10 +108,7 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
   useEffect(() => {
     if (!exportMenuOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (
-        exportMenuRef.current &&
-        !exportMenuRef.current.contains(e.target as Node)
-      ) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
         setExportMenuOpen(false);
       }
     };
@@ -98,32 +120,51 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
     setExportMenuOpen(false);
     try {
       const refLabel =
-        useAppStore.getState().projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") ||
-        "synoptique";
-      await exportDiagram(reactFlow, {
-        format,
-        filename: `${refLabel}.${format}`,
-      });
+        useAppStore.getState().projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
+      await exportDiagram(reactFlow, { format, filename: `${refLabel}.${format}` });
     } catch (e) {
-      alert(
-        "Échec de l'export : " +
-          (e instanceof Error ? e.message : String(e)),
-      );
+      alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
     }
   };
 
   return (
     <div className="app">
       <header className="app-header">
-        <div className="brand">Générateur de synoptiques Audiovisuel</div>
+        <div className="header-left">
+          <div className="brand">SynoX</div>
+          <span className="header-sep">|</span>
+          <input
+            className="project-name-input"
+            value={currentProjectName}
+            onChange={e => setProjectName(e.target.value)}
+            placeholder="Sans titre"
+            title="Nom du projet (cliquer pour renommer)"
+          />
+        </div>
+
         <div className="header-actions">
-          <button onClick={handleAutoLayout} title="Replacer les produits pour minimiser les croisements">
+          <button onClick={handleNew} title="Créer un nouveau projet vide">
+            Nouveau
+          </button>
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className={savedOk ? "btn-saved" : ""}
+            title="Sauvegarder dans le cloud"
+          >
+            {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
+          </button>
+          <button onClick={() => setProjectsOpen(true)} title="Ouvrir un projet sauvegardé">
+            Projets
+          </button>
+
+          <div className="header-separator" />
+
+          <button onClick={handleAutoLayout} title="Replacer les produits">
             Réorganiser
           </button>
           <div className="export-menu" ref={exportMenuRef}>
-            <button onClick={() => setExportMenuOpen((v) => !v)}>
-              Exporter ▾
-            </button>
+            <button onClick={() => setExportMenuOpen((v) => !v)}>Exporter ▾</button>
             {exportMenuOpen && (
               <div className="export-dropdown">
                 <button onClick={() => { setExportMenuOpen(false); exportProject(); }}>
@@ -131,28 +172,21 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
                 </button>
                 <button onClick={() => handleExport("png")}>PNG</button>
                 <button onClick={() => handleExport("jpeg")}>JPEG</button>
-                <button onClick={() => handleExport("svg")}>
-                  SVG (Visio, AutoCAD)
-                </button>
+                <button onClick={() => handleExport("svg")}>SVG (Visio, AutoCAD)</button>
                 <button onClick={() => handleExport("pdf")}>PDF</button>
               </div>
             )}
           </div>
-          {profile?.role === 'admin' && onOpenAdminDashboard && (
+
+          <div className="header-separator" />
+
+          {profile?.role === "admin" && onOpenAdminDashboard && (
             <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
               Tableau de bord
             </button>
           )}
           <button onClick={() => setAdminOpen(true)} title="Mon compte">
             ⚙ Mon compte
-          </button>
-          <button
-            className="danger"
-            onClick={() => {
-              if (confirm("Vider le synoptique en cours ?")) resetProject();
-            }}
-          >
-            Réinitialiser
           </button>
         </div>
       </header>
@@ -174,28 +208,16 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
 
         <aside className="sidebar right">
           <div className="tabs">
-            <button
-              className={rightTab === "cables" ? "active" : ""}
-              onClick={() => setRightTab("cables")}
-            >
+            <button className={rightTab === "cables" ? "active" : ""} onClick={() => setRightTab("cables")}>
               Câbles
             </button>
-            <button
-              className={rightTab === "etiquettes" ? "active" : ""}
-              onClick={() => setRightTab("etiquettes")}
-            >
+            <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
               Etiquettes
             </button>
-            <button
-              className={rightTab === "zones" ? "active" : ""}
-              onClick={() => setRightTab("zones")}
-            >
+            <button className={rightTab === "zones" ? "active" : ""} onClick={() => setRightTab("zones")}>
               Zones
             </button>
-            <button
-              className={rightTab === "legend" ? "active" : ""}
-              onClick={() => setRightTab("legend")}
-            >
+            <button className={rightTab === "legend" ? "active" : ""} onClick={() => setRightTab("legend")}>
               Légende
             </button>
           </div>
@@ -207,20 +229,14 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
       </div>
 
       {editing !== null && (
-        <ProductEditor
-          productId={editing}
-          onClose={() => setEditing(null)}
-          onSwitchTo={(id) => setEditing(id)}
-        />
+        <ProductEditor productId={editing} onClose={() => setEditing(null)} onSwitchTo={(id) => setEditing(id)} />
       )}
       {editingInstance !== null && (
-        <InstancePortsConfig
-          nodeId={editingInstance}
-          onClose={() => setEditingInstance(null)}
-        />
+        <InstancePortsConfig nodeId={editingInstance} onClose={() => setEditingInstance(null)} />
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
       {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
+      {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
     </div>
   );
 }

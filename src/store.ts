@@ -12,6 +12,7 @@ import type {
   SignalType,
   Zone,
 } from "./types";
+import type { ProjectData } from "./lib/projectsApi";
 import { DEFAULT_SIGNAL_DEFS } from "./types";
 
 const DEFAULT_ZONES: Zone[] = [
@@ -44,6 +45,10 @@ interface State {
   projectMeta: ProjectMeta;
   selectedNodeId: string | null;
   selectedCableId: string | null;
+
+  // Cloud project tracking
+  currentProjectId: string | null;
+  currentProjectName: string;
 
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -84,6 +89,8 @@ interface State {
   addNodePort: (nodeId: string, port: Port) => void;
   removeNodePort: (nodeId: string, portId: string) => void;
 
+  setProjectName: (name: string) => void;
+  loadProjectData: (id: string, name: string, data: ProjectData) => void;
   resetProject: () => void;
 }
 
@@ -103,6 +110,8 @@ export const useAppStore = create<State>()(
       projectMeta: DEFAULT_PROJECT_META,
       selectedNodeId: null,
       selectedCableId: null,
+      currentProjectId: null,
+      currentProjectName: "Sans titre",
 
       addProduct: (p) =>
         set((s) => ({ products: [...s.products.filter((x) => x.id !== p.id), p] })),
@@ -333,11 +342,37 @@ export const useAppStore = create<State>()(
           ),
         })),
 
-      resetProject: () => set({ nodes: [], cables: [] }),
+
+      setProjectName: (name) => set({ currentProjectName: name }),
+
+      loadProjectData: (id, name, data) =>
+        set({
+          currentProjectId: id,
+          currentProjectName: name,
+          nodes: data.nodes ?? [],
+          cables: data.cables ?? [],
+          projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
+          signals: data.signals ?? { ...DEFAULT_SIGNAL_DEFS },
+          zones: data.zones ?? [...DEFAULT_ZONES],
+          products: data.products ?? BUILTIN_CATALOG,
+          selectedNodeId: null,
+          selectedCableId: null,
+        }),
+
+      resetProject: () =>
+        set({
+          nodes: [],
+          cables: [],
+          currentProjectId: null,
+          currentProjectName: "Sans titre",
+          projectMeta: { ...DEFAULT_PROJECT_META },
+          selectedNodeId: null,
+          selectedCableId: null,
+        }),
     }),
     {
       name: "av-diagram-generator",
-      version: 6,
+      version: 7,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & { adminCode?: unknown } | undefined;
         if (!state) return state as unknown as State;
@@ -359,6 +394,8 @@ export const useAppStore = create<State>()(
         }
         // v6: adminCode removed — strip from persisted state if present
         delete state.adminCode;
+        if (state.currentProjectId === undefined) state.currentProjectId = null;
+        if (!state.currentProjectName) state.currentProjectName = "Sans titre";
         return state as unknown as State;
       },
     },
