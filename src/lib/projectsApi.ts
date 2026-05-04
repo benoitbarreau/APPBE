@@ -25,7 +25,7 @@ export async function listProjects(): Promise<ProjectRow[]> {
     .select('id, user_id, name, created_at, updated_at, profiles(email, full_name)')
     .order('updated_at', { ascending: false })
   if (error) throw error
-  return (data ?? []) as ProjectRow[]
+  return (data ?? []) as unknown as ProjectRow[]
 }
 
 export async function fetchProject(id: string): Promise<{ name: string; data: ProjectData }> {
