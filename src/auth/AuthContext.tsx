@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from 'react'
+import { createContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
@@ -30,8 +30,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const loadingDone = useRef(false)
+
+  const finishLoading = () => {
+    if (!loadingDone.current) {
+      loadingDone.current = true
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
+    // Safety timeout: never stay on loading screen more than 8 seconds
+    const timeout = setTimeout(finishLoading, 8000)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_, session) => {
         try {
@@ -48,11 +59,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setProfile(null)
           }
         } finally {
-          setLoading(false)
+          clearTimeout(timeout)
+          finishLoading()
         }
       }
     )
-    return () => subscription.unsubscribe()
+
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
