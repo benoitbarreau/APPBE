@@ -115,7 +115,7 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
   return (
     <div className="app">
       <header className="app-header">
-        <div className="brand">Générateur de synoptiques AV</div>
+        <div className="brand">Générateur de synoptiques Audiovisuel</div>
         <div className="header-actions">
           <button onClick={handleAutoLayout} title="Replacer les produits pour minimiser les croisements">
             Réorganiser
