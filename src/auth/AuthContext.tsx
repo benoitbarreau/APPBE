@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // Safety timeout: never stay on loading screen more than 8 seconds
     const timeout = setTimeout(finishLoading, 8000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -86,11 +85,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    // Clear local state immediately so UI responds at once
+    setUser(null)
+    setProfile(null)
+    // Clear Supabase session from localStorage before calling signOut
+    // to avoid re-auth loops even if the network call fails
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-')) localStorage.removeItem(key)
+    })
     try {
       await supabase.auth.signOut()
-    } finally {
-      setUser(null)
-      setProfile(null)
+    } catch {
+      // ignore network errors — local state already cleared
     }
   }
 
