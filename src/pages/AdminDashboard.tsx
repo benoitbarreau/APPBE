@@ -5,6 +5,7 @@ import type { Profile, UserStatus, UserRole } from '../auth/AuthContext'
 import {
   fetchBrands, createBrand, updateBrand, deleteBrand,
   fetchCategories, createCategory, updateCategory, deleteCategory,
+  importMetaFromProducts,
 } from '../lib/catalogMetaApi'
 import type { CatalogBrand, CatalogCategory } from '../lib/catalogMetaApi'
 import { useCatalogMeta } from '../store'
@@ -194,6 +195,8 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const [categories, setCategories] = useState<CatalogCategory[]>([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [catalogErr, setCatalogErr] = useState<string | null>(null)
+  const [migrationMissing, setMigrationMissing] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   // Nouvelle marque
   const [newBrand, setNewBrand] = useState('')
@@ -204,23 +207,52 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const [newCatColor, setNewCatColor] = useState('#3B82F6')
   const [addingCat, setAddingCat] = useState(false)
 
-  const loadCatalog = async () => {
+  const loadCatalog = async (autoImport = false) => {
     setLoadingCatalog(true)
     setCatalogErr(null)
+    setMigrationMissing(false)
     try {
       const [b, c] = await Promise.all([fetchBrands(), fetchCategories()])
-      setBrands(b)
-      setCategories(c)
-      setCatalogMeta(b, c)
+      // Si les deux listes sont vides, importer automatiquement depuis les produits existants
+      if (autoImport && b.length === 0 && c.length === 0) {
+        const result = await importMetaFromProducts()
+        // Recharger pour avoir les IDs corrects
+        const [b2, c2] = await Promise.all([fetchBrands(), fetchCategories()])
+        setBrands(b2.length > 0 ? b2 : result.brands)
+        setCategories(c2.length > 0 ? c2 : result.categories)
+        setCatalogMeta(b2.length > 0 ? b2 : result.brands, c2.length > 0 ? c2 : result.categories)
+      } else {
+        setBrands(b)
+        setCategories(c)
+        setCatalogMeta(b, c)
+      }
     } catch (e) {
-      setCatalogErr(e instanceof Error ? e.message : 'Erreur de chargement')
+      const msg = e instanceof Error ? e.message : 'Erreur de chargement'
+      if (msg.toLowerCase().includes('schema cache') || msg.toLowerCase().includes('not found')) {
+        setMigrationMissing(true)
+      } else {
+        setCatalogErr(msg)
+      }
     } finally {
       setLoadingCatalog(false)
     }
   }
 
+  const handleImportFromProducts = async () => {
+    setImporting(true)
+    setCatalogErr(null)
+    try {
+      await importMetaFromProducts()
+      await loadCatalog(false)
+    } catch (e) {
+      setCatalogErr(e instanceof Error ? e.message : 'Erreur lors de l\'import')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   useEffect(() => {
-    if (activeTab === 'catalog') void loadCatalog()
+    if (activeTab === 'catalog') void loadCatalog(true)
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Marques
@@ -342,95 +374,133 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
 
           {/* ── Onglet Catalogue ── */}
           {activeTab === 'catalog' && (
-            <div className="catmeta-layout">
-
-              {/* Colonne Marques */}
-              <div className="catmeta-col">
-                <h3 className="catmeta-col-title">Marques</h3>
-                {catalogErr && <div className="auth-error" style={{ marginBottom: 8 }}>{catalogErr}</div>}
-                {loadingCatalog
-                  ? <div className="auth-loading-inline">Chargement…</div>
-                  : (
-                    <div className="catmeta-list">
-                      {brands.map(b => (
-                        <BrandRow
-                          key={b.id}
-                          brand={b}
-                          onSave={handleSaveBrand}
-                          onDelete={handleDeleteBrand}
-                        />
-                      ))}
-                      {brands.length === 0 && (
-                        <div className="catmeta-empty">Aucune marque définie</div>
-                      )}
-                    </div>
-                  )
-                }
-                <div className="catmeta-add-row">
-                  <input
-                    className="catmeta-input"
-                    placeholder="Nouvelle marque…"
-                    value={newBrand}
-                    onChange={e => setNewBrand(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && void handleAddBrand()}
-                  />
-                  <button
-                    className="primary"
-                    onClick={() => void handleAddBrand()}
-                    disabled={addingBrand || !newBrand.trim()}
-                  >
-                    Ajouter
-                  </button>
+            <>
+              {/* Migration manquante */}
+              {migrationMissing && (
+                <div className="catmeta-migration-warning">
+                  <strong>⚠ Migration SQL requise</strong>
+                  <p>
+                    Les tables <code>catalog_brands</code> et <code>catalog_categories</code> n'existent pas encore.
+                    Exécutez le fichier <code>supabase/migrations/006_catalog_meta.sql</code> dans l'éditeur SQL
+                    de Supabase, puis rechargez cette page.
+                  </p>
+                  <button onClick={() => void loadCatalog(true)}>Réessayer</button>
                 </div>
-              </div>
+              )}
 
-              {/* Colonne Catégories */}
-              <div className="catmeta-col">
-                <h3 className="catmeta-col-title">Catégories</h3>
-                {loadingCatalog
-                  ? null
-                  : (
-                    <div className="catmeta-list">
-                      {categories.map(c => (
-                        <CategoryRow
-                          key={c.id}
-                          category={c}
-                          onSave={handleSaveCat}
-                          onDelete={handleDeleteCat}
-                        />
-                      ))}
-                      {categories.length === 0 && (
-                        <div className="catmeta-empty">Aucune catégorie définie</div>
-                      )}
+              {!migrationMissing && (
+                <div className="catmeta-layout">
+
+                  {/* Colonne Marques */}
+                  <div className="catmeta-col">
+                    <div className="catmeta-col-header">
+                      <h3 className="catmeta-col-title">Marques</h3>
+                      <button
+                        className="catmeta-import-btn"
+                        onClick={() => void handleImportFromProducts()}
+                        disabled={importing || loadingCatalog}
+                        title="Importer toutes les marques déjà utilisées dans les produits"
+                      >
+                        {importing ? '…' : '↻ Sync depuis produits'}
+                      </button>
                     </div>
-                  )
-                }
-                <div className="catmeta-add-row">
-                  <input
-                    type="color"
-                    value={newCatColor}
-                    onChange={e => setNewCatColor(e.target.value)}
-                    className="catmeta-color-input"
-                    title="Couleur de la catégorie"
-                  />
-                  <input
-                    className="catmeta-input"
-                    placeholder="Nouvelle catégorie…"
-                    value={newCatName}
-                    onChange={e => setNewCatName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && void handleAddCat()}
-                  />
-                  <button
-                    className="primary"
-                    onClick={() => void handleAddCat()}
-                    disabled={addingCat || !newCatName.trim()}
-                  >
-                    Ajouter
-                  </button>
-                </div>
-              </div>
+                    {catalogErr && <div className="auth-error" style={{ marginBottom: 8 }}>{catalogErr}</div>}
+                    {loadingCatalog
+                      ? <div className="auth-loading-inline">Chargement…</div>
+                      : (
+                        <div className="catmeta-list">
+                          {brands.map(b => (
+                            <BrandRow
+                              key={b.id}
+                              brand={b}
+                              onSave={handleSaveBrand}
+                              onDelete={handleDeleteBrand}
+                            />
+                          ))}
+                          {brands.length === 0 && (
+                            <div className="catmeta-empty">
+                              Aucune marque définie.<br />
+                              <button
+                                className="catmeta-import-link"
+                                onClick={() => void handleImportFromProducts()}
+                                disabled={importing}
+                              >
+                                Importer depuis les produits existants
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }
+                    <div className="catmeta-add-row">
+                      <input
+                        className="catmeta-input"
+                        placeholder="Nouvelle marque…"
+                        value={newBrand}
+                        onChange={e => setNewBrand(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && void handleAddBrand()}
+                      />
+                      <button
+                        className="primary"
+                        onClick={() => void handleAddBrand()}
+                        disabled={addingBrand || !newBrand.trim()}
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                  </div>
 
-            </div>
+                  {/* Colonne Catégories */}
+                  <div className="catmeta-col">
+                    <div className="catmeta-col-header">
+                      <h3 className="catmeta-col-title">Catégories</h3>
+                    </div>
+                    {loadingCatalog
+                      ? null
+                      : (
+                        <div className="catmeta-list">
+                          {categories.map(c => (
+                            <CategoryRow
+                              key={c.id}
+                              category={c}
+                              onSave={handleSaveCat}
+                              onDelete={handleDeleteCat}
+                            />
+                          ))}
+                          {categories.length === 0 && (
+                            <div className="catmeta-empty">Aucune catégorie définie</div>
+                          )}
+                        </div>
+                      )
+                    }
+                    <div className="catmeta-add-row">
+                      <input
+                        type="color"
+                        value={newCatColor}
+                        onChange={e => setNewCatColor(e.target.value)}
+                        className="catmeta-color-input"
+                        title="Couleur de la catégorie"
+                      />
+                      <input
+                        className="catmeta-input"
+                        placeholder="Nouvelle catégorie…"
+                        value={newCatName}
+                        onChange={e => setNewCatName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && void handleAddCat()}
+                      />
+                      <button
+                        className="primary"
+                        onClick={() => void handleAddCat()}
+                        disabled={addingCat || !newCatName.trim()}
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </>
           )}
         </div>
 

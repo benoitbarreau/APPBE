@@ -48,7 +48,20 @@ CREATE POLICY "admin_manage_categories" ON public.catalog_categories
   USING  (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- ── Données initiales (optionnel — à adapter selon le contexte) ───────────
--- INSERT INTO public.catalog_brands (name) VALUES ('Barco'), ('Kramer'), ('Sony');
--- INSERT INTO public.catalog_categories (name, color) VALUES
---   ('Écran', '#3B82F6'), ('Caméra', '#10B981'), ('Matrice AV', '#F59E0B');
+-- ── Auto-population depuis les produits existants ─────────────────────────
+-- Importe automatiquement toutes les marques et catégories déjà utilisées
+-- dans user_products pour que les tables ne soient jamais vides au départ.
+
+INSERT INTO public.catalog_brands (name)
+SELECT DISTINCT trim(product_data->>'manufacturer')
+FROM   public.user_products
+WHERE  trim(product_data->>'manufacturer') IS NOT NULL
+  AND  trim(product_data->>'manufacturer') <> ''
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO public.catalog_categories (name, color)
+SELECT DISTINCT trim(product_data->>'category'), '#6c7480'
+FROM   public.user_products
+WHERE  trim(product_data->>'category') IS NOT NULL
+  AND  trim(product_data->>'category') <> ''
+ON CONFLICT (name) DO NOTHING;
