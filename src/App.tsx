@@ -103,6 +103,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   };
 
   const handleBackToProjects = () => {
+    // En lecture seule : pas de confirmation (rien ne peut être modifié)
+    if (readOnly) {
+      onBackToProjects?.();
+      return;
+    }
     const hasNodes = useAppStore.getState().nodes.length > 0;
     if (hasNodes && !savedOk) {
       if (!confirm("Retourner aux projets ? Les modifications non sauvegardées seront perdues.")) return;

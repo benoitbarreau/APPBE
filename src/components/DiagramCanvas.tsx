@@ -17,7 +17,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import { type PortSide, type Product, type SignalType } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
@@ -64,6 +64,7 @@ export function DiagramCanvas({
   const updateCable = useAppStore((s) => s.updateCable);
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
+  const readOnly = useEditorState((s) => s.readOnly);
 
   const rfNodes: Node[] = useMemo(() => {
     // Compute the grid of A3 pages large enough to cover the diagram.
@@ -237,15 +238,18 @@ export function DiagramCanvas({
     <ReactFlow
       nodes={rfNodes}
       edges={rfEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      onReconnect={onReconnect}
-      onEdgeDoubleClick={onEdgeDoubleClick}
-      onNodeDoubleClick={onNodeDoubleClick}
+      onNodesChange={readOnly ? undefined : onNodesChange}
+      onEdgesChange={readOnly ? undefined : onEdgesChange}
+      onConnect={readOnly ? undefined : onConnect}
+      onReconnect={readOnly ? undefined : onReconnect}
+      onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
+      onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
       reconnectRadius={20}
       connectionMode={ConnectionMode.Loose}
-      deleteKeyCode={["Delete", "Backspace"]}
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
+      elementsSelectable={!readOnly}
+      deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultEdgeOptions={{ type: "cable" }}

@@ -688,3 +688,14 @@ export const useCatalogMeta = create<CatalogMetaState>()((set) => ({
   setCatalogMeta: (catalogBrands, catalogCategories) =>
     set({ catalogBrands, catalogCategories }),
 }));
+
+// ── État éditeur non-persisté (lecture seule, etc.) ────────────────────────
+interface EditorState {
+  readOnly: boolean;
+  setReadOnly: (v: boolean) => void;
+}
+
+export const useEditorState = create<EditorState>()((set) => ({
+  readOnly: false,
+  setReadOnly: (readOnly) => set({ readOnly }),
+}));

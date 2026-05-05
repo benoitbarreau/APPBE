@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
-import { useAppStore, useCatalogMeta } from '../store'
+import { useAppStore, useCatalogMeta, useEditorState } from '../store'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { PendingPage } from '../pages/PendingPage'
@@ -30,8 +30,9 @@ export function ProtectedRoute() {
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
   const [page, setPage] = useState<Page>('projects')
-  const [readOnly, setReadOnly] = useState(false)
   const [readOnlyVersion, setReadOnlyVersion] = useState<string | undefined>()
+  const setReadOnly = useEditorState((s) => s.setReadOnly)
+  const readOnly = useEditorState((s) => s.readOnly)
 
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)

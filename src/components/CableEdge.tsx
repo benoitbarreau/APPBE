@@ -6,7 +6,7 @@ import {
   type EdgeProps,
   type Edge,
 } from "@xyflow/react";
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import type { Cable, PortSide } from "../types";
 
 export interface CableEdgeData extends Record<string, unknown> {
@@ -275,6 +275,7 @@ export function CableEdge({
   const reverseCable = useAppStore((s) => s.reverseCable);
   const allNodes = useAppStore((s) => s.nodes);
   const allProducts = useAppStore((s) => s.products);
+  const readOnly = useEditorState((s) => s.readOnly);
   const zoom = useStore((s) => s.transform[2]);
   const nodeLookup = useStore((s) => s.nodeLookup);
 
@@ -750,7 +751,8 @@ export function CableEdge({
             value={cable.label ?? ""}
             style={{ width: `${Math.max((cable.label ?? "").length, 4) + 0.5}ch` }}
             placeholder=""
-            onChange={(e) => updateCable(cable.id, { label: e.target.value })}
+            readOnly={readOnly}
+            onChange={readOnly ? undefined : (e) => updateCable(cable.id, { label: e.target.value })}
           />
         </div>
       </EdgeLabelRenderer>

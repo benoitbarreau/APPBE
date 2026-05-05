@@ -207,82 +207,79 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                 const owned = isOwned(p)
                 return (
                   <div key={p.id} className={`project-card${owned ? '' : ' project-card-shared'}`}>
-                    <div className="project-card-body">
-                      <div className="project-card-name-row">
+                    {/* ── Contenu principal ── */}
+                    <div className="project-card-main">
+                      <div className="project-card-body">
                         <div className="project-card-name" title={p.name}>{p.name}</div>
-                        {!owned && (
-                          <span className="project-shared-badge" title="Partagé avec vous">
-                            Partagé
-                          </span>
+                        {profile?.role === 'admin' && p.profiles && (
+                          <div className="project-card-owner">
+                            {p.profiles.full_name ?? p.profiles.email}
+                          </div>
+                        )}
+                        {!owned && p.profiles && (
+                          <div className="project-card-owner">
+                            Par {p.profiles.full_name ?? p.profiles.email}
+                          </div>
+                        )}
+                        <div className="project-card-date">
+                          Modifié le {fmt(p.updated_at)}
+                        </div>
+                      </div>
+                      <div className="project-card-actions">
+                        <button
+                          className="primary"
+                          onClick={() => void handleOpen(p)}
+                          disabled={loadingId === p.id}
+                        >
+                          {loadingId === p.id ? '…' : 'Ouvrir →'}
+                        </button>
+                        {owned && (
+                          <>
+                            <button
+                              className="btn-share"
+                              onClick={() => setShareProject({ id: p.id, name: p.name })}
+                              title="Partager ce projet"
+                            >
+                              ↗ Partager
+                            </button>
+                            <button
+                              className="danger"
+                              onClick={() => void handleDelete(p.id)}
+                              disabled={deletingId === p.id}
+                              title="Supprimer ce projet"
+                            >
+                              {deletingId === p.id ? '…' : '🗑'}
+                            </button>
+                          </>
                         )}
                       </div>
-                      {profile?.role === 'admin' && p.profiles && (
-                        <div className="project-card-owner">
-                          {p.profiles.full_name ?? p.profiles.email}
-                        </div>
-                      )}
-                      {!owned && p.profiles && (
-                        <div className="project-card-owner">
-                          Par {p.profiles.full_name ?? p.profiles.email}
-                        </div>
-                      )}
-                      <div className="project-card-date">
-                        Modifié le {fmt(p.updated_at)}
-                      </div>
-
-                      {/* ── Historique de versions ── */}
-                      {((p.versions_meta ?? []).length > 0) && (
-                        <div className="project-versions">
-                          {(p.versions_meta ?? []).map((vm) => (
-                            <button
-                              key={vm.id}
-                              className="version-badge"
-                              title={`Ouvrir la version ${vm.version} — ${fmtVersion(vm.savedAt)}`}
-                              onClick={() => handleOpenVersionClick(vm, p)}
-                            >
-                              {vm.version}
-                            </button>
-                          ))}
-                          {/* Version courante (non archivée) — ouvre en édition */}
-                          <button
-                            className="version-badge version-badge-current"
-                            title={`Version courante — Ouvrir en édition`}
-                            onClick={() => void handleOpen(p)}
-                          >
-                            {/* Extraire la version courante depuis les données du projet n'est pas possible ici sans fetch,
-                                on affiche V(dernière+0.1) ou juste "Actuelle" */}
-                            En cours
-                          </button>
-                        </div>
-                      )}
                     </div>
-                    <div className="project-card-actions">
-                      <button
-                        className="primary"
-                        onClick={() => void handleOpen(p)}
-                        disabled={loadingId === p.id}
-                      >
-                        {loadingId === p.id ? '…' : 'Ouvrir →'}
-                      </button>
-                      {owned && (
-                        <>
-                          <button
-                            className="btn-share"
-                            onClick={() => setShareProject({ id: p.id, name: p.name })}
-                            title="Partager ce projet"
-                          >
-                            ↗ Partager
-                          </button>
-                          <button
-                            className="danger"
-                            onClick={() => void handleDelete(p.id)}
-                            disabled={deletingId === p.id}
-                            title="Supprimer ce projet"
-                          >
-                            {deletingId === p.id ? '…' : '🗑'}
-                          </button>
-                        </>
+
+                    {/* ── Colonne versions (droite) ── */}
+                    <div className="project-card-versions">
+                      {!owned && (
+                        <span className="project-shared-badge" title="Partagé avec vous">
+                          PARTAGÉ
+                        </span>
                       )}
+                      {(p.versions_meta ?? []).map((vm) => (
+                        <button
+                          key={vm.id}
+                          className="version-badge"
+                          title={`Ouvrir la version ${vm.version} — ${fmtVersion(vm.savedAt)}`}
+                          onClick={() => handleOpenVersionClick(vm, p)}
+                        >
+                          {vm.version}
+                        </button>
+                      ))}
+                      {/* Version courante — toujours visible, ouvre en édition */}
+                      <button
+                        className="version-badge version-badge-current"
+                        title="Version en cours — Ouvrir en édition"
+                        onClick={() => void handleOpen(p)}
+                      >
+                        En cours
+                      </button>
                     </div>
                   </div>
                 )

@@ -366,6 +366,11 @@ select {
   outline: 1px solid var(--primary);
   background: #fafbfc;
 }
+.cartouche-readonly input {
+  cursor: default;
+  pointer-events: none;
+  color: var(--muted);
+}
 .cartouche-title {
   font-weight: 700;
   font-size: 13px !important;
@@ -2424,8 +2429,8 @@ select {
   border-radius: 12px;
   padding: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  gap: 0;
   transition: border-color 0.15s, box-shadow 0.15s;
   cursor: default;
 }
@@ -2433,6 +2438,15 @@ select {
 .project-card:hover {
   border-color: var(--primary);
   box-shadow: 0 2px 16px rgba(47, 111, 237, 0.08);
+}
+
+/* Partie gauche : infos + actions */
+.project-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .project-card-body {
@@ -2486,29 +2500,33 @@ select {
   background: color-mix(in srgb, var(--surface) 97%, var(--primary) 3%);
 }
 
-.project-card-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.project-card-name-row .project-card-name {
-  flex: 1;
-  min-width: 0;
-}
-
+/* Badge "PARTAGÉ" — fond rouge */
 .project-shared-badge {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 600;
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  border-radius: 10px;
-  padding: 1px 7px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--danger);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 7px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+/* ── Colonne versions (droite) ──────────────────────────────────────────── */
+.project-card-versions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  margin-left: 12px;
+  min-width: 72px;
+  justify-content: flex-start;
 }
 
 /* ── Historique de versions sur les cartes ─────────────────────────────── */
@@ -2521,14 +2539,16 @@ select {
 .version-badge {
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   letter-spacing: 0.03em;
+  text-align: center;
+  white-space: nowrap;
 }
 .version-badge:hover {
   background: var(--primary);
@@ -2536,9 +2556,15 @@ select {
   border-color: var(--primary);
 }
 .version-badge-current {
-  border-style: solid;
-  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  border-color: #22a85a;
+  background: color-mix(in srgb, #22a85a 15%, transparent);
+  color: #22a85a;
   font-style: italic;
+}
+.version-badge-current:hover {
+  background: #22a85a;
+  color: #fff;
+  border-color: #22a85a;
 }
 
 /* ── Bannière lecture seule ─────────────────────────────────────────────── */
