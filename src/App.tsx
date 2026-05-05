@@ -137,7 +137,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
     URL.revokeObjectURL(url);
   };
 
-  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {

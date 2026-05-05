@@ -9,6 +9,7 @@ import {
 } from '../lib/catalogMetaApi'
 import type { CatalogBrand, CatalogCategory } from '../lib/catalogMetaApi'
 import { useCatalogMeta } from '../store'
+import { BUILTIN_CATALOG } from '../catalog'
 
 // ── Onglet utilisateurs ───────────────────────────────────────────────────
 
@@ -215,12 +216,18 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
       const [b, c] = await Promise.all([fetchBrands(), fetchCategories()])
       // Si les deux listes sont vides, importer automatiquement depuis les produits existants
       if (autoImport && b.length === 0 && c.length === 0) {
-        const result = await importMetaFromProducts()
-        // Recharger pour avoir les IDs corrects
+        // Produits cloud
+        await importMetaFromProducts()
+        // Produits builtin
+        const builtinBrands = [...new Set(BUILTIN_CATALOG.map(p => p.manufacturer?.trim() ?? '').filter(Boolean))]
+        const builtinCategories = [...new Set(BUILTIN_CATALOG.map(p => p.category?.trim() ?? '').filter(Boolean))]
+        for (const name of builtinBrands) { try { await createBrand(name) } catch { /* doublon ignoré */ } }
+        for (const name of builtinCategories) { try { await createCategory(name, '#6c7480') } catch { /* doublon ignoré */ } }
+        // Recharger
         const [b2, c2] = await Promise.all([fetchBrands(), fetchCategories()])
-        setBrands(b2.length > 0 ? b2 : result.brands)
-        setCategories(c2.length > 0 ? c2 : result.categories)
-        setCatalogMeta(b2.length > 0 ? b2 : result.brands, c2.length > 0 ? c2 : result.categories)
+        setBrands(b2)
+        setCategories(c2)
+        setCatalogMeta(b2, c2)
       } else {
         setBrands(b)
         setCategories(c)
@@ -242,7 +249,33 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     setImporting(true)
     setCatalogErr(null)
     try {
-      await importMetaFromProducts()
+      // 1. Importer depuis user_products (produits cloud)
+      const fromCloud = await importMetaFromProducts()
+
+      // 2. Ajouter les marques/catégories du catalogue intégré (BUILTIN_CATALOG)
+      //    qui ne sont JAMAIS dans user_products (ils sont dans le code)
+      const builtinBrands = [...new Set(
+        BUILTIN_CATALOG.map(p => p.manufacturer?.trim() ?? '').filter(Boolean)
+      )]
+      const builtinCategories = [...new Set(
+        BUILTIN_CATALOG.map(p => p.category?.trim() ?? '').filter(Boolean)
+      )]
+
+      // Insérer les marques builtin manquantes
+      const existingBrandNames = new Set([...brands.map(b => b.name), ...fromCloud.brands.map(b => b.name)])
+      const missingBrands = builtinBrands.filter(n => !existingBrandNames.has(n))
+      for (const name of missingBrands) {
+        try { await createBrand(name) } catch { /* doublon ignoré */ }
+      }
+
+      // Insérer les catégories builtin manquantes
+      const existingCatNames = new Set([...categories.map(c => c.name), ...fromCloud.categories.map(c => c.name)])
+      const missingCats = builtinCategories.filter(n => !existingCatNames.has(n))
+      for (const name of missingCats) {
+        try { await createCategory(name, '#6c7480') } catch { /* doublon ignoré */ }
+      }
+
+      // 3. Recharger la liste complète
       await loadCatalog(false)
     } catch (e) {
       setCatalogErr(e instanceof Error ? e.message : 'Erreur lors de l\'import')

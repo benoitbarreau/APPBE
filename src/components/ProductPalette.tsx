@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAppStore, useCatalogMeta } from "../store";
+import type { Product } from "../types";
 
 type GroupBy = "brand" | "category";
+
+// Clé composite pour les sous-groupes : "PrimaryGroup::SubGroup"
+const subKey = (primary: string, sub: string) => `${primary}::${sub}`;
 
 export function ProductPalette({
   onAdd,
@@ -18,17 +22,21 @@ export function ProductPalette({
 }) {
   const products = useAppStore((s) => s.products);
   const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
+
   const [filter, setFilter] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("brand");
 
-  // Map catégorie → couleur pour l'affichage dans les items
-  const categoryColorMap = useMemo(
-    () => new Map(catalogCategories.map((c) => [c.name, c.color])),
-    [catalogCategories],
-  );
-  // Groupes explicitement ouverts — départ vide = tout replié par défaut.
-  // Quand un filtre est actif, tous les groupes s'affichent (résultats visibles).
+  // Groupes ouverts — vide = tout replié par défaut
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const [openSubGroups, setOpenSubGroups] = useState<Set<string>>(new Set());
+
+  // Réinitialise l'état open lors du changement de mode groupement
+  const prevGroupBy = useRef<GroupBy>(groupBy);
+  if (prevGroupBy.current !== groupBy) {
+    prevGroupBy.current = groupBy;
+    setOpenGroups(new Set());
+    setOpenSubGroups(new Set());
+  }
 
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => {
@@ -38,6 +46,21 @@ export function ProductPalette({
       return next;
     });
 
+  const toggleSubGroup = (key: string) =>
+    setOpenSubGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  // Map catégorie → couleur pour l'affichage
+  const categoryColorMap = useMemo(
+    () => new Map(catalogCategories.map((c) => [c.name, c.color])),
+    [catalogCategories],
+  );
+
+  // Hiérarchie deux niveaux : primary → [sub → [Product]]
   const grouped = useMemo(() => {
     const f = filter.trim().toLowerCase();
     const filtered = products.filter(
@@ -47,25 +70,48 @@ export function ProductPalette({
         p.manufacturer.toLowerCase().includes(f) ||
         p.category.toLowerCase().includes(f),
     );
-    const getKey = (p: (typeof filtered)[0]) =>
+
+    const getPrimary = (p: Product) =>
       groupBy === "brand"
-        ? (p.manufacturer || "Sans marque")
-        : (p.category || "Sans catégorie");
-    const map = new Map<string, typeof filtered>();
+        ? p.manufacturer || "Sans marque"
+        : p.category || "Sans catégorie";
+
+    const getSecondary = (p: Product) =>
+      groupBy === "brand"
+        ? p.category || "Sans catégorie"
+        : p.manufacturer || "Sans marque";
+
+    // Premier niveau
+    const primaryMap = new Map<string, Product[]>();
     for (const p of filtered) {
-      const k = getKey(p);
-      const arr = map.get(k) ?? [];
+      const pk = getPrimary(p);
+      const arr = primaryMap.get(pk) ?? [];
       arr.push(p);
-      map.set(k, arr);
+      primaryMap.set(pk, arr);
     }
-    // Tri alphabétique des groupes, puis par référence dans chaque groupe
-    return Array.from(map.entries())
+
+    // Deuxième niveau dans chaque groupe primaire
+    return Array.from(primaryMap.entries())
       .sort(([a], [b]) => a.localeCompare(b, "fr"))
-      .map(([key, items]) => [
-        key,
-        [...items].sort((a, b) => a.reference.localeCompare(b.reference, "fr")),
-      ] as [string, typeof filtered]);
+      .map(([pk, items]) => {
+        const subMap = new Map<string, Product[]>();
+        for (const p of items) {
+          const sk = getSecondary(p);
+          const arr = subMap.get(sk) ?? [];
+          arr.push(p);
+          subMap.set(sk, arr);
+        }
+        const subs = Array.from(subMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b, "fr"))
+          .map(([sk, si]) => [
+            sk,
+            [...si].sort((a, b) => a.reference.localeCompare(b.reference, "fr")),
+          ] as [string, Product[]]);
+        return [pk, subs] as [string, [string, Product[]][]];
+      });
   }, [products, filter, groupBy]);
+
+  const hasFilter = filter.trim() !== "";
 
   return (
     <div className="palette">
@@ -112,46 +158,84 @@ export function ProductPalette({
         className="palette-search"
       />
 
-      {/* ── Liste ── */}
+      {/* ── Liste deux niveaux ── */}
       <div className="palette-list">
         {grouped.length === 0 && (
           <div className="palette-empty">Aucun produit trouvé</div>
         )}
-        {grouped.map(([group, items]) => {
-          // Ouvert si : filtre actif (on veut voir les résultats) OU groupe explicitement ouvert
-          const isOpen = filter.trim() !== "" || openGroups.has(group);
+        {grouped.map(([primary, subs]) => {
+          const primaryOpen = hasFilter || openGroups.has(primary);
+          const totalCount = subs.reduce((n, [, items]) => n + items.length, 0);
+
           return (
-            <div key={group} className="palette-group">
+            <div key={primary} className="palette-group">
+              {/* Titre groupe primaire (marque ou catégorie) */}
               <button
                 className="palette-group-title"
-                onClick={() => toggleGroup(group)}
-                title={isOpen ? "Réduire" : "Développer"}
+                onClick={() => toggleGroup(primary)}
+                title={primaryOpen ? "Réduire" : "Développer"}
               >
-                <span className={`palette-group-chevron${isOpen ? "" : " closed"}`}>▾</span>
-                <span className="palette-group-name">{group}</span>
-                <span className="palette-group-count">{items.length}</span>
+                <span className={`palette-group-chevron${primaryOpen ? "" : " closed"}`}>▾</span>
+                <span className="palette-group-name">{primary}</span>
+                <span className="palette-group-count">{totalCount}</span>
               </button>
-              {isOpen && items.map((p) => {
-                const catColor = categoryColorMap.get(p.category);
+
+              {primaryOpen && subs.map(([secondary, items]) => {
+                const sk = subKey(primary, secondary);
+                const subOpen = hasFilter || openSubGroups.has(sk);
+                const catColor = groupBy === "brand"
+                  ? categoryColorMap.get(secondary)
+                  : categoryColorMap.get(primary);
+
+                // N'afficher le sous-groupe que s'il y a plusieurs sous-groupes
+                const showSubGroup = subs.length > 1;
+
                 return (
-                  <div
-                    key={p.id}
-                    className="palette-item"
-                    style={catColor ? { borderLeftColor: catColor, borderLeftWidth: 3 } : undefined}
-                  >
-                    <div className="palette-item-info">
-                      <div className="palette-item-ref">{p.reference}</div>
-                      <div className="palette-item-cat" style={catColor ? { color: catColor } : undefined}>
-                        {groupBy === "brand" ? p.category : p.manufacturer}
-                      </div>
-                      <div className="palette-item-io">
-                        {p.inputs.length} in · {p.outputs.length} out
-                      </div>
-                    </div>
-                    <div className="palette-item-actions">
-                      <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
-                      <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
-                    </div>
+                  <div key={sk} className="palette-subgroup">
+                    {/* Titre sous-groupe — caché si un seul sous-groupe */}
+                    {showSubGroup && (
+                      <button
+                        className="palette-subgroup-title"
+                        onClick={() => toggleSubGroup(sk)}
+                        title={subOpen ? "Réduire" : "Développer"}
+                        style={catColor ? { color: catColor } : undefined}
+                      >
+                        <span className={`palette-subgroup-chevron${subOpen ? "" : " closed"}`}>›</span>
+                        <span className="palette-subgroup-name">{secondary}</span>
+                        <span className="palette-group-count">{items.length}</span>
+                      </button>
+                    )}
+
+                    {/* Produits */}
+                    {(subOpen || !showSubGroup) && items.map((p) => {
+                      const itemColor = catColor;
+                      return (
+                        <div
+                          key={p.id}
+                          className="palette-item"
+                          style={itemColor ? { borderLeftColor: itemColor, borderLeftWidth: 3 } : undefined}
+                        >
+                          <div className="palette-item-info">
+                            <div className="palette-item-ref">{p.reference}</div>
+                            {!showSubGroup && (
+                              <div
+                                className="palette-item-cat"
+                                style={itemColor ? { color: itemColor } : undefined}
+                              >
+                                {secondary}
+                              </div>
+                            )}
+                            <div className="palette-item-io">
+                              {p.inputs.length} in · {p.outputs.length} out
+                            </div>
+                          </div>
+                          <div className="palette-item-actions">
+                            <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
+                            <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}

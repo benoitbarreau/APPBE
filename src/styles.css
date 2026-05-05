@@ -717,6 +717,50 @@ select {
   flex-shrink: 0;
 }
 
+/* ── Sous-groupe ── */
+.palette-subgroup {
+  padding-left: 10px;
+}
+
+.palette-subgroup-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  padding: 3px 6px 3px 0;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background 0.1s, color 0.1s;
+}
+.palette-subgroup-title:hover {
+  background: var(--bg);
+  border: none;
+}
+
+.palette-subgroup-chevron {
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.palette-subgroup-chevron.closed {
+  transform: rotate(-90deg);
+}
+
+.palette-subgroup-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── État vide ── */
 .palette-empty {
   padding: 24px 0;
