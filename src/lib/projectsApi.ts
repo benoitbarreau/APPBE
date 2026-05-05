@@ -85,11 +85,24 @@ export interface ShareRow {
 export async function listProjectShares(projectId: string): Promise<ShareRow[]> {
   const { data, error } = await supabase
     .from('project_shares')
-    .select('id, project_id, user_id, role, shared_by, created_at, profiles(email, full_name)')
+    // Hint FK explicite pour éviter l'ambiguïté (user_id ET shared_by → profiles)
+    .select('id, project_id, user_id, role, shared_by, created_at, profiles!project_shares_user_id_fkey(email, full_name)')
     .eq('project_id', projectId)
     .order('created_at', { ascending: true })
   if (error) throw pgErr(error)
   return (data ?? []) as unknown as ShareRow[]
+}
+
+export interface ProfileOption {
+  id: string
+  email: string
+  full_name: string | null
+}
+
+export async function listApprovedProfiles(): Promise<ProfileOption[]> {
+  const { data, error } = await supabase.rpc('list_approved_profiles')
+  if (error) throw pgErr(error)
+  return (data ?? []) as ProfileOption[]
 }
 
 export async function addProjectShare(

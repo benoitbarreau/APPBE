@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { listProjectShares, addProjectShare, removeProjectShare } from '../lib/projectsApi'
-import type { ShareRow } from '../lib/projectsApi'
+import { useEffect, useRef, useState } from 'react'
+import { listProjectShares, addProjectShare, removeProjectShare, listApprovedProfiles } from '../lib/projectsApi'
+import type { ShareRow, ProfileOption } from '../lib/projectsApi'
 import { useAuth } from '../auth/useAuth'
 
 interface Props {
@@ -12,30 +12,77 @@ interface Props {
 export function ShareModal({ projectId, projectName, onClose }: Props) {
   const { profile } = useAuth()
   const [shares, setShares] = useState<ShareRow[]>([])
+  const [users, setUsers] = useState<ProfileOption[]>([])
   const [sharesLoading, setSharesLoading] = useState(true)
-  const [email, setEmail] = useState('')
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<ProfileOption | null>(null)
   const [role, setRole] = useState<'editor' | 'viewer'>('viewer')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Chargement initial : partages en cours + liste des utilisateurs
   useEffect(() => {
-    listProjectShares(projectId)
-      .then(setShares)
-      .catch(e => setError(e instanceof Error ? e.message : 'Erreur chargement'))
-      .finally(() => setSharesLoading(false))
+    Promise.all([
+      listProjectShares(projectId),
+      listApprovedProfiles(),
+    ]).then(([s, u]) => {
+      setShares(s)
+      setUsers(u)
+    }).catch(e => {
+      setError(e instanceof Error ? e.message : 'Erreur chargement')
+    }).finally(() => setSharesLoading(false))
   }, [projectId])
 
+  // Fermer le dropdown si clic en dehors
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dropdownOpen])
+
+  // Utilisateurs déjà partagés (pour les griser dans la liste)
+  const sharedUserIds = new Set(shares.map(s => s.user_id))
+
+  // Filtrage de la liste
+  const filtered = users.filter(u => {
+    if (sharedUserIds.has(u.id)) return false // déjà partagé → masqué
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return u.email.toLowerCase().includes(q) || (u.full_name?.toLowerCase().includes(q) ?? false)
+  })
+
+  const handleSelect = (u: ProfileOption) => {
+    setSelected(u)
+    setSearch(u.full_name ? `${u.full_name} <${u.email}>` : u.email)
+    setDropdownOpen(false)
+  }
+
+  const handleSearchChange = (v: string) => {
+    setSearch(v)
+    setSelected(null)
+    setDropdownOpen(true)
+  }
+
   const handleAdd = async () => {
-    const trimmed = email.trim()
-    if (!trimmed) return
+    const target = selected ?? (search.trim() ? { id: '', email: search.trim(), full_name: null } : null)
+    if (!target) return
     setAdding(true)
     setError(null)
     try {
-      await addProjectShare(projectId, trimmed, role)
+      await addProjectShare(projectId, target.email, role)
       const updated = await listProjectShares(projectId)
       setShares(updated)
-      setEmail('')
+      setSearch('')
+      setSelected(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur lors du partage')
     } finally {
@@ -56,6 +103,8 @@ export function ShareModal({ projectId, projectName, onClose }: Props) {
     }
   }
 
+  const canInvite = !!(selected || search.trim())
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="share-modal" onClick={e => e.stopPropagation()}>
@@ -67,17 +116,54 @@ export function ShareModal({ projectId, projectName, onClose }: Props) {
 
         <p className="share-modal-subtitle">« {projectName} »</p>
 
-        {/* Formulaire d'invitation */}
-        <div className="share-modal-form">
-          <input
-            type="email"
-            className="share-modal-email"
-            placeholder="Email du collaborateur…"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') void handleAdd() }}
-            autoFocus
-          />
+        {/* ── Sélecteur d'utilisateur ── */}
+        <div className="share-modal-form" ref={dropdownRef}>
+          <div className="share-user-picker">
+            <input
+              ref={searchRef}
+              type="text"
+              className="share-modal-email"
+              placeholder="Rechercher un utilisateur…"
+              value={search}
+              autoComplete="off"
+              onChange={e => handleSearchChange(e.target.value)}
+              onFocus={() => setDropdownOpen(true)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && canInvite) void handleAdd()
+                if (e.key === 'Escape') { setDropdownOpen(false); setSearch(''); setSelected(null) }
+              }}
+            />
+
+            {dropdownOpen && filtered.length > 0 && (
+              <div className="share-user-dropdown">
+                {filtered.map(u => (
+                  <button
+                    key={u.id}
+                    className="share-user-option"
+                    onMouseDown={e => { e.preventDefault(); handleSelect(u) }}
+                  >
+                    <span className="share-user-option-name">
+                      {u.full_name ?? u.email}
+                    </span>
+                    {u.full_name && (
+                      <span className="share-user-option-email">{u.email}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {dropdownOpen && search.trim() && filtered.length === 0 && (
+              <div className="share-user-dropdown">
+                <p className="share-user-no-match">
+                  {users.length === 0
+                    ? 'Aucun autre utilisateur approuvé.'
+                    : 'Aucun utilisateur correspondant.'}
+                </p>
+              </div>
+            )}
+          </div>
+
           <select
             className="share-modal-role"
             value={role}
@@ -87,10 +173,11 @@ export function ShareModal({ projectId, projectName, onClose }: Props) {
             <option value="viewer">Lecteur</option>
             <option value="editor">Éditeur</option>
           </select>
+
           <button
             className="primary"
             onClick={() => void handleAdd()}
-            disabled={adding || !email.trim()}
+            disabled={adding || !canInvite}
           >
             {adding ? '…' : 'Inviter'}
           </button>
@@ -98,7 +185,7 @@ export function ShareModal({ projectId, projectName, onClose }: Props) {
 
         {error && <div className="auth-error share-modal-error">{error}</div>}
 
-        {/* Liste des partages en cours */}
+        {/* ── Liste des partages actifs ── */}
         <div className="share-list">
           <p className="share-list-heading">Accès actuels</p>
 
