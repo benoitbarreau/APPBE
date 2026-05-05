@@ -302,9 +302,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             {currentProjectId && !readOnly && (
               <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
             )}
-          </div>
 
-          <div className="header-actions">
+            <div className="header-separator" />
+
             {!readOnly && (
               <button
                 onClick={() => void handleSave()}
@@ -315,9 +315,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
               </button>
             )}
-
-            <div className="header-separator" />
-
             <button onClick={handleAutoLayout} title="Replacer les produits">
               Réorganiser
             </button>
@@ -335,9 +332,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="header-separator" />
-
+          <div className="header-actions">
             {profile?.role === "admin" && onOpenAdminDashboard && (
               <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
                 Tableau de bord
