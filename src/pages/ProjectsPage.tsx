@@ -286,7 +286,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                         <div className="project-card-actions">
                           {!p.archived && (
                             <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
-                              ↗ Partager
+                              Partager
                             </button>
                           )}
                           <button
@@ -295,7 +295,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                             disabled={archivingId === p.id}
                             title={p.archived ? 'Désarchiver ce projet' : 'Archiver ce projet'}
                           >
-                            {archivingId === p.id ? '…' : p.archived ? '↩ Désarchiver' : '📦 Archiver'}
+                            {archivingId === p.id ? '…' : p.archived ? 'Désarchiver' : 'Archiver'}
                           </button>
                           <button className="danger" onClick={() => void handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer ce projet">
                             {deletingId === p.id ? '…' : '🗑'}

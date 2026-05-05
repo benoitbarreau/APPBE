@@ -2464,7 +2464,7 @@ select {
 /* Grille de cartes projet */
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
 
@@ -2524,7 +2524,7 @@ select {
 
 .project-card-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: stretch;
   overflow: hidden; /* garantit qu'aucun bouton ne déborde hors de la zone */
 }
@@ -2533,17 +2533,20 @@ select {
 .project-card-actions .btn-share,
 .project-card-actions .btn-archive {
   flex: 1;
-  padding: 7px 6px;
-  font-size: 12px;
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 11px;
   text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Poubelle : carré fixe */
 .project-card-actions .danger {
-  flex: 0 0 36px;
-  width: 36px;
-  padding: 7px 0;
+  flex: 0 0 30px;
+  width: 30px;
+  padding: 6px 0;
   font-size: 13px;
   text-align: center;
 }
