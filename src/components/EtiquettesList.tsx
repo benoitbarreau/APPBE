@@ -5,11 +5,16 @@ import { useEditorState } from "../store";
 type SortKey = "number" | "label" | "cableType" | "lengthMeters";
 type SortDir = "asc" | "desc";
 
-const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
+const COLUMNS_DETAIL: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "number", label: "N°" },
   { key: "label", label: "Etiquette câble" },
   { key: "cableType", label: "Type de câble" },
   { key: "lengthMeters", label: "Longueur (m)", align: "right" },
+];
+
+const COLUMNS_SIMPLE: { key: SortKey; label: string; align?: "right" }[] = [
+  { key: "number", label: "N°" },
+  { key: "cableType", label: "Type de câble" },
 ];
 
 function downloadFile(filename: string, content: string, mime: string) {
@@ -79,6 +84,9 @@ export function EtiquettesList() {
   const readOnly = useEditorState((s) => s.readOnly);
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [detailed, setDetailed] = useState(true);
+
+  const COLUMNS = detailed ? COLUMNS_DETAIL : COLUMNS_SIMPLE;
 
   const rows = useMemo(() => {
     const list = cables.map((c) => ({
@@ -150,15 +158,18 @@ export function EtiquettesList() {
       <div className="etiquettes-header">
         <h3>Etiquettes câbles ({rows.length})</h3>
         <div className="etiquettes-actions">
-          <button onClick={exportCsv} disabled={!rows.length}>
-            CSV
+          <button
+            className={`etiquettes-view-toggle${detailed ? " active" : ""}`}
+            onClick={() => setDetailed((v) => !v)}
+            title={detailed ? "Passer en vue simple" : "Passer en vue détaillée"}
+          >
+            {detailed ? "Vue simple" : "Vue détaillée"}
           </button>
-          <button onClick={exportXls} disabled={!rows.length}>
-            XLS
-          </button>
+          <button onClick={exportCsv} disabled={!rows.length}>CSV</button>
+          <button onClick={exportXls} disabled={!rows.length}>XLS</button>
         </div>
       </div>
-      {!readOnly && (
+      {!readOnly && detailed && (
         <p className="etiquettes-hint">
           Double-clic sur une étiquette pour la modifier.
         </p>
@@ -187,11 +198,13 @@ export function EtiquettesList() {
             {rows.map((r) => (
               <tr key={r.id}>
                 <td>{r.number}</td>
-                <td className="etiquette-label-td">
-                  <LabelCell id={r.id} label={r.label} readOnly={readOnly} />
-                </td>
+                {detailed && (
+                  <td className="etiquette-label-td">
+                    <LabelCell id={r.id} label={r.label} readOnly={readOnly} />
+                  </td>
+                )}
                 <td>{r.cableType}</td>
-                <td className="right">{r.lengthMeters}</td>
+                {detailed && <td className="right">{r.lengthMeters}</td>}
               </tr>
             ))}
             {rows.length === 0 && (
