@@ -2529,24 +2529,24 @@ select {
   overflow: hidden; /* garantit qu'aucun bouton ne déborde hors de la zone */
 }
 
-/* Boutons secondaires : répartis uniformément sur toute la largeur */
+/* Boutons secondaires : même hauteur que "Ouvrir →" */
 .project-card-actions .btn-share,
 .project-card-actions .btn-archive {
   flex: 1;
   min-width: 0;
-  padding: 6px 4px;
-  font-size: 11px;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 600;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Poubelle : carré fixe */
+/* Poubelle : même hauteur, largeur fixe */
 .project-card-actions .danger {
-  flex: 0 0 30px;
-  width: 30px;
-  padding: 6px 0;
+  flex: 0 0 auto;
+  padding: 7px 10px;
   font-size: 13px;
   text-align: center;
 }
