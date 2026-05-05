@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAppStore } from "../store";
 import type { SignalDef } from "../types";
+import { upsertUserSignal, deleteUserSignal } from "../lib/userSignalsZonesApi";
 
 const slugifyId = (label: string): string =>
   label
@@ -33,6 +34,7 @@ export function Legend() {
       numberPrefix: id.slice(0, 4),
     };
     upsert(def);
+    upsertUserSignal(def).catch(() => {});
   };
 
   const handleRemove = (id: string) => {
@@ -44,10 +46,16 @@ export function Legend() {
       : confirm(`Supprimer le type "${signals[id]?.label ?? id}" ?`);
     if (!ok) return;
     remove(id);
+    deleteUserSignal(id).catch(() => {});
+  };
+
+  const handleUpsert = (def: SignalDef) => {
+    upsert(def);
+    upsertUserSignal(def).catch(() => {});
   };
 
   const handleChangeLabel = (def: SignalDef, label: string) => {
-    upsert({ ...def, label });
+    handleUpsert({ ...def, label });
   };
 
   return (
@@ -77,6 +85,7 @@ export function Legend() {
                 className="legend-color"
                 value={def.color}
                 onChange={(e) => upsert({ ...def, color: e.target.value })}
+                onBlur={(e) => handleUpsert({ ...def, color: e.target.value })}
                 title="Couleur"
               />
               <input
@@ -86,14 +95,14 @@ export function Legend() {
               />
               <input
                 value={def.numberPrefix}
-                onChange={(e) => upsert({ ...def, numberPrefix: e.target.value })}
+                onChange={(e) => handleUpsert({ ...def, numberPrefix: e.target.value })}
                 placeholder="Préf."
                 className="legend-prefix"
                 maxLength={6}
               />
               <input
                 value={def.defaultCable}
-                onChange={(e) => upsert({ ...def, defaultCable: e.target.value })}
+                onChange={(e) => handleUpsert({ ...def, defaultCable: e.target.value })}
                 placeholder="Câble par défaut"
               />
               <button

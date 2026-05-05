@@ -114,6 +114,16 @@ interface State {
    * local. Les produits cloud ont la priorité sur ceux du localStorage.
    */
   mergeUserProducts: (cloudProducts: Product[]) => void;
+  /**
+   * Fusionne les signaux (légende) chargés depuis Supabase.
+   * Les signaux cloud ont la priorité sur ceux du localStorage.
+   */
+  mergeUserSignals: (cloudSignals: Record<string, SignalDef>) => void;
+  /**
+   * Fusionne les zones chargées depuis Supabase.
+   * Les zones cloud ont la priorité sur celles du localStorage.
+   */
+  mergeUserZones: (cloudZones: Zone[]) => void;
 }
 
 const uid = (): string =>
@@ -527,12 +537,9 @@ export const useAppStore = create<State>()(
 
           const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
-          // ── Fusion du catalogue produits ─────────────────────────────────
-          // On NE remplace PAS le catalogue courant (déjà mergé avec le cloud
-          // au login) par la copie embarquée dans le projet (potentiellement
-          // périmée). On conserve le catalogue courant et on ajoute uniquement
-          // les produits du projet absents du catalogue (ex : produits supprimés
-          // du cloud mais encore référencés dans ce projet).
+          // ── Fusion produits ───────────────────────────────────────────────
+          // Catalogue courant (cloud mergé au login) prioritaire.
+          // Le projet fournit uniquement les produits absents du catalogue global.
           const currentProducts = get().products;
           const mergedProductMap = new Map<string, Product>(
             currentProducts.map((p) => [p.id, p]),
@@ -543,6 +550,25 @@ export const useAppStore = create<State>()(
             }
           }
 
+          // ── Fusion signaux (légende) ──────────────────────────────────────
+          // Les signaux du store (cloud mergé au login) ont la priorité.
+          // Le projet fournit uniquement les signaux absents du store global.
+          const currentSignals = get().signals;
+          const mergedSignals: Record<string, SignalDef> = {
+            ...(data.signals ?? {}),
+            ...currentSignals,
+          };
+
+          // ── Fusion zones ──────────────────────────────────────────────────
+          // Les zones du store (cloud mergé au login) ont la priorité.
+          // Les zones du projet ajoutent celles absentes du store global.
+          const currentZones = get().zones;
+          const currentZoneIds = new Set(currentZones.map((z) => z.id));
+          const mergedZones: Zone[] = [
+            ...currentZones,
+            ...(activeTab.zones ?? []).filter((z) => !currentZoneIds.has(z.id)),
+          ];
+
           set({
             currentProjectId: id,
             currentProjectName: name,
@@ -551,9 +577,9 @@ export const useAppStore = create<State>()(
             activeTabId,
             nodes: activeTab.nodes,
             cables: activeTab.cables,
-            zones: activeTab.zones,
+            zones: mergedZones,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
-            signals: data.signals ?? { ...DEFAULT_SIGNAL_DEFS },
+            signals: mergedSignals,
             products: Array.from(mergedProductMap.values()),
             selectedNodeId: null,
             selectedCableId: null,
@@ -592,6 +618,24 @@ export const useAppStore = create<State>()(
               }
             }
             return { products: Array.from(result.values()) };
+          }),
+
+        mergeUserSignals: (cloudSignals) =>
+          set((s) => {
+            // Signaux cloud (priorité max) + locaux non encore synchro
+            const result: Record<string, SignalDef> = { ...s.signals };
+            for (const [id, def] of Object.entries(cloudSignals)) {
+              result[id] = def;
+            }
+            return { signals: result };
+          }),
+
+        mergeUserZones: (cloudZones) =>
+          set((s) => {
+            // Zones cloud (priorité max) + locales non encore synchro
+            const result = new Map<string, Zone>(s.zones.map((z) => [z.id, z]));
+            for (const z of cloudZones) result.set(z.id, z);
+            return { zones: Array.from(result.values()) };
           }),
 
         clearForUser: (userId) =>

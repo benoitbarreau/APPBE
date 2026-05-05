@@ -1,5 +1,6 @@
 import { useAppStore } from "../store";
 import type { Zone } from "../types";
+import { upsertUserZone, deleteUserZone } from "../lib/userSignalsZonesApi";
 
 const slugifyId = (label: string): string =>
   label
@@ -22,7 +23,14 @@ export function ZonesList() {
     while (zones.some((z) => z.id === id)) {
       id = `${baseId}${n++}`;
     }
-    upsert({ id, label: "Nouvelle zone", color: "#888888" });
+    const zone: Zone = { id, label: "Nouvelle zone", color: "#888888" };
+    upsert(zone);
+    upsertUserZone(zone).catch(() => {});
+  };
+
+  const handleUpsert = (z: Zone) => {
+    upsert(z);
+    upsertUserZone(z).catch(() => {});
   };
 
   const handleRemove = (z: Zone) => {
@@ -34,6 +42,7 @@ export function ZonesList() {
       : confirm(`Supprimer la zone "${z.label}" ?`);
     if (!ok) return;
     remove(z.id);
+    deleteUserZone(z.id).catch(() => {});
   };
 
   return (
@@ -61,16 +70,16 @@ export function ZonesList() {
                 className="legend-color"
                 value={z.color}
                 onChange={(e) => upsert({ ...z, color: e.target.value })}
+                onBlur={(e) => handleUpsert({ ...z, color: e.target.value })}
                 title="Couleur"
               />
               <input
                 value={z.label}
                 onChange={(e) => {
                   const label = e.target.value;
-                  // If id was auto-generated from old label, regenerate it
                   const expected = slugifyId(z.label);
                   const newId = z.id === expected ? slugifyId(label) : z.id;
-                  upsert({ ...z, id: newId, label });
+                  handleUpsert({ ...z, id: newId, label });
                 }}
                 placeholder="Nom (Baie, Régie…)"
               />

@@ -9,6 +9,7 @@ import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 import { fetchUserProducts } from '../lib/userProductsApi'
+import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
 import { fetchProjectVersion } from '../lib/projectsApi'
 
@@ -36,6 +37,8 @@ export function ProtectedRoute() {
 
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
+  const mergeUserSignals = useAppStore(s => s.mergeUserSignals)
+  const mergeUserZones = useAppStore(s => s.mergeUserZones)
   const setCatalogMeta = useCatalogMeta(s => s.setCatalogMeta)
   const loadProjectData = useAppStore(s => s.loadProjectData)
 
@@ -44,17 +47,23 @@ export function ProtectedRoute() {
     if (user) clearForUser(user.id)
   }, [user, clearForUser])
 
-  // Chargement des produits custom + référentiel catalogue depuis Supabase après connexion.
+  // Chargement depuis Supabase après connexion : produits, signaux, zones, catalogue.
   // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
   useEffect(() => {
     if (!user || profile?.status !== 'approved') return
     fetchUserProducts()
       .then(ps => { if (ps.length > 0) mergeUserProducts(ps) })
       .catch(() => { /* échec silencieux — le localStorage fait office de fallback */ })
+    fetchUserSignals()
+      .then(sigs => { if (Object.keys(sigs).length > 0) mergeUserSignals(sigs) })
+      .catch(() => { /* échec silencieux */ })
+    fetchUserZones()
+      .then(zones => { if (zones.length > 0) mergeUserZones(zones) })
+      .catch(() => { /* échec silencieux */ })
     Promise.all([fetchBrands(), fetchCategories()])
       .then(([brands, categories]) => setCatalogMeta(brands, categories))
       .catch(() => { /* échec silencieux */ })
-  }, [user?.id, profile?.status, mergeUserProducts, setCatalogMeta])
+  }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
   // Revenir à la page projets si la session expire
   useEffect(() => {
