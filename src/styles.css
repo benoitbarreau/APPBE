@@ -2489,6 +2489,7 @@ select {
 .project-card-main {
   flex: 1;
   min-width: 0;
+  overflow: hidden; /* empêche le contenu de déborder sur la colonne droite */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -2524,18 +2525,30 @@ select {
 
 .project-card-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: stretch;
+  overflow: hidden; /* empêche le débordement sur la colonne versions */
 }
 
-.project-card-actions button:first-child {
+/* Bouton "Ouvrir" : prend la place disponible */
+.project-card-actions button.primary {
   flex: 1;
-  padding: 6px 12px;
+  padding: 7px 10px;
   font-size: 13px;
+  min-width: 0;
 }
 
-.project-card-actions button:last-child {
-  padding: 6px 10px;
+/* Boutons icônes : carré uniforme */
+.project-card-actions .btn-share,
+.project-card-actions .btn-archive,
+.project-card-actions .danger {
+  flex: 0 0 36px;
+  width: 36px;
+  padding: 7px 0;
   font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* ── Projet partagé ─────────────────────────────────────────────────────── */
