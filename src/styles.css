@@ -263,6 +263,10 @@ select {
   display: grid;
   grid-template-columns: 280px 1fr 360px;
   min-height: 0;
+  transition: grid-template-columns 0.2s ease;
+}
+.app-body.left-collapsed {
+  grid-template-columns: 36px 1fr 360px;
 }
 
 .sidebar {
@@ -276,6 +280,49 @@ select {
 .sidebar.right {
   border-right: none;
   border-left: 1px solid var(--border);
+}
+
+/* ── Sidebar gauche réduite ── */
+.sidebar.left.collapsed {
+  align-items: center;
+  overflow: visible;
+}
+
+.palette-expand-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.palette-expand-btn:hover {
+  background: var(--bg);
+  color: var(--primary);
+  border: none;
+}
+
+.palette-expand-icon {
+  font-size: 13px;
+}
+
+.palette-expand-label {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  user-select: none;
 }
 
 .canvas {
@@ -498,37 +545,136 @@ select {
   flex-direction: column;
   height: 100%;
 }
+
+/* ── En-tête ── */
 .palette-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .palette-header h3 {
   margin: 0;
   font-size: 13px;
+  font-weight: 600;
 }
 .palette-actions {
   display: flex;
   gap: 4px;
 }
-.palette > input[type="search"] {
-  margin: 8px 10px;
+.palette-collapse-btn {
+  font-size: 11px;
+  padding: 3px 7px;
+  color: var(--muted);
 }
+.palette-collapse-btn:hover {
+  color: var(--text);
+}
+
+/* ── Bascule par marque / catégorie ── */
+.palette-groupby {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.palette-groupby button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 4px;
+  font-size: 11px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.palette-groupby button:hover {
+  color: var(--text);
+  border: none;
+  border-bottom: 2px solid transparent;
+}
+.palette-groupby button.active {
+  color: var(--primary);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+}
+
+/* ── Recherche ── */
+.palette-search {
+  margin: 7px 10px 6px;
+  flex-shrink: 0;
+}
+
+/* ── Liste scrollable ── */
 .palette-list {
   flex: 1;
   overflow: auto;
   padding: 0 6px 8px;
 }
+
+/* ── Groupe (marque ou catégorie) ── */
+.palette-group {
+  margin-bottom: 2px;
+}
+
 .palette-group-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  padding: 6px 6px 4px;
+  cursor: pointer;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px 6px 4px;
+  letter-spacing: 0.04em;
+  transition: background 0.1s, color 0.1s;
 }
+.palette-group-title:hover {
+  background: var(--bg);
+  color: var(--text);
+  border: none;
+}
+
+.palette-group-chevron {
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.palette-group-chevron.closed {
+  transform: rotate(-90deg);
+}
+
+.palette-group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-group-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 5px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Item produit ── */
 .palette-item {
   display: flex;
   justify-content: space-between;
@@ -537,7 +683,12 @@ select {
   border-radius: 6px;
   border: 1px solid var(--border);
   background: #fafbfc;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.palette-item:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: #fff;
 }
 .palette-item-info {
   min-width: 0;
@@ -545,10 +696,16 @@ select {
 .palette-item-ref {
   font-weight: 600;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .palette-item-cat {
   font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .palette-item-io {
   font-size: 10px;
@@ -557,6 +714,15 @@ select {
 .palette-item-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── État vide ── */
+.palette-empty {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .tabs {

@@ -137,6 +137,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
     URL.revokeObjectURL(url);
   };
 
+  const [paletteOpen, setPaletteOpen] = useState(true);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -305,14 +306,26 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
         </button>
       </div>
 
-      <div className="app-body">
-        <aside className="sidebar left">
-          <ProductPalette
-            onAdd={handleAdd}
-            onEdit={(id) => setEditing(id)}
-            onNew={() => setEditing("new")}
-            onImport={() => setImporting(true)}
-          />
+      <div className={`app-body${paletteOpen ? "" : " left-collapsed"}`}>
+        <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
+          {paletteOpen ? (
+            <ProductPalette
+              onAdd={handleAdd}
+              onEdit={(id) => setEditing(id)}
+              onNew={() => setEditing("new")}
+              onImport={() => setImporting(true)}
+              onCollapse={() => setPaletteOpen(false)}
+            />
+          ) : (
+            <button
+              className="palette-expand-btn"
+              onClick={() => setPaletteOpen(true)}
+              title="Afficher le catalogue"
+            >
+              <span className="palette-expand-icon">▶</span>
+              <span className="palette-expand-label">Catalogue</span>
+            </button>
+          )}
         </aside>
 
         {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
