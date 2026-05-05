@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, useCatalogMeta } from "../store";
 import { useAuth } from "../auth/useAuth";
 import { fileToResizedDataUrl } from "../image";
 import { ProductPreview } from "./ProductPreview";
@@ -38,6 +38,8 @@ export function ProductEditor({
   const addProduct = useAppStore((s) => s.addProduct);
   const updateProduct = useAppStore((s) => s.updateProduct);
   const removeProduct = useAppStore((s) => s.removeProduct);
+  const catalogBrands = useCatalogMeta((s) => s.catalogBrands);
+  const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
 
   const [draft, setDraft] = useState<Product>(emptyProduct());
 
@@ -203,11 +205,21 @@ export function ProductEditor({
         </div>
         <div className="modal-body modal-body-split">
           <div className="modal-form">
+          {/* Datalists pour l'autocomplete marque/catégorie */}
+          <datalist id="pe-brands-list">
+            {catalogBrands.map(b => <option key={b.id} value={b.name} />)}
+          </datalist>
+          <datalist id="pe-categories-list">
+            {catalogCategories.map(c => <option key={c.id} value={c.name} />)}
+          </datalist>
+
           <div className="form-row">
             <label>Marque</label>
             <input
+              list="pe-brands-list"
               value={draft.manufacturer}
               onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })}
+              placeholder={catalogBrands.length ? "Saisir ou choisir…" : "Ex. Kramer"}
             />
           </div>
           <div className="form-row">
@@ -220,9 +232,10 @@ export function ProductEditor({
           <div className="form-row">
             <label>Catégorie</label>
             <input
+              list="pe-categories-list"
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-              placeholder="Écran, matrice, caméra…"
+              placeholder={catalogCategories.length ? "Saisir ou choisir…" : "Écran, matrice, caméra…"}
             />
           </div>
 

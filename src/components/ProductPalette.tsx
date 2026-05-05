@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, useCatalogMeta } from "../store";
 
 type GroupBy = "brand" | "category";
 
@@ -17,8 +17,15 @@ export function ProductPalette({
   onCollapse?: () => void;
 }) {
   const products = useAppStore((s) => s.products);
+  const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
   const [filter, setFilter] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("brand");
+
+  // Map catégorie → couleur pour l'affichage dans les items
+  const categoryColorMap = useMemo(
+    () => new Map(catalogCategories.map((c) => [c.name, c.color])),
+    [catalogCategories],
+  );
   const [closedGroups, setClosedGroups] = useState<Set<string>>(new Set());
 
   const toggleGroup = (key: string) =>
@@ -121,23 +128,30 @@ export function ProductPalette({
                 <span className="palette-group-name">{group}</span>
                 <span className="palette-group-count">{items.length}</span>
               </button>
-              {!closed && items.map((p) => (
-                <div key={p.id} className="palette-item">
-                  <div className="palette-item-info">
-                    <div className="palette-item-ref">{p.reference}</div>
-                    <div className="palette-item-cat">
-                      {groupBy === "brand" ? p.category : p.manufacturer}
+              {!closed && items.map((p) => {
+                const catColor = categoryColorMap.get(p.category);
+                return (
+                  <div
+                    key={p.id}
+                    className="palette-item"
+                    style={catColor ? { borderLeftColor: catColor, borderLeftWidth: 3 } : undefined}
+                  >
+                    <div className="palette-item-info">
+                      <div className="palette-item-ref">{p.reference}</div>
+                      <div className="palette-item-cat" style={catColor ? { color: catColor } : undefined}>
+                        {groupBy === "brand" ? p.category : p.manufacturer}
+                      </div>
+                      <div className="palette-item-io">
+                        {p.inputs.length} in · {p.outputs.length} out
+                      </div>
                     </div>
-                    <div className="palette-item-io">
-                      {p.inputs.length} in · {p.outputs.length} out
+                    <div className="palette-item-actions">
+                      <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
+                      <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
                     </div>
                   </div>
-                  <div className="palette-item-actions">
-                    <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
-                    <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           );
         })}

@@ -661,3 +661,22 @@ export function getFlushedTabs(): Tab[] {
       : t,
   );
 }
+
+// ── Store catalogue méta (non persisté) ──────────────────────────────────
+// Marques et catégories gérées par les admins, chargées depuis Supabase
+// au login. Non persistées en localStorage pour toujours refléter le serveur.
+
+import type { CatalogBrand, CatalogCategory } from "./lib/catalogMetaApi";
+
+interface CatalogMetaState {
+  catalogBrands: CatalogBrand[];
+  catalogCategories: CatalogCategory[];
+  setCatalogMeta: (brands: CatalogBrand[], categories: CatalogCategory[]) => void;
+}
+
+export const useCatalogMeta = create<CatalogMetaState>()((set) => ({
+  catalogBrands: [],
+  catalogCategories: [],
+  setCatalogMeta: (catalogBrands, catalogCategories) =>
+    set({ catalogBrands, catalogCategories }),
+}));

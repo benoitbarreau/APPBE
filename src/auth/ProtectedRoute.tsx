@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
-import { useAppStore } from '../store'
+import { useAppStore, useCatalogMeta } from '../store'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { PendingPage } from '../pages/PendingPage'
@@ -9,6 +9,7 @@ import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 import { fetchUserProducts } from '../lib/userProductsApi'
+import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -31,20 +32,24 @@ export function ProtectedRoute() {
 
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
+  const setCatalogMeta = useCatalogMeta(s => s.setCatalogMeta)
 
   // Sécurité : isoler les données du store par utilisateur.
   useEffect(() => {
     if (user) clearForUser(user.id)
   }, [user, clearForUser])
 
-  // Chargement des produits custom depuis Supabase après connexion.
+  // Chargement des produits custom + référentiel catalogue depuis Supabase après connexion.
   // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
   useEffect(() => {
     if (!user || profile?.status !== 'approved') return
     fetchUserProducts()
       .then(ps => { if (ps.length > 0) mergeUserProducts(ps) })
       .catch(() => { /* échec silencieux — le localStorage fait office de fallback */ })
-  }, [user?.id, profile?.status, mergeUserProducts])
+    Promise.all([fetchBrands(), fetchCategories()])
+      .then(([brands, categories]) => setCatalogMeta(brands, categories))
+      .catch(() => { /* échec silencieux */ })
+  }, [user?.id, profile?.status, mergeUserProducts, setCatalogMeta])
 
   // Revenir à la page projets si la session expire
   useEffect(() => {
