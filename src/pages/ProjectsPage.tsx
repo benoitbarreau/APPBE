@@ -4,6 +4,7 @@ import { useAppStore } from '../store'
 import { listProjects, fetchProject, deleteProject, saveProject } from '../lib/projectsApi'
 import type { ProjectRow } from '../lib/projectsApi'
 import { ShareModal } from '../components/ShareModal'
+import { AdminSettings } from '../components/AdminSettings'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -19,7 +20,7 @@ const fmt = (iso: string) =>
   })
 
 export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -27,6 +28,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
   const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
 
   // ── Dialog « Nouveau projet » ──
   const [showNewDialog, setShowNewDialog] = useState(false)
@@ -128,11 +130,17 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
               Tableau de bord
             </button>
           )}
-          <span className="projects-page-username" title={profile?.email ?? ''}>
-            {profile?.full_name ?? profile?.email ?? ''}
-          </span>
-          <button onClick={() => void signOut()} className="btn-signout">
-            Se déconnecter
+          <button
+            className="btn-account"
+            onClick={() => setAccountOpen(true)}
+            title="Gérer mon compte"
+          >
+            <span className="btn-account-avatar">
+              {(profile?.full_name ?? profile?.email ?? '?')[0].toUpperCase()}
+            </span>
+            <span className="btn-account-name">
+              {profile?.full_name ?? profile?.email ?? ''}
+            </span>
           </button>
         </div>
       </header>
@@ -284,6 +292,11 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
           projectName={shareProject.name}
           onClose={() => setShareProject(null)}
         />
+      )}
+
+      {/* ── Modal Mon compte ── */}
+      {accountOpen && (
+        <AdminSettings onClose={() => setAccountOpen(false)} />
       )}
     </div>
   )
