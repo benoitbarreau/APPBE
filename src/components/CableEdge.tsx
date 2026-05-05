@@ -276,6 +276,7 @@ export function CableEdge({
   const allNodes = useAppStore((s) => s.nodes);
   const allProducts = useAppStore((s) => s.products);
   const readOnly = useEditorState((s) => s.readOnly);
+  const cableView = useEditorState((s) => s.cableView);
   const zoom = useStore((s) => s.transform[2]);
   const nodeLookup = useStore((s) => s.nodeLookup);
 
@@ -720,18 +721,22 @@ export function CableEdge({
               style={{ width: `${Math.max(cable.cableType.length, 1) + 0.3}ch` }}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
-            <input
-              className="cable-edge-len"
-              type="number"
-              min={0}
-              step={0.5}
-              value={cable.lengthMeters}
-              style={{ width: `${String(cable.lengthMeters).length + 0.3}ch` }}
-              onChange={(e) =>
-                updateCable(cable.id, { lengthMeters: Number(e.target.value) })
-              }
-            />
-            <span className="cable-edge-unit">M</span>
+            {cableView === "detailed" && (
+              <>
+                <input
+                  className="cable-edge-len"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={cable.lengthMeters}
+                  style={{ width: `${String(cable.lengthMeters).length + 0.3}ch` }}
+                  onChange={(e) =>
+                    updateCable(cable.id, { lengthMeters: Number(e.target.value) })
+                  }
+                />
+                <span className="cable-edge-unit">M</span>
+              </>
+            )}
             {selected && (
               <button
                 type="button"
@@ -746,14 +751,16 @@ export function CableEdge({
               </button>
             )}
           </div>
-          <input
-            className="cable-edge-label-text"
-            value={cable.label ?? ""}
-            style={{ width: `${Math.max((cable.label ?? "").length, 4) + 0.5}ch` }}
-            placeholder=""
-            readOnly={readOnly}
-            onChange={readOnly ? undefined : (e) => updateCable(cable.id, { label: e.target.value })}
-          />
+          {cableView === "detailed" && (
+            <input
+              className="cable-edge-label-text"
+              value={cable.label ?? ""}
+              style={{ width: `${Math.max((cable.label ?? "").length, 4) + 0.5}ch` }}
+              placeholder=""
+              readOnly={readOnly}
+              onChange={readOnly ? undefined : (e) => updateCable(cable.id, { label: e.target.value })}
+            />
+          )}
         </div>
       </EdgeLabelRenderer>
     </>

@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useAppStore } from "../store";
-import { useEditorState } from "../store";
+import { useAppStore, useEditorState } from "../store";
 
 type SortKey = "number" | "label" | "cableType" | "lengthMeters";
 type SortDir = "asc" | "desc";
@@ -82,9 +81,11 @@ function LabelCell({ id, label, readOnly }: { id: string; label: string; readOnl
 export function EtiquettesList() {
   const cables = useAppStore((s) => s.cables);
   const readOnly = useEditorState((s) => s.readOnly);
+  const cableView = useEditorState((s) => s.cableView);
+  const setCableView = useEditorState((s) => s.setCableView);
+  const detailed = cableView === "detailed";
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [detailed, setDetailed] = useState(true);
 
   const COLUMNS = detailed ? COLUMNS_DETAIL : COLUMNS_SIMPLE;
 
@@ -160,7 +161,7 @@ export function EtiquettesList() {
         <div className="etiquettes-actions">
           <button
             className={`etiquettes-view-toggle${detailed ? " active" : ""}`}
-            onClick={() => setDetailed((v) => !v)}
+            onClick={() => setCableView(detailed ? "simple" : "detailed")}
             title={detailed ? "Passer en vue simple" : "Passer en vue détaillée"}
           >
             {detailed ? "Vue simple" : "Vue détaillée"}

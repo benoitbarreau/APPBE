@@ -749,13 +749,17 @@ export const useCatalogMeta = create<CatalogMetaState>()((set) => ({
     set({ catalogBrands, catalogCategories }),
 }));
 
-// ── État éditeur non-persisté (lecture seule, etc.) ────────────────────────
+// ── État éditeur non-persisté (lecture seule, vue câbles, etc.) ────────────
 interface EditorState {
   readOnly: boolean;
   setReadOnly: (v: boolean) => void;
+  cableView: "simple" | "detailed";
+  setCableView: (v: "simple" | "detailed") => void;
 }
 
 export const useEditorState = create<EditorState>()((set) => ({
   readOnly: false,
   setReadOnly: (readOnly) => set({ readOnly }),
+  cableView: "detailed",
+  setCableView: (cableView) => set({ cableView }),
 }));
