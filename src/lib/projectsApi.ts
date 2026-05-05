@@ -1,12 +1,17 @@
 import { supabase } from './supabase'
-import type { Cable, PlacedProduct, Product, ProjectMeta, SignalDef, Zone } from '../types'
+import type { Cable, PlacedProduct, Product, ProjectMeta, SignalDef, Tab, Zone } from '../types'
 
 export interface ProjectData {
-  nodes: PlacedProduct[]
-  cables: Cable[]
+  // Format v2 : onglets multiples
+  tabs?: Tab[]
+  activeTabId?: string
+  // Format v1 (legacy, migration à la volée dans loadProjectData)
+  nodes?: PlacedProduct[]
+  cables?: Cable[]
+  zones?: Zone[]
+  // Données partagées entre onglets
   projectMeta: ProjectMeta
   signals: Record<string, SignalDef>
-  zones: Zone[]
   products: Product[]
 }
 

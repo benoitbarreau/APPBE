@@ -11,7 +11,7 @@ import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
-import { useAppStore } from "./store";
+import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
 import { exportDiagram } from "./export";
 import { useAuth } from "./auth/useAuth";
@@ -40,6 +40,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "legend" | "zones">("cables");
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+
+  // ── État onglets ──────────────────────────────────────────────────────
+  const tabs = useAppStore((s) => s.tabs);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const addTab = useAppStore((s) => s.addTab);
+  const removeTab = useAppStore((s) => s.removeTab);
+  const renameTab = useAppStore((s) => s.renameTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingTabName, setEditingTabName] = useState("");
+  const tabInputRef = useRef<HTMLInputElement>(null);
 
   const addNode = useAppStore((s) => s.addNode);
   const nodes = useAppStore((s) => s.nodes);
@@ -83,12 +94,21 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
     setSaving(true);
     try {
       const state = useAppStore.getState();
-      const { nodes: n, cables, projectMeta, signals, zones, products } = state;
+      // Flush l'état de travail dans l'onglet actif avant de sauvegarder
+      const flushedTabs = getFlushedTabs();
       const id = await saveProject(
         state.currentProjectId,
         state.currentProjectName || "Sans titre",
-        { nodes: n, cables, projectMeta, signals, zones, products },
+        {
+          tabs: flushedTabs,
+          activeTabId: state.activeTabId,
+          projectMeta: state.projectMeta,
+          signals: state.signals,
+          products: state.products,
+        },
       );
+      // Mettre à jour le store avec les tabs flushés
+      useAppStore.setState({ tabs: flushedTabs });
       if (!state.currentProjectId) {
         useAppStore.setState({ currentProjectId: id });
       }
@@ -103,8 +123,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
 
   const exportProject = () => {
     const state = useAppStore.getState();
+    const flushedTabs = getFlushedTabs();
     const blob = new Blob(
-      [JSON.stringify({ products: state.products, nodes: state.nodes, cables: state.cables }, null, 2)],
+      [JSON.stringify({ products: state.products, tabs: flushedTabs }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
@@ -137,6 +158,20 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
     } catch (e) {
       alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
     }
+  };
+
+  // ── Gestion des onglets ───────────────────────────────────────────────
+
+  const startTabEdit = (tabId: string, currentName: string) => {
+    setEditingTabId(tabId);
+    setEditingTabName(currentName);
+    // Focus auto géré par autoFocus sur l'input
+  };
+
+  const commitTabName = (tabId: string) => {
+    const name = editingTabName.trim();
+    if (name) renameTab(tabId, name);
+    setEditingTabId(null);
   };
 
   return (
@@ -212,6 +247,56 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
         </div>
       </header>
 
+      {/* ── Barre d'onglets ──────────────────────────────────────────────── */}
+      <div className="tab-bar">
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            className={`tab-item${activeTabId === tab.id ? " active" : ""}`}
+          >
+            {editingTabId === tab.id ? (
+              <input
+                ref={tabInputRef}
+                className="tab-name-input"
+                value={editingTabName}
+                autoFocus
+                onChange={e => setEditingTabName(e.target.value)}
+                onBlur={() => commitTabName(tab.id)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") commitTabName(tab.id);
+                  if (e.key === "Escape") setEditingTabId(null);
+                }}
+              />
+            ) : (
+              <button
+                className="tab-name"
+                onClick={() => setActiveTab(tab.id)}
+                onDoubleClick={() => startTabEdit(tab.id, tab.name)}
+                title="Double-clic pour renommer"
+              >
+                {tab.name}
+              </button>
+            )}
+            {tabs.length > 1 && (
+              <button
+                className="tab-close"
+                onClick={() => removeTab(tab.id)}
+                title="Fermer ce synoptique"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          className="tab-add"
+          onClick={() => addTab()}
+          title="Ajouter un synoptique"
+        >
+          +
+        </button>
+      </div>
+
       <div className="app-body">
         <aside className="sidebar left">
           <ProductPalette
@@ -222,7 +307,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
           />
         </aside>
 
-        <main className="canvas">
+        {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
+        <main className="canvas" key={activeTabId}>
           <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
           <Cartouche />
         </main>

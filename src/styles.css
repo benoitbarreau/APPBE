@@ -77,6 +77,121 @@ select {
   display: flex;
   gap: 6px;
 }
+/* ── Barre d'onglets ────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  gap: 2px;
+  height: 36px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  gap: 0;
+  min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
+  position: relative;
+  top: 1px; /* bord bas sous le border de .tab-bar */
+}
+
+.tab-item.active {
+  background: var(--bg);
+  border-color: var(--border);
+  border-bottom-color: var(--bg); /* efface le bord bas sur l'onglet actif */
+}
+
+.tab-item:not(.active):hover {
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.tab-name {
+  background: transparent;
+  border: none;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 100%;
+  border-radius: 0;
+}
+
+.tab-item.active .tab-name {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.tab-name:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.tab-name-input {
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  width: 120px;
+  margin: 0 4px;
+  height: 24px;
+  background: #fff;
+}
+
+.tab-close {
+  background: transparent;
+  border: none;
+  padding: 0 5px 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.tab-close:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.tab-add {
+  background: transparent;
+  border: none;
+  padding: 0 10px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  height: 28px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.tab-add:hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border-color: transparent;
+}
+
 .app-body {
   flex: 1;
   display: grid;

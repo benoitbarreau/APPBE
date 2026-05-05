@@ -79,6 +79,15 @@ export interface ProjectMeta {
   date: string;
 }
 
+/** Un synoptique au sein d'un projet (= un onglet) */
+export interface Tab {
+  id: string
+  name: string
+  nodes: PlacedProduct[]
+  cables: Cable[]
+  zones: Zone[]
+}
+
 export interface SignalDef {
   id: string;
   label: string;
