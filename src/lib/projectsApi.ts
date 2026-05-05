@@ -30,18 +30,31 @@ export interface ProjectRow {
   created_at: string
   updated_at: string
   versions_meta: VersionMeta[]
+  client_name: string
+  lieu: string
+  archived: boolean
   profiles?: { email: string; full_name: string | null }
 }
 
 const pgErr = (e: { message: string }) => new Error(e.message)
 
-export async function listProjects(): Promise<ProjectRow[]> {
+const PROJECT_SELECT = 'id, user_id, name, created_at, updated_at, versions_meta, client_name, lieu, archived, profiles(email, full_name)'
+
+/** Liste les projets actifs (archived = false) ou archivés (archived = true) */
+export async function listProjects(archived = false): Promise<ProjectRow[]> {
   const { data, error } = await supabase
     .from('projects')
-    .select('id, user_id, name, created_at, updated_at, versions_meta, profiles(email, full_name)')
+    .select(PROJECT_SELECT)
+    .eq('archived', archived)
     .order('updated_at', { ascending: false })
   if (error) throw pgErr(error)
   return (data ?? []) as unknown as ProjectRow[]
+}
+
+/** Archive ou désarchive un projet */
+export async function setProjectArchived(id: string, archived: boolean): Promise<void> {
+  const { error } = await supabase.from('projects').update({ archived }).eq('id', id)
+  if (error) throw pgErr(error)
 }
 
 /** Incrémente "V1.0" → "V1.1", "V1.9" → "V2.0" */
@@ -139,10 +152,13 @@ export async function saveProject(
   name: string,
   projectData: ProjectData,
 ): Promise<string> {
+  const client_name = projectData.projectMeta?.client ?? ''
+  const lieu = projectData.projectMeta?.lieu ?? ''
+
   if (id) {
     const { error } = await supabase
       .from('projects')
-      .update({ name, data: projectData })
+      .update({ name, data: projectData, client_name, lieu })
       .eq('id', id)
     if (error) throw pgErr(error)
     return id
@@ -152,7 +168,7 @@ export async function saveProject(
   if (!user) throw new Error('Non authentifié')
   const { data, error } = await supabase
     .from('projects')
-    .insert({ name, data: projectData, user_id: user.id })
+    .insert({ name, data: projectData, user_id: user.id, client_name, lieu })
     .select('id')
     .single()
   if (error) throw pgErr(error)
