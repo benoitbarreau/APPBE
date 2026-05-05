@@ -3,6 +3,8 @@ import { useAppStore } from "../store";
 import { useAuth } from "../auth/useAuth";
 import { fileToResizedDataUrl } from "../image";
 import { ProductPreview } from "./ProductPreview";
+import { upsertUserProduct, deleteUserProduct } from "../lib/userProductsApi";
+import { BUILTIN_CATALOG } from "../catalog";
 import {
   type Port,
   type PortDirection,
@@ -11,6 +13,9 @@ import {
   type RackWidth,
   type SignalType,
 } from "../types";
+
+// IDs du catalogue intégré — les produits hors de cette liste sont custom
+const BUILTIN_IDS = new Set(BUILTIN_CATALOG.map((p) => p.id));
 
 type PortListKey = "inputs" | "outputs" | "middle";
 
@@ -122,6 +127,10 @@ export function ProductEditor({
     }
     if (isNew) addProduct(draft);
     else updateProduct(draft.id, draft);
+    // Synchronisation cloud pour les produits custom (hors catalogue intégré)
+    if (!BUILTIN_IDS.has(draft.id)) {
+      upsertUserProduct(draft).catch(() => { /* échec silencieux */ });
+    }
     onClose();
   };
 
@@ -132,6 +141,10 @@ export function ProductEditor({
   const cancelDelete = () => setConfirmingDelete(false);
   const confirmDelete = () => {
     removeProduct(draft.id);
+    // Suppression cloud pour les produits custom (hors catalogue intégré)
+    if (!BUILTIN_IDS.has(draft.id)) {
+      deleteUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+    }
     onClose();
   };
 
@@ -157,6 +170,8 @@ export function ProductEditor({
     const newRef = refTrim ? `${refTrim} Copie` : "Copie";
     const copy: Product = { ...draft, id: newId, reference: newRef };
     addProduct(copy);
+    // La copie est toujours un produit custom — on la sync immédiatement
+    upsertUserProduct(copy).catch(() => { /* échec silencieux */ });
     if (onSwitchTo) onSwitchTo(newId);
     else onClose();
   };

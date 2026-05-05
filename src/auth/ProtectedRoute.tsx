@@ -8,6 +8,7 @@ import { RejectedPage } from '../pages/RejectedPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
+import { fetchUserProducts } from '../lib/userProductsApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -29,13 +30,21 @@ export function ProtectedRoute() {
   const [page, setPage] = useState<Page>('projects')
 
   const clearForUser = useAppStore(s => s.clearForUser)
+  const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
 
   // Sécurité : isoler les données du store par utilisateur.
-  // Si un autre utilisateur se connecte sur la même machine, les données
-  // de projet du précédent utilisateur sont purgées du localStorage.
   useEffect(() => {
     if (user) clearForUser(user.id)
   }, [user, clearForUser])
+
+  // Chargement des produits custom depuis Supabase après connexion.
+  // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
+  useEffect(() => {
+    if (!user || profile?.status !== 'approved') return
+    fetchUserProducts()
+      .then(ps => { if (ps.length > 0) mergeUserProducts(ps) })
+      .catch(() => { /* échec silencieux — le localStorage fait office de fallback */ })
+  }, [user?.id, profile?.status, mergeUserProducts])
 
   // Revenir à la page projets si la session expire
   useEffect(() => {

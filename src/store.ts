@@ -106,6 +106,11 @@ interface State {
   loadProjectData: (id: string, name: string, data: ProjectData) => void;
   resetProject: () => void;
   clearForUser: (userId: string) => void;
+  /**
+   * Fusionne les produits custom chargés depuis Supabase avec le catalogue
+   * local. Les produits cloud ont la priorité sur ceux du localStorage.
+   */
+  mergeUserProducts: (cloudProducts: Product[]) => void;
 }
 
 const uid = (): string =>
@@ -548,6 +553,23 @@ export const useAppStore = create<State>()(
             selectedCableId: null,
           });
         },
+
+        mergeUserProducts: (cloudProducts) =>
+          set((s) => {
+            const builtinIds = new Set(BUILTIN_CATALOG.map((p) => p.id));
+            // Catalogue de base (builtin) + produits cloud (priorité max)
+            const result = new Map<string, Product>(
+              BUILTIN_CATALOG.map((p) => [p.id, p]),
+            );
+            for (const p of cloudProducts) result.set(p.id, p);
+            // Produits custom locaux pas encore synchronisés (nouveaux, offline)
+            for (const p of s.products) {
+              if (!builtinIds.has(p.id) && !result.has(p.id)) {
+                result.set(p.id, p);
+              }
+            }
+            return { products: Array.from(result.values()) };
+          }),
 
         clearForUser: (userId) =>
           set((s) => {
