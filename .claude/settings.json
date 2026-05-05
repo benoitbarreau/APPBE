@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd * && git add *)",
+      "Bash(cd * && git commit *)",
+      "Bash(cd * && git push origin *)",
+      "Bash(cd * && git add * && git commit *)",
+      "Bash(cd * && git add * && git commit * && git push *)",
+      "Bash(cp * *)",
+      "Bash(mkdir -p *)",
+      "Bash(PATH=* node * --noEmit *)",
+      "Bash(gh api repos/*)"
+    ]
+  }
+}
