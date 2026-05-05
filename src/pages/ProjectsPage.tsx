@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { useAppStore } from '../store'
 import { listProjects, fetchProject, deleteProject, saveProject } from '../lib/projectsApi'
 import type { ProjectRow } from '../lib/projectsApi'
+import { ShareModal } from '../components/ShareModal'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -25,6 +26,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creatingNew, setCreatingNew] = useState(false)
+  const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
 
   const loadProjectData = useAppStore(s => s.loadProjectData)
   const resetProject = useAppStore(s => s.resetProject)
@@ -37,6 +39,9 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
       .finally(() => setListLoading(false))
   }, [])
 
+  /** Vrai si le projet appartient à l'utilisateur connecté */
+  const isOwned = (p: ProjectRow) => p.user_id === profile?.id
+
   const handleOpen = async (row: ProjectRow) => {
     setLoadingId(row.id)
     setError(null)
@@ -45,7 +50,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
       loadProjectData(row.id, name, data)
       onOpenEditor()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur lors de l\'ouverture')
+      setError(e instanceof Error ? e.message : "Erreur lors de l'ouverture")
     } finally {
       setLoadingId(null)
     }
@@ -55,7 +60,6 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
     setCreatingNew(true)
     setError(null)
     try {
-      // Créer un projet vierge côté Supabase pour obtenir un ID
       const state = storeState.getState()
       const id = await saveProject(null, 'Sans titre', {
         nodes: [],
@@ -164,42 +168,77 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
           {/* Grid */}
           {projects.length > 0 && (
             <div className="projects-grid">
-              {projects.map(p => (
-                <div key={p.id} className="project-card">
-                  <div className="project-card-body">
-                    <div className="project-card-name" title={p.name}>{p.name}</div>
-                    {profile?.role === 'admin' && p.profiles && (
-                      <div className="project-card-owner">
-                        {p.profiles.full_name ?? p.profiles.email}
+              {projects.map(p => {
+                const owned = isOwned(p)
+                return (
+                  <div key={p.id} className={`project-card${owned ? '' : ' project-card-shared'}`}>
+                    <div className="project-card-body">
+                      <div className="project-card-name-row">
+                        <div className="project-card-name" title={p.name}>{p.name}</div>
+                        {!owned && (
+                          <span className="project-shared-badge" title="Partagé avec vous">
+                            Partagé
+                          </span>
+                        )}
                       </div>
-                    )}
-                    <div className="project-card-date">
-                      Modifié le {fmt(p.updated_at)}
+                      {profile?.role === 'admin' && p.profiles && (
+                        <div className="project-card-owner">
+                          {p.profiles.full_name ?? p.profiles.email}
+                        </div>
+                      )}
+                      {!owned && p.profiles && (
+                        <div className="project-card-owner">
+                          Par {p.profiles.full_name ?? p.profiles.email}
+                        </div>
+                      )}
+                      <div className="project-card-date">
+                        Modifié le {fmt(p.updated_at)}
+                      </div>
+                    </div>
+                    <div className="project-card-actions">
+                      <button
+                        className="primary"
+                        onClick={() => void handleOpen(p)}
+                        disabled={loadingId === p.id}
+                      >
+                        {loadingId === p.id ? '…' : 'Ouvrir →'}
+                      </button>
+                      {owned && (
+                        <>
+                          <button
+                            className="btn-share"
+                            onClick={() => setShareProject({ id: p.id, name: p.name })}
+                            title="Partager ce projet"
+                          >
+                            ↗ Partager
+                          </button>
+                          <button
+                            className="danger"
+                            onClick={() => void handleDelete(p.id)}
+                            disabled={deletingId === p.id}
+                            title="Supprimer ce projet"
+                          >
+                            {deletingId === p.id ? '…' : '🗑'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="project-card-actions">
-                    <button
-                      className="primary"
-                      onClick={() => void handleOpen(p)}
-                      disabled={loadingId === p.id}
-                    >
-                      {loadingId === p.id ? '…' : 'Ouvrir →'}
-                    </button>
-                    <button
-                      className="danger"
-                      onClick={() => void handleDelete(p.id)}
-                      disabled={deletingId === p.id}
-                      title="Supprimer ce projet"
-                    >
-                      {deletingId === p.id ? '…' : '🗑'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       </main>
+
+      {/* ── Modal de partage ── */}
+      {shareProject && (
+        <ShareModal
+          projectId={shareProject.id}
+          projectName={shareProject.name}
+          onClose={() => setShareProject(null)}
+        />
+      )}
     </div>
   )
 }
