@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useAppStore } from '../store'
 import { listProjects, fetchProject, deleteProject, saveProject } from '../lib/projectsApi'
@@ -28,6 +28,11 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
   const [creatingNew, setCreatingNew] = useState(false)
   const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
 
+  // ── Dialog « Nouveau projet » ──
+  const [showNewDialog, setShowNewDialog] = useState(false)
+  const [newName, setNewName] = useState('')
+  const newNameInputRef = useRef<HTMLInputElement>(null)
+
   const loadProjectData = useAppStore(s => s.loadProjectData)
   const resetProject = useAppStore(s => s.resetProject)
   const storeState = useAppStore
@@ -38,6 +43,13 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
       .catch(e => setError(e instanceof Error ? e.message : 'Erreur chargement'))
       .finally(() => setListLoading(false))
   }, [])
+
+  // Focus auto sur l'input quand le dialog s'ouvre
+  useEffect(() => {
+    if (showNewDialog) {
+      setTimeout(() => newNameInputRef.current?.focus(), 50)
+    }
+  }, [showNewDialog])
 
   /** Vrai si le projet appartient à l'utilisateur connecté */
   const isOwned = (p: ProjectRow) => p.user_id === profile?.id
@@ -56,12 +68,19 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
     }
   }
 
+  const openNewDialog = () => {
+    setNewName('')
+    setShowNewDialog(true)
+  }
+
   const handleNew = async () => {
+    const name = newName.trim() || 'Sans titre'
+    setShowNewDialog(false)
     setCreatingNew(true)
     setError(null)
     try {
       const state = storeState.getState()
-      const id = await saveProject(null, 'Sans titre', {
+      const id = await saveProject(null, name, {
         nodes: [],
         cables: [],
         projectMeta: state.projectMeta,
@@ -70,11 +89,11 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
         products: state.products,
       })
       resetProject()
-      useAppStore.setState({ currentProjectId: id, currentProjectName: 'Sans titre' })
+      useAppStore.setState({ currentProjectId: id, currentProjectName: name })
       onOpenEditor()
     } catch {
-      // En cas d'erreur réseau, ouvrir quand même l'éditeur sans ID cloud
       resetProject()
+      useAppStore.setState({ currentProjectName: name })
       onOpenEditor()
     } finally {
       setCreatingNew(false)
@@ -136,7 +155,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
             </div>
             <button
               className="primary projects-page-new"
-              onClick={() => void handleNew()}
+              onClick={openNewDialog}
               disabled={creatingNew}
             >
               {creatingNew ? '…' : '+ Nouveau projet'}
@@ -157,7 +176,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
               <p>Aucun projet pour l'instant.</p>
               <button
                 className="primary"
-                onClick={() => void handleNew()}
+                onClick={openNewDialog}
                 disabled={creatingNew}
               >
                 {creatingNew ? '…' : 'Créer votre premier projet'}
@@ -230,6 +249,33 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
           )}
         </div>
       </main>
+
+      {/* ── Dialog nouveau projet ── */}
+      {showNewDialog && (
+        <div className="new-project-dialog-overlay" onClick={() => setShowNewDialog(false)}>
+          <div className="new-project-dialog" onClick={e => e.stopPropagation()}>
+            <h2>Nouveau projet</h2>
+            <input
+              ref={newNameInputRef}
+              type="text"
+              placeholder="Nom du projet…"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') void handleNew()
+                if (e.key === 'Escape') setShowNewDialog(false)
+              }}
+              maxLength={80}
+            />
+            <div className="new-project-dialog-actions">
+              <button onClick={() => setShowNewDialog(false)}>Annuler</button>
+              <button className="primary" onClick={() => void handleNew()}>
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal de partage ── */}
       {shareProject && (
