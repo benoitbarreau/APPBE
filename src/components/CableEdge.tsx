@@ -567,7 +567,7 @@ export function CableEdge({
         path={path}
         style={{
           ...style,
-          strokeWidth: selected ? 5 : 3,
+          strokeWidth: selected ? 4 : 2,
           strokeLinecap: "round",
           strokeLinejoin: "round",
         }}
