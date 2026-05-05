@@ -69,7 +69,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
   const addNode = useAppStore((s) => s.addNode);
   const nodes = useAppStore((s) => s.nodes);
-  const resetProject = useAppStore((s) => s.resetProject);
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
@@ -95,11 +94,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleAdd = (productId: string) => {
     const offset = nodes.length * 30;
     addNode(productId, { x: 200 + offset, y: 100 + offset });
-  };
-
-  const handleNew = () => {
-    if (!confirm("Créer un nouveau projet ? Les modifications non sauvegardées seront perdues.")) return;
-    resetProject();
   };
 
   const handleBackToProjects = () => {
@@ -312,11 +306,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
           <div className="header-actions">
             {!readOnly && (
-              <button onClick={handleNew} title="Créer un nouveau projet vide">
-                Nouveau
-              </button>
-            )}
-            {!readOnly && (
               <button
                 onClick={() => void handleSave()}
                 disabled={saving}
@@ -354,8 +343,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 Tableau de bord
               </button>
             )}
-            <button onClick={() => setAdminOpen(true)} title="Mon compte">
-              ⚙ Mon compte
+            <button onClick={() => setAdminOpen(true)} title="Mon compte" className="primary">
+              Mon compte
             </button>
           </div>
         </header>
