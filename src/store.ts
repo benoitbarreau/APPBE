@@ -60,6 +60,7 @@ interface State {
   addTab: (name?: string) => void;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
+  duplicateTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
 
   addProduct: (p: Product) => void;
@@ -194,6 +195,54 @@ export const useAppStore = create<State>()(
           set((s) => ({
             tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, name } : t)),
           })),
+
+        duplicateTab: (tabId) =>
+          set((s) => {
+            const flushed = flushActive(s);
+            const source = flushed.find((t) => t.id === tabId);
+            if (!source) return {};
+
+            // Remappage des IDs de nœuds (les câbles référencent les IDs de nœuds)
+            const nodeIdMap = new Map<string, string>();
+            const newNodes = source.nodes.map((n) => {
+              const newId = uid();
+              nodeIdMap.set(n.id, newId);
+              return { ...n, id: newId };
+            });
+
+            const newCables = source.cables.map((c) => ({
+              ...c,
+              id: uid(),
+              fromNodeId: nodeIdMap.get(c.fromNodeId) ?? c.fromNodeId,
+              toNodeId: nodeIdMap.get(c.toNodeId) ?? c.toNodeId,
+            }));
+
+            const newTab: Tab = {
+              id: uid(),
+              name: `Copie de ${source.name}`,
+              nodes: newNodes,
+              cables: newCables,
+              zones: source.zones.map((z) => ({ ...z })),
+            };
+
+            // Insérer juste après l'onglet source
+            const idx = flushed.findIndex((t) => t.id === tabId);
+            const newTabs = [
+              ...flushed.slice(0, idx + 1),
+              newTab,
+              ...flushed.slice(idx + 1),
+            ];
+
+            return {
+              tabs: newTabs,
+              activeTabId: newTab.id,
+              nodes: newNodes,
+              cables: newCables,
+              zones: newTab.zones,
+              selectedNodeId: null,
+              selectedCableId: null,
+            };
+          }),
 
         setActiveTab: (tabId) =>
           set((s) => {

@@ -159,16 +159,33 @@ select {
   background: #fff;
 }
 
+.tab-dup,
 .tab-close {
   background: transparent;
   border: none;
-  padding: 2px 6px;
+  padding: 2px 5px;
   font-size: 13px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
   border-radius: 3px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+/* Afficher les boutons au survol ou sur l'onglet actif */
+.tab-item:hover .tab-dup,
+.tab-item:hover .tab-close,
+.tab-item.active .tab-dup,
+.tab-item.active .tab-close {
+  opacity: 1;
+}
+
+.tab-dup:hover {
+  background: rgba(47,111,237,0.10);
+  color: var(--primary);
+  border-color: transparent;
 }
 
 .tab-close:hover {

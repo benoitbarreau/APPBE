@@ -47,6 +47,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   const addTab = useAppStore((s) => s.addTab);
   const removeTab = useAppStore((s) => s.removeTab);
   const renameTab = useAppStore((s) => s.renameTab);
+  const duplicateTab = useAppStore((s) => s.duplicateTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
@@ -277,6 +278,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
                 {tab.name}
               </button>
             )}
+            <button
+              className="tab-dup"
+              onClick={() => duplicateTab(tab.id)}
+              title="Dupliquer ce synoptique"
+            >
+              ⎘
+            </button>
             {tabs.length > 1 && (
               <button
                 className="tab-close"
