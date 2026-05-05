@@ -2193,6 +2193,17 @@ select {
   flex-wrap: wrap;
 }
 
+.user-table-last-login {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.user-table-self-label {
+  font-size: 12px;
+  font-style: italic;
+}
+
 /* ── Status badges ───────────────────────────────────────────────────────── */
 .status-badge {
   display: inline-block;

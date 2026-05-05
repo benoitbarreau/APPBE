@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../auth/useAuth'
 import { UserTable } from '../components/auth/UserTable'
 import type { Profile, UserStatus, UserRole } from '../auth/AuthContext'
 import {
@@ -158,6 +159,7 @@ function CategoryRow({
 type AdminTab = 'users' | 'catalog'
 
 export function AdminDashboard({ onClose }: { onClose: () => void }) {
+  const { profile: currentProfile } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
 
   // ── Utilisateurs ──
@@ -168,9 +170,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setLoadingUsers(true)
     supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .rpc('admin_list_users')
       .then(({ data }) => {
         setProfiles((data as Profile[]) ?? [])
         setLoadingUsers(false)
@@ -398,6 +398,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                 ? <div className="auth-loading-inline">Chargement…</div>
                 : <UserTable
                     profiles={filtered}
+                    currentUserId={currentProfile?.id ?? ''}
                     onUpdateStatus={updateStatus}
                     onUpdateRole={updateRole}
                   />

@@ -13,6 +13,7 @@ export interface Profile {
   status: UserStatus
   role: UserRole
   created_at: string
+  last_sign_in_at?: string | null
 }
 
 interface AuthContextValue {
