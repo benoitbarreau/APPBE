@@ -2475,7 +2475,7 @@ select {
   padding: 20px;
   display: flex;
   flex-direction: row;
-  gap: 0;
+  gap: 16px; /* espace garanti entre colonne gauche et séparateur */
   transition: border-color 0.15s, box-shadow 0.15s;
   cursor: default;
 }
@@ -2492,7 +2492,6 @@ select {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-right: 12px; /* évite que les boutons touchent le séparateur vertical */
 }
 
 .project-card-body {
@@ -2527,6 +2526,7 @@ select {
   display: flex;
   gap: 6px;
   align-items: stretch;
+  overflow: hidden; /* garantit qu'aucun bouton ne déborde hors de la zone */
 }
 
 /* Boutons secondaires : répartis uniformément sur toute la largeur */
@@ -2579,7 +2579,6 @@ select {
   gap: 4px;
   padding-left: 12px;
   border-left: 1px solid var(--border);
-  margin-left: 12px;
   min-width: 72px;
   justify-content: flex-start;
 }
