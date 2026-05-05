@@ -71,6 +71,7 @@ export interface Cable {
 
 export interface ProjectMeta {
   campus: string;
+  lieu: string;
   client: string;
   bureauEtude: string;
   trade: string;

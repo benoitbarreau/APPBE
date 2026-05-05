@@ -16,7 +16,7 @@ export function Cartouche() {
     }
   }, [profile?.full_name, meta.authorName, update]);
 
-  // Pré-remplir "Campus / Site" avec le nom du projet (si vide ou valeur par défaut)
+  // Pré-remplir "Campus / Site" avec le nom du projet (si vide)
   useEffect(() => {
     if (!meta.campus && currentProjectName && currentProjectName !== "Sans titre") {
       update({ campus: currentProjectName });
@@ -28,6 +28,7 @@ export function Cartouche() {
 
   return (
     <div className="cartouche">
+      {/* Colonne 1 : Campus / Site, Lot, Date */}
       <div className="cartouche-cell cartouche-site">
         <input
           className="cartouche-title"
@@ -48,15 +49,30 @@ export function Cartouche() {
           placeholder="Date"
         />
       </div>
+
+      {/* Colonne 2 : CLIENT + Lieu */}
       <div className="cartouche-cell cartouche-client">
-        <span className="cartouche-label">CLIENT :</span>
-        <input
-          className="cartouche-client-name"
-          value={meta.client}
-          onChange={setField("client")}
-          placeholder="Nom client"
-        />
+        <div className="cartouche-client-row">
+          <span className="cartouche-label">CLIENT :</span>
+          <input
+            className="cartouche-client-name"
+            value={meta.client}
+            onChange={setField("client")}
+            placeholder="Nom client"
+          />
+        </div>
+        <div className="cartouche-lieu-row">
+          <span className="cartouche-lieu-label">LIEU :</span>
+          <input
+            className="cartouche-lieu-name"
+            value={meta.lieu}
+            onChange={setField("lieu")}
+            placeholder="Lieu / Adresse"
+          />
+        </div>
       </div>
+
+      {/* Colonne 3 : Bureau d'étude, Auteur, Version */}
       <div className="cartouche-cell cartouche-be">
         <input
           className="cartouche-be-name"
@@ -77,9 +93,11 @@ export function Cartouche() {
           placeholder="V1.0"
         />
       </div>
+
+      {/* Colonne 4 : Logo entreprise */}
       <div className="cartouche-cell cartouche-logo">
         <img
-          src="/company-logo.png"
+          src={`${import.meta.env.BASE_URL}company-logo.png`}
           alt="Logo"
           className="cartouche-logo-img"
         />

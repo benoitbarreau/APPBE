@@ -380,21 +380,38 @@ select {
   font-style: italic;
 }
 .cartouche-client {
-  flex-direction: row !important;
+  flex-direction: column !important;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+}
+.cartouche-client-row,
+.cartouche-lieu-row {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.cartouche-label {
+.cartouche-label,
+.cartouche-lieu-label {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .cartouche-client-name {
-  font-size: 16px !important;
+  font-size: 15px !important;
   font-weight: 600;
   flex: 1;
   max-width: 320px;
+}
+.cartouche-lieu-name {
+  font-size: 12px !important;
+  font-weight: 500;
+  flex: 1;
+  max-width: 320px;
+  color: var(--muted);
 }
 .cartouche-be-name {
   font-weight: 700;

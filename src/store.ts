@@ -23,10 +23,11 @@ const DEFAULT_ZONES: Zone[] = [
 import { BUILTIN_CATALOG } from "./catalog";
 
 const DEFAULT_PROJECT_META: ProjectMeta = {
-  campus: "Campus",
-  client: "Client",
-  bureauEtude: "Bureau d'étude",
-  trade: "Courant Faible",
+  campus: "",
+  lieu: "",
+  client: "",
+  bureauEtude: "",
+  trade: "",
   authorName: "",
   version: "V1.0",
   date: new Date().toLocaleDateString("fr-FR", {
