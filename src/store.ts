@@ -55,6 +55,7 @@ interface State {
   // Cloud project tracking
   currentProjectId: string | null;
   currentProjectName: string;
+  currentVersionsMeta: import('./lib/projectsApi').VersionMeta[];
   lastUserId: string | null;
 
   // ── Actions onglets ───────────────────────────────────────────────────
@@ -104,7 +105,8 @@ interface State {
   removeNodePort: (nodeId: string, portId: string) => void;
 
   setProjectName: (name: string) => void;
-  loadProjectData: (id: string, name: string, data: ProjectData) => void;
+  setVersionsMeta: (versionsMeta: import('./lib/projectsApi').VersionMeta[]) => void;
+  loadProjectData: (id: string, name: string, data: ProjectData, versionsMeta?: import('./lib/projectsApi').VersionMeta[]) => void;
   resetProject: () => void;
   clearForUser: (userId: string) => void;
   /**
@@ -157,6 +159,7 @@ export const useAppStore = create<State>()(
         selectedCableId: null,
         currentProjectId: null,
         currentProjectName: "Sans titre",
+        currentVersionsMeta: [],
         lastUserId: null,
 
         // ── Gestion des onglets ─────────────────────────────────────────
@@ -498,8 +501,9 @@ export const useAppStore = create<State>()(
           })),
 
         setProjectName: (name) => set({ currentProjectName: name }),
+        setVersionsMeta: (currentVersionsMeta) => set({ currentVersionsMeta }),
 
-        loadProjectData: (id, name, data) => {
+        loadProjectData: (id, name, data, versionsMeta) => {
           let tabs: Tab[];
           let activeTabId: string;
 
@@ -526,6 +530,7 @@ export const useAppStore = create<State>()(
           set({
             currentProjectId: id,
             currentProjectName: name,
+            currentVersionsMeta: versionsMeta ?? [],
             tabs,
             activeTabId,
             nodes: activeTab.nodes,
@@ -549,6 +554,7 @@ export const useAppStore = create<State>()(
             zones: [...DEFAULT_ZONES],
             currentProjectId: null,
             currentProjectName: "Sans titre",
+            currentVersionsMeta: [],
             projectMeta: { ...DEFAULT_PROJECT_META },
             selectedNodeId: null,
             selectedCableId: null,
@@ -582,6 +588,7 @@ export const useAppStore = create<State>()(
               activeTabId: tab.id,
               currentProjectId: null,
               currentProjectName: "Sans titre",
+              currentVersionsMeta: [],
               nodes: [],
               cables: [],
               zones: [...DEFAULT_ZONES],

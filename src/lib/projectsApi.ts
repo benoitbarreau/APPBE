@@ -15,12 +15,21 @@ export interface ProjectData {
   products: Product[]
 }
 
+// ── Versionning ────────────────────────────────────────────────────────────
+
+export interface VersionMeta {
+  id: string       // UUID du snapshot dans project_versions
+  version: string  // "V1.0", "V1.1" …
+  savedAt: string  // ISO date
+}
+
 export interface ProjectRow {
   id: string
   user_id: string
   name: string
   created_at: string
   updated_at: string
+  versions_meta: VersionMeta[]
   profiles?: { email: string; full_name: string | null }
 }
 
@@ -29,10 +38,90 @@ const pgErr = (e: { message: string }) => new Error(e.message)
 export async function listProjects(): Promise<ProjectRow[]> {
   const { data, error } = await supabase
     .from('projects')
-    .select('id, user_id, name, created_at, updated_at, profiles(email, full_name)')
+    .select('id, user_id, name, created_at, updated_at, versions_meta, profiles(email, full_name)')
     .order('updated_at', { ascending: false })
   if (error) throw pgErr(error)
   return (data ?? []) as unknown as ProjectRow[]
+}
+
+/** Incrémente "V1.0" → "V1.1", "V1.9" → "V2.0" */
+export function incrementVersion(v: string): string {
+  const num = parseFloat(v.replace(/^V/i, ''))
+  if (isNaN(num)) return 'V1.1'
+  const next = Math.round((num + 0.1) * 10) / 10
+  return `V${next.toFixed(1)}`
+}
+
+/** Calcule un hash léger de l'état (pour détecter les vraies modifications) */
+export function computeProjectHash(
+  tabs: unknown,
+  products: unknown,
+  signals: unknown,
+): string {
+  const str = JSON.stringify({ tabs, products, signals })
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(31, h) + str.charCodeAt(i) | 0
+  }
+  return `${str.length}:${h}`
+}
+
+/** Archive une version du projet dans project_versions */
+export async function saveProjectVersion(
+  projectId: string,
+  version: string,
+  data: ProjectData,
+): Promise<VersionMeta> {
+  const { data: row, error } = await supabase
+    .from('project_versions')
+    .insert({ project_id: projectId, version, data })
+    .select('id, version, saved_at')
+    .single()
+  if (error) throw pgErr(error)
+  const r = row as { id: string; version: string; saved_at: string }
+  return { id: r.id, version: r.version, savedAt: r.saved_at }
+}
+
+/** Charge un snapshot archivé */
+export async function fetchProjectVersion(
+  versionId: string,
+): Promise<{ version: string; data: ProjectData }> {
+  const { data, error } = await supabase
+    .from('project_versions')
+    .select('version, data')
+    .eq('id', versionId)
+    .single()
+  if (error) throw pgErr(error)
+  return data as { version: string; data: ProjectData }
+}
+
+/** Met à jour le champ versions_meta du projet (liste légère pour affichage) */
+export async function updateVersionsMeta(
+  projectId: string,
+  versionsMeta: VersionMeta[],
+): Promise<void> {
+  const { error } = await supabase
+    .from('projects')
+    .update({ versions_meta: versionsMeta })
+    .eq('id', projectId)
+  if (error) throw pgErr(error)
+}
+
+/** Supprime les snapshots en excès (garde les N plus récents) */
+export async function pruneProjectVersions(
+  projectId: string,
+  keepCount: number,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('project_versions')
+    .select('id')
+    .eq('project_id', projectId)
+    .order('saved_at', { ascending: false })
+  if (error || !data) return
+  const toDelete = data.slice(keepCount)
+  for (const row of toDelete) {
+    await supabase.from('project_versions').delete().eq('id', (row as { id: string }).id)
+  }
 }
 
 export async function fetchProject(id: string): Promise<{ name: string; data: ProjectData }> {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useAppStore } from '../store'
 import { listProjects, fetchProject, deleteProject, saveProject } from '../lib/projectsApi'
-import type { ProjectRow } from '../lib/projectsApi'
+import type { ProjectRow, VersionMeta } from '../lib/projectsApi'
 import { ShareModal } from '../components/ShareModal'
 import { AdminSettings } from '../components/AdminSettings'
 
@@ -11,6 +11,7 @@ const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 interface Props {
   onOpenEditor: () => void
   onOpenAdminDashboard?: () => void
+  onOpenVersion?: (versionId: string, projectId: string, projectName: string) => void
 }
 
 const fmt = (iso: string) =>
@@ -19,7 +20,7 @@ const fmt = (iso: string) =>
     hour: '2-digit', minute: '2-digit',
   })
 
-export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
+export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion }: Props) {
   const { profile } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
@@ -61,7 +62,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
     setError(null)
     try {
       const { name, data } = await fetchProject(row.id)
-      loadProjectData(row.id, name, data)
+      loadProjectData(row.id, name, data, row.versions_meta ?? [])
       onOpenEditor()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur lors de l'ouverture")
@@ -69,6 +70,13 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
       setLoadingId(null)
     }
   }
+
+  const handleOpenVersionClick = (vm: VersionMeta, row: ProjectRow) => {
+    onOpenVersion?.(vm.id, row.id, row.name)
+  }
+
+  const fmtVersion = (iso: string) =>
+    new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 
   const openNewDialog = () => {
     setNewName('')
@@ -221,6 +229,32 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard }: Props) {
                       <div className="project-card-date">
                         Modifié le {fmt(p.updated_at)}
                       </div>
+
+                      {/* ── Historique de versions ── */}
+                      {((p.versions_meta ?? []).length > 0) && (
+                        <div className="project-versions">
+                          {(p.versions_meta ?? []).map((vm) => (
+                            <button
+                              key={vm.id}
+                              className="version-badge"
+                              title={`Ouvrir la version ${vm.version} — ${fmtVersion(vm.savedAt)}`}
+                              onClick={() => handleOpenVersionClick(vm, p)}
+                            >
+                              {vm.version}
+                            </button>
+                          ))}
+                          {/* Version courante (non archivée) — ouvre en édition */}
+                          <button
+                            className="version-badge version-badge-current"
+                            title={`Version courante — Ouvrir en édition`}
+                            onClick={() => void handleOpen(p)}
+                          >
+                            {/* Extraire la version courante depuis les données du projet n'est pas possible ici sans fetch,
+                                on affiche V(dernière+0.1) ou juste "Actuelle" */}
+                            En cours
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="project-card-actions">
                       <button

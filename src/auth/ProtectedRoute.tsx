@@ -10,6 +10,7 @@ import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
+import { fetchProjectVersion } from '../lib/projectsApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -29,10 +30,13 @@ export function ProtectedRoute() {
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
   const [page, setPage] = useState<Page>('projects')
+  const [readOnly, setReadOnly] = useState(false)
+  const [readOnlyVersion, setReadOnlyVersion] = useState<string | undefined>()
 
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
   const setCatalogMeta = useCatalogMeta(s => s.setCatalogMeta)
+  const loadProjectData = useAppStore(s => s.loadProjectData)
 
   // Sécurité : isoler les données du store par utilisateur.
   useEffect(() => {
@@ -57,8 +61,30 @@ export function ProtectedRoute() {
       setPage('projects')
       setShowAdminDashboard(false)
       setShowRegister(false)
+      setReadOnly(false)
+      setReadOnlyVersion(undefined)
     }
   }, [user])
+
+  /** Ouvre une version archivée en lecture seule */
+  const handleOpenVersion = async (versionId: string, projectId: string, projectName: string) => {
+    try {
+      const { version, data } = await fetchProjectVersion(versionId)
+      loadProjectData(projectId, projectName, data, [])
+      setReadOnly(true)
+      setReadOnlyVersion(version)
+      setPage('editor')
+    } catch (e) {
+      alert("Impossible de charger cette version : " + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  /** Ouvre la version courante (normale, éditable) */
+  const handleOpenEditor = () => {
+    setReadOnly(false)
+    setReadOnlyVersion(undefined)
+    setPage('editor')
+  }
 
   // ── Chargement initial ──────────────────────────────────────────────────
   if (loading) return <LoadingScreen message="Chargement…" />
@@ -108,15 +134,18 @@ export function ProtectedRoute() {
     <>
       {page === 'projects' && (
         <ProjectsPage
-          onOpenEditor={() => setPage('editor')}
+          onOpenEditor={handleOpenEditor}
           onOpenAdminDashboard={openAdmin}
+          onOpenVersion={handleOpenVersion}
         />
       )}
 
       {page === 'editor' && (
         <App
           onOpenAdminDashboard={openAdmin}
-          onBackToProjects={() => setPage('projects')}
+          onBackToProjects={() => { setReadOnly(false); setReadOnlyVersion(undefined); setPage('projects') }}
+          readOnly={readOnly}
+          readOnlyVersion={readOnlyVersion}
         />
       )}
 

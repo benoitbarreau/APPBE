@@ -15,22 +15,36 @@ import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
 import { exportDiagram } from "./export";
 import { useAuth } from "./auth/useAuth";
-import { saveProject } from "./lib/projectsApi";
+import {
+  saveProject,
+  saveProjectVersion,
+  updateVersionsMeta,
+  pruneProjectVersions,
+  incrementVersion,
+  computeProjectHash,
+} from "./lib/projectsApi";
 
 interface AppProps {
   onOpenAdminDashboard?: () => void
   onBackToProjects?: () => void
+  readOnly?: boolean
+  readOnlyVersion?: string
 }
 
-export default function App({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
+export default function App({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVersion }: AppProps) {
   return (
     <ReactFlowProvider>
-      <AppInner onOpenAdminDashboard={onOpenAdminDashboard} onBackToProjects={onBackToProjects} />
+      <AppInner
+        onOpenAdminDashboard={onOpenAdminDashboard}
+        onBackToProjects={onBackToProjects}
+        readOnly={readOnly}
+        readOnlyVersion={readOnlyVersion}
+      />
     </ReactFlowProvider>
   );
 }
 
-function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
+function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVersion }: AppProps) {
   const reactFlow = useReactFlow();
   const { profile } = useAuth();
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -58,9 +72,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   const resetProject = useAppStore((s) => s.resetProject);
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
+  const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
+  const setVersionsMeta = useAppStore((s) => s.setVersionsMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
+
+  // Hash de l'état au dernier enregistrement — permet de détecter les vraies modifications
+  const lastSavedHash = useRef<string>("");
 
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
@@ -92,27 +111,74 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   };
 
   const handleSave = async () => {
+    if (readOnly) return;
     setSaving(true);
     try {
       const state = useAppStore.getState();
       // Flush l'état de travail dans l'onglet actif avant de sauvegarder
       const flushedTabs = getFlushedTabs();
+
+      // ── Détection de modification réelle ──────────────────────────────
+      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals);
+      const isModified = lastSavedHash.current !== "" && currentHash !== lastSavedHash.current;
+      const isExistingProject = !!state.currentProjectId;
+
+      let metaToSave = state.projectMeta;
+      let versionsMeta = [...(state.currentVersionsMeta ?? [])];
+
+      // ── Archivage + incrément de version si modification détectée ─────
+      if (isModified && isExistingProject) {
+        const currentVersion = state.projectMeta.version || "V1.0";
+        try {
+          // Archiver la version courante avant d'incrémenter
+          const archived = await saveProjectVersion(state.currentProjectId!, currentVersion, {
+            tabs: flushedTabs,
+            activeTabId: state.activeTabId,
+            projectMeta: state.projectMeta,
+            signals: state.signals,
+            products: state.products,
+          });
+          // Conserver les 3 derniers snapshots archivés max
+          versionsMeta = [...versionsMeta, archived].slice(-3);
+          await pruneProjectVersions(state.currentProjectId!, 3);
+
+          // Incrémenter la version dans les meta
+          const newVersion = incrementVersion(currentVersion);
+          updateProjectMeta({ version: newVersion });
+          metaToSave = { ...state.projectMeta, version: newVersion };
+          setVersionsMeta(versionsMeta);
+        } catch {
+          // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
+        }
+      }
+
+      // ── Sauvegarde principale ─────────────────────────────────────────
       const id = await saveProject(
         state.currentProjectId,
         state.currentProjectName || "Sans titre",
         {
           tabs: flushedTabs,
           activeTabId: state.activeTabId,
-          projectMeta: state.projectMeta,
+          projectMeta: metaToSave,
           signals: state.signals,
           products: state.products,
         },
       );
+
+      // Mise à jour des versions_meta sur le projet (affichage liste)
+      if (isModified && isExistingProject) {
+        await updateVersionsMeta(id, versionsMeta).catch(() => {});
+      }
+
       // Mettre à jour le store avec les tabs flushés
       useAppStore.setState({ tabs: flushedTabs });
       if (!state.currentProjectId) {
         useAppStore.setState({ currentProjectId: id });
       }
+
+      // Mémoriser le hash de cet enregistrement
+      lastSavedHash.current = currentHash;
+
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
     } catch (e) {
@@ -178,6 +244,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
 
   return (
     <div className="app">
+      {/* ── Bannière lecture seule ───────────────────────────────────────── */}
+      {readOnly && (
+        <div className="readonly-banner">
+          🔒 Lecture seule — Version {readOnlyVersion ?? "archivée"} — Cette version ne peut pas être modifiée
+          <button onClick={onBackToProjects} className="readonly-back-btn">
+            ← Retour aux projets
+          </button>
+        </div>
+      )}
+
       <header className="app-header">
         <div className="header-left">
           {onBackToProjects && (
@@ -194,27 +270,32 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
           <input
             className="project-name-input"
             value={currentProjectName}
-            onChange={e => setProjectName(e.target.value)}
+            onChange={e => !readOnly && setProjectName(e.target.value)}
             placeholder="Sans titre"
-            title="Nom du projet (cliquer pour renommer)"
+            readOnly={readOnly}
+            title={readOnly ? "Version en lecture seule" : "Nom du projet (cliquer pour renommer)"}
           />
-          {currentProjectId && (
+          {currentProjectId && !readOnly && (
             <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
           )}
         </div>
 
         <div className="header-actions">
-          <button onClick={handleNew} title="Créer un nouveau projet vide">
-            Nouveau
-          </button>
-          <button
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className={savedOk ? "btn-saved" : ""}
-            title="Sauvegarder dans le cloud"
-          >
-            {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
-          </button>
+          {!readOnly && (
+            <button onClick={handleNew} title="Créer un nouveau projet vide">
+              Nouveau
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className={savedOk ? "btn-saved" : ""}
+              title="Sauvegarder dans le cloud"
+            >
+              {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
+            </button>
+          )}
 
           <div className="header-separator" />
 
