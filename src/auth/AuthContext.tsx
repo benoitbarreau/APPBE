@@ -18,6 +18,7 @@ export interface Profile {
 interface AuthContextValue {
   user: User | null
   profile: Profile | null
+  /** true pendant le chargement initial ET pendant tout fetch de profil */
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string) => Promise<void>
@@ -27,7 +28,7 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
-/** Fetch le profil avec jusqu'à 3 tentatives (réseau lent, token en cours de refresh) */
+/** Fetch le profil avec jusqu'à 3 tentatives */
 async function fetchProfileWithRetry(userId: string): Promise<Profile | null> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const { data, error } = await supabase
@@ -44,56 +45,76 @@ async function fetchProfileWithRetry(userId: string): Promise<Profile | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const loadingDone = useRef(false)
-  // Mémorise l'userId pour lequel le profil a déjà été chargé.
-  // Permet de savoir si on doit refetcher (TOKEN_REFRESHED après INITIAL_SESSION null).
-  const profileFetchedFor = useRef<string | null>(null)
 
-  const finishLoading = () => {
-    if (!loadingDone.current) {
-      loadingDone.current = true
+  // loading = true tant que :
+  //   1. le chargement initial Supabase n'est pas terminé, OU
+  //   2. un fetch de profil est en cours (même après reconnexion)
+  // On fusionne les deux en un seul état pour simplifier ProtectedRoute.
+  const [loading, setLoading] = useState(true)
+
+  // Compteur de fetches en cours — permet de gérer les appels simultanés
+  const fetchCount = useRef(0)
+  // UserId pour lequel le profil a déjà été chargé avec succès
+  const profileFetchedFor = useRef<string | null>(null)
+  // Timeout de sécurité (10 s)
+  const safetyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** Active loading si ce n'est pas déjà en cours */
+  const startLoading = () => setLoading(true)
+
+  /** Désactive loading uniquement si aucun fetch n'est en cours */
+  const stopLoading = () => {
+    fetchCount.current -= 1
+    if (fetchCount.current <= 0) {
+      fetchCount.current = 0
       setLoading(false)
     }
   }
 
   const loadProfile = async (userId: string) => {
-    if (profileFetchedFor.current === userId) return // déjà chargé pour cet utilisateur
-    const prof = await fetchProfileWithRetry(userId)
-    setProfile(prof)
-    if (prof) profileFetchedFor.current = userId
+    // Déjà chargé avec succès pour cet utilisateur → ne pas refetcher
+    if (profileFetchedFor.current === userId) return
+
+    fetchCount.current += 1
+    startLoading()
+    try {
+      const prof = await fetchProfileWithRetry(userId)
+      setProfile(prof)
+      if (prof) profileFetchedFor.current = userId
+    } finally {
+      stopLoading()
+    }
   }
 
   useEffect(() => {
-    // Filet de sécurité : jamais bloqué plus de 10 s sur l'écran de chargement
-    const timeout = setTimeout(finishLoading, 10_000)
+    // Filet de sécurité : sortir du loading après 10 s dans tous les cas
+    safetyTimeout.current = setTimeout(() => {
+      fetchCount.current = 0
+      setLoading(false)
+    }, 10_000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        try {
-          const currentUser = session?.user ?? null
-          setUser(currentUser)
+        if (safetyTimeout.current) {
+          clearTimeout(safetyTimeout.current)
+          safetyTimeout.current = null
+        }
 
-          if (currentUser) {
-            // Charger le profil si :
-            // - connexion explicite (SIGNED_IN)
-            // - chargement initial (INITIAL_SESSION)
-            // - token rafraîchi MAIS profil pas encore chargé (TOKEN_REFRESHED après session expirée)
-            await loadProfile(currentUser.id)
-          } else {
-            // Pas de session : réinitialiser
-            setProfile(null)
-            profileFetchedFor.current = null
-          }
-        } finally {
-          clearTimeout(timeout)
-          finishLoading()
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+
+        if (currentUser) {
+          await loadProfile(currentUser.id)
+        } else {
+          setProfile(null)
+          profileFetchedFor.current = null
+          setLoading(false)
         }
       }
     )
 
     return () => {
-      clearTimeout(timeout)
+      if (safetyTimeout.current) clearTimeout(safetyTimeout.current)
       subscription.unsubscribe()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -113,11 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    // Réinitialiser immédiatement l'état local
     setUser(null)
     setProfile(null)
     profileFetchedFor.current = null
-    // Vider les clés Supabase du localStorage
+    fetchCount.current = 0
+    // Vider les clés de session Supabase
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-')) localStorage.removeItem(key)
     })
@@ -128,10 +149,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  /** Recharge le profil depuis Supabase (utile après modification du compte) */
+  /** Recharge le profil (utile après modification du compte) */
   const refreshProfile = async () => {
     if (!user) return
-    profileFetchedFor.current = null // forcer un nouveau fetch
+    profileFetchedFor.current = null
     await loadProfile(user.id)
   }
 
