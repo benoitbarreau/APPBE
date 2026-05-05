@@ -1,6 +1,7 @@
 :root {
   --bg: #f5f6f8;
   --panel: #ffffff;
+  --surface: #ffffff;   /* alias de --panel, utilisé dans les modals */
   --border: #d8dde4;
   --muted: #6c7480;
   --text: #1c1f24;
@@ -80,12 +81,13 @@ select {
 /* ── Barre d'onglets ────────────────────────────────────────────────────── */
 .tab-bar {
   display: flex;
-  align-items: stretch;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  padding: 0 8px;
-  gap: 2px;
-  height: 36px;
+  align-items: center;
+  flex-shrink: 0;          /* ne pas se comprimer dans la colonne flex */
+  background: #eef1f5;     /* fond légèrement grisé pour bien se distinguer du header */
+  border-bottom: 2px solid var(--border);
+  padding: 4px 8px 0;
+  gap: 3px;
+  min-height: 38px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -97,37 +99,37 @@ select {
   border-radius: 6px 6px 0 0;
   border: 1px solid transparent;
   border-bottom: none;
-  gap: 0;
   min-width: 0;
   transition: background 0.12s, border-color 0.12s;
-  position: relative;
-  top: 1px; /* bord bas sous le border de .tab-bar */
+  background: transparent;
 }
 
 .tab-item.active {
-  background: var(--bg);
+  background: var(--panel);
   border-color: var(--border);
-  border-bottom-color: var(--bg); /* efface le bord bas sur l'onglet actif */
+  border-bottom-color: var(--panel);
+  margin-bottom: -2px;   /* chevauche le border-bottom du tab-bar */
 }
 
 .tab-item:not(.active):hover {
-  background: color-mix(in srgb, var(--border) 30%, transparent);
+  background: rgba(0,0,0,0.06);
+  border-color: var(--border);
 }
 
 .tab-name {
   background: transparent;
   border: none;
-  padding: 0 10px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text);
+  color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
-  height: 100%;
   border-radius: 0;
+  line-height: 1.3;
 }
 
 .tab-item.active .tab-name {
@@ -138,58 +140,62 @@ select {
 .tab-name:hover {
   background: transparent;
   border-color: transparent;
+  color: var(--text);
+}
+
+.tab-item.active .tab-name:hover {
+  color: var(--primary);
 }
 
 .tab-name-input {
   border: 1px solid var(--primary);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   font-size: 12px;
   font-weight: 500;
   width: 120px;
   margin: 0 4px;
-  height: 24px;
+  height: 26px;
   background: #fff;
 }
 
 .tab-close {
   background: transparent;
   border: none;
-  padding: 0 5px 0 2px;
-  font-size: 14px;
+  padding: 2px 6px;
+  font-size: 13px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
   border-radius: 3px;
-  height: 20px;
-  display: flex;
-  align-items: center;
+  flex-shrink: 0;
 }
 
 .tab-close:hover {
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  background: rgba(214,56,56,0.12);
   color: var(--danger);
   border-color: transparent;
 }
 
 .tab-add {
   background: transparent;
-  border: none;
-  padding: 0 10px;
-  font-size: 18px;
+  border: 1px dashed var(--border);
+  padding: 4px 10px;
+  font-size: 16px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 5px;
   height: 28px;
-  align-self: center;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
 .tab-add:hover {
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  background: rgba(47,111,237,0.08);
   color: var(--primary);
-  border-color: transparent;
+  border-color: var(--primary);
 }
 
 .app-body {
