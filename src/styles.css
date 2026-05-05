@@ -2492,6 +2492,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-right: 12px; /* évite que les boutons touchent le séparateur vertical */
 }
 
 .project-card-body {

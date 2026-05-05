@@ -143,7 +143,7 @@ const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" 
 
 export const useAppStore = create<State>()(
   persist(
-    (set) => {
+    (set, get) => {
       const firstTab = makeDefaultTab();
 
       return {
@@ -527,6 +527,22 @@ export const useAppStore = create<State>()(
 
           const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
+          // ── Fusion du catalogue produits ─────────────────────────────────
+          // On NE remplace PAS le catalogue courant (déjà mergé avec le cloud
+          // au login) par la copie embarquée dans le projet (potentiellement
+          // périmée). On conserve le catalogue courant et on ajoute uniquement
+          // les produits du projet absents du catalogue (ex : produits supprimés
+          // du cloud mais encore référencés dans ce projet).
+          const currentProducts = get().products;
+          const mergedProductMap = new Map<string, Product>(
+            currentProducts.map((p) => [p.id, p]),
+          );
+          for (const p of (data.products ?? [] as Product[])) {
+            if (!mergedProductMap.has(p.id)) {
+              mergedProductMap.set(p.id, p);
+            }
+          }
+
           set({
             currentProjectId: id,
             currentProjectName: name,
@@ -538,7 +554,7 @@ export const useAppStore = create<State>()(
             zones: activeTab.zones,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             signals: data.signals ?? { ...DEFAULT_SIGNAL_DEFS },
-            products: data.products ?? BUILTIN_CATALOG,
+            products: Array.from(mergedProductMap.values()),
             selectedNodeId: null,
             selectedCableId: null,
           });
