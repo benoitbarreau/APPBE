@@ -49,6 +49,9 @@ interface State {
   // Cloud project tracking
   currentProjectId: string | null;
   currentProjectName: string;
+  // Sécurité : identifiant du dernier utilisateur ayant utilisé ce store
+  // Permet de détecter un changement d'utilisateur et de purger les données
+  lastUserId: string | null;
 
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -92,6 +95,8 @@ interface State {
   setProjectName: (name: string) => void;
   loadProjectData: (id: string, name: string, data: ProjectData) => void;
   resetProject: () => void;
+  /** Purge les données de projet si l'utilisateur a changé (sécurité) */
+  clearForUser: (userId: string) => void;
 }
 
 const uid = () =>
@@ -112,6 +117,7 @@ export const useAppStore = create<State>()(
       selectedCableId: null,
       currentProjectId: null,
       currentProjectName: "Sans titre",
+      lastUserId: null,
 
       addProduct: (p) =>
         set((s) => ({ products: [...s.products.filter((x) => x.id !== p.id), p] })),
@@ -369,10 +375,31 @@ export const useAppStore = create<State>()(
           selectedNodeId: null,
           selectedCableId: null,
         }),
+
+      clearForUser: (userId) =>
+        set((s) => {
+          // Même utilisateur : ne rien effacer
+          if (s.lastUserId === userId) return {}
+          // Utilisateur différent : purger les données de projet
+          // (les produits du catalogue intégré sont conservés)
+          return {
+            lastUserId: userId,
+            currentProjectId: null,
+            currentProjectName: "Sans titre",
+            nodes: [],
+            cables: [],
+            zones: [...DEFAULT_ZONES],
+            projectMeta: { ...DEFAULT_PROJECT_META },
+            signals: { ...DEFAULT_SIGNAL_DEFS },
+            selectedNodeId: null,
+            selectedCableId: null,
+            products: BUILTIN_CATALOG,
+          }
+        }),
     }),
     {
       name: "av-diagram-generator",
-      version: 7,
+      version: 8,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & { adminCode?: unknown } | undefined;
         if (!state) return state as unknown as State;
@@ -396,6 +423,7 @@ export const useAppStore = create<State>()(
         delete state.adminCode;
         if (state.currentProjectId === undefined) state.currentProjectId = null;
         if (!state.currentProjectName) state.currentProjectName = "Sans titre";
+        if (state.lastUserId === undefined) state.lastUserId = null;
         return state as unknown as State;
       },
     },

@@ -22,6 +22,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -35,7 +36,6 @@ async function fetchProfileWithRetry(userId: string): Promise<Profile | null> {
       .eq('id', userId)
       .single()
     if (!error && data) return data as Profile
-    // Pause progressive avant la prochaine tentative (700 ms, 1400 ms)
     if (attempt < 2) await new Promise(r => setTimeout(r, 700 * (attempt + 1)))
   }
   return null
@@ -46,6 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const loadingDone = useRef(false)
+  // Mémorise l'userId pour lequel le profil a déjà été chargé.
+  // Permet de savoir si on doit refetcher (TOKEN_REFRESHED après INITIAL_SESSION null).
+  const profileFetchedFor = useRef<string | null>(null)
 
   const finishLoading = () => {
     if (!loadingDone.current) {
@@ -54,28 +57,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const loadProfile = async (userId: string) => {
+    if (profileFetchedFor.current === userId) return // déjà chargé pour cet utilisateur
+    const prof = await fetchProfileWithRetry(userId)
+    setProfile(prof)
+    if (prof) profileFetchedFor.current = userId
+  }
+
   useEffect(() => {
     // Filet de sécurité : jamais bloqué plus de 10 s sur l'écran de chargement
     const timeout = setTimeout(finishLoading, 10_000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         try {
           const currentUser = session?.user ?? null
           setUser(currentUser)
 
           if (currentUser) {
-            // Ne re-fetcher le profil que lors du chargement initial ou d'une
-            // vraie connexion. TOKEN_REFRESHED ne nécessite pas un nouveau fetch
-            // (même utilisateur, même profil) et était la cause des "Profil
-            // introuvable" après une sauvegarde de projet.
-            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-              const prof = await fetchProfileWithRetry(currentUser.id)
-              setProfile(prof)
-            }
-            // Pour TOKEN_REFRESHED / USER_UPDATED : conserver le profil actuel
+            // Charger le profil si :
+            // - connexion explicite (SIGNED_IN)
+            // - chargement initial (INITIAL_SESSION)
+            // - token rafraîchi MAIS profil pas encore chargé (TOKEN_REFRESHED après session expirée)
+            await loadProfile(currentUser.id)
           } else {
+            // Pas de session : réinitialiser
             setProfile(null)
+            profileFetchedFor.current = null
           }
         } finally {
           clearTimeout(timeout)
@@ -88,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -105,8 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    // Réinitialiser immédiatement l'état local
     setUser(null)
     setProfile(null)
+    profileFetchedFor.current = null
+    // Vider les clés Supabase du localStorage
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-')) localStorage.removeItem(key)
     })
@@ -117,8 +128,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /** Recharge le profil depuis Supabase (utile après modification du compte) */
+  const refreshProfile = async () => {
+    if (!user) return
+    profileFetchedFor.current = null // forcer un nouveau fetch
+    await loadProfile(user.id)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

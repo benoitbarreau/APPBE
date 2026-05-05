@@ -11,29 +11,32 @@ import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
-import { ProjectsModal } from "./pages/ProjectsModal";
 import { useAppStore } from "./store";
 import { layoutNodes } from "./layout";
 import { exportDiagram } from "./export";
 import { useAuth } from "./auth/useAuth";
 import { saveProject } from "./lib/projectsApi";
 
-export default function App({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void }) {
+interface AppProps {
+  onOpenAdminDashboard?: () => void
+  onBackToProjects?: () => void
+}
+
+export default function App({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   return (
     <ReactFlowProvider>
-      <AppInner onOpenAdminDashboard={onOpenAdminDashboard} />
+      <AppInner onOpenAdminDashboard={onOpenAdminDashboard} onBackToProjects={onBackToProjects} />
     </ReactFlowProvider>
   );
 }
 
-function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void }) {
+function AppInner({ onOpenAdminDashboard, onBackToProjects }: AppProps) {
   const reactFlow = useReactFlow();
   const { profile } = useAuth();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [projectsOpen, setProjectsOpen] = useState(false);
   const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "legend" | "zones">("cables");
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
@@ -45,6 +48,7 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
   const updateCable = useAppStore((s) => s.updateCable);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
 
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
@@ -65,6 +69,14 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
   const handleNew = () => {
     if (!confirm("Créer un nouveau projet ? Les modifications non sauvegardées seront perdues.")) return;
     resetProject();
+  };
+
+  const handleBackToProjects = () => {
+    const hasNodes = useAppStore.getState().nodes.length > 0;
+    if (hasNodes && !savedOk) {
+      if (!confirm("Retourner aux projets ? Les modifications non sauvegardées seront perdues.")) return;
+    }
+    onBackToProjects?.();
   };
 
   const handleSave = async () => {
@@ -131,6 +143,15 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
     <div className="app">
       <header className="app-header">
         <div className="header-left">
+          {onBackToProjects && (
+            <button
+              onClick={handleBackToProjects}
+              title="Retour à la liste des projets"
+              className="btn-back"
+            >
+              ← Projets
+            </button>
+          )}
           <div className="brand">SynoX</div>
           <span className="header-sep">|</span>
           <input
@@ -140,6 +161,9 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
             placeholder="Sans titre"
             title="Nom du projet (cliquer pour renommer)"
           />
+          {currentProjectId && (
+            <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
+          )}
         </div>
 
         <div className="header-actions">
@@ -153,9 +177,6 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
             title="Sauvegarder dans le cloud"
           >
             {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
-          </button>
-          <button onClick={() => setProjectsOpen(true)} title="Ouvrir un projet sauvegardé">
-            Projets
           </button>
 
           <div className="header-separator" />
@@ -236,7 +257,6 @@ function AppInner({ onOpenAdminDashboard }: { onOpenAdminDashboard?: () => void 
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
       {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
-      {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
     </div>
   );
 }

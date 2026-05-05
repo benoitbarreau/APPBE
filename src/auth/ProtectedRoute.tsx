@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
+import { useAppStore } from '../store'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { PendingPage } from '../pages/PendingPage'
 import { RejectedPage } from '../pages/RejectedPage'
+import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 
@@ -18,19 +20,43 @@ function LoadingScreen({ message }: { message: string }) {
   )
 }
 
+type Page = 'projects' | 'editor'
+
 export function ProtectedRoute() {
   const { user, profile, loading, signOut } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
+  const [page, setPage] = useState<Page>('projects')
 
+  const clearForUser = useAppStore(s => s.clearForUser)
+
+  // Sécurité : isoler les données du store par utilisateur.
+  // Si un autre utilisateur se connecte sur la même machine, les données
+  // de projet du précédent utilisateur sont purgées du localStorage.
+  useEffect(() => {
+    if (user) clearForUser(user.id)
+  }, [user, clearForUser])
+
+  // Revenir à la page projets si la session expire
+  useEffect(() => {
+    if (!user) {
+      setPage('projects')
+      setShowAdminDashboard(false)
+      setShowRegister(false)
+    }
+  }, [user])
+
+  // ── Chargement initial ──────────────────────────────────────────────────
   if (loading) return <LoadingScreen message="Chargement…" />
 
+  // ── Non authentifié ─────────────────────────────────────────────────────
   if (!user) {
     return showRegister
       ? <RegisterPage onSwitchToLogin={() => setShowRegister(false)} />
       : <LoginPage onSwitchToRegister={() => setShowRegister(true)} />
   }
 
+  // ── Profil absent (affiché seulement si vraiment absent après 3 tentatives) ──
   if (!profile) {
     return (
       <div className="auth-page">
@@ -55,16 +81,31 @@ export function ProtectedRoute() {
     )
   }
 
+  // ── Statuts de compte ────────────────────────────────────────────────────
   if (profile.status === 'pending') return <PendingPage />
   if (profile.status === 'rejected') return <RejectedPage />
 
+  // ── Compte approuvé ──────────────────────────────────────────────────────
   const openAdmin = profile.role === 'admin'
     ? () => setShowAdminDashboard(true)
     : undefined
 
   return (
     <>
-      <App onOpenAdminDashboard={openAdmin} />
+      {page === 'projects' && (
+        <ProjectsPage
+          onOpenEditor={() => setPage('editor')}
+          onOpenAdminDashboard={openAdmin}
+        />
+      )}
+
+      {page === 'editor' && (
+        <App
+          onOpenAdminDashboard={openAdmin}
+          onBackToProjects={() => setPage('projects')}
+        />
+      )}
+
       {showAdminDashboard && profile.role === 'admin' && (
         <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
       )}
