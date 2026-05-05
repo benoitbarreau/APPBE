@@ -304,21 +304,9 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                       )}
                     </div>
 
-                    {/* ── Colonne droite : Ouvrir + versions ── */}
+                    {/* ── Colonne droite : versions + Ouvrir en bas ── */}
                     <div className="project-card-versions">
                       {!owned && <span className="project-shared-badge">PARTAGÉ</span>}
-
-                      {/* Bouton Ouvrir en tête de colonne */}
-                      {!p.archived && (
-                        <button
-                          className="primary version-open-btn"
-                          onClick={() => void handleOpen(p)}
-                          disabled={loadingId === p.id}
-                          title="Ouvrir la version en cours"
-                        >
-                          {loadingId === p.id ? '…' : 'Ouvrir →'}
-                        </button>
-                      )}
 
                       {/* Versions archivées */}
                       {!p.archived && (p.versions_meta ?? []).map((vm) => (
@@ -337,6 +325,18 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                         </button>
                       )}
                       {p.archived && <span className="version-badge-archived">Archivé</span>}
+
+                      {/* Bouton Ouvrir en bas de colonne */}
+                      {!p.archived && (
+                        <button
+                          className="primary version-open-btn"
+                          onClick={() => void handleOpen(p)}
+                          disabled={loadingId === p.id}
+                          title="Ouvrir la version en cours"
+                        >
+                          {loadingId === p.id ? '…' : 'Ouvrir →'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )

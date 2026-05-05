@@ -2489,7 +2489,6 @@ select {
 .project-card-main {
   flex: 1;
   min-width: 0;
-  overflow: hidden; /* empêche le contenu de déborder sur la colonne droite */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -2591,7 +2590,7 @@ select {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  margin-bottom: 4px;
+  margin-top: auto; /* colle le bouton Ouvrir en bas de la colonne */
 }
 
 /* ── Historique de versions sur les cartes ─────────────────────────────── */
