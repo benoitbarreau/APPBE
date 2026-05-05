@@ -2527,28 +2527,25 @@ select {
   display: flex;
   gap: 6px;
   align-items: stretch;
-  overflow: hidden; /* empêche le débordement sur la colonne versions */
 }
 
-/* Bouton "Ouvrir" : prend la place disponible */
-.project-card-actions button.primary {
-  flex: 1;
-  padding: 7px 10px;
-  font-size: 13px;
-  min-width: 0;
-}
-
-/* Boutons icônes : carré uniforme */
+/* Boutons secondaires : répartis uniformément sur toute la largeur */
 .project-card-actions .btn-share,
-.project-card-actions .btn-archive,
+.project-card-actions .btn-archive {
+  flex: 1;
+  padding: 7px 6px;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Poubelle : carré fixe */
 .project-card-actions .danger {
   flex: 0 0 36px;
   width: 36px;
   padding: 7px 0;
   font-size: 13px;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 /* ── Projet partagé ─────────────────────────────────────────────────────── */
@@ -2585,6 +2582,16 @@ select {
   margin-left: 12px;
   min-width: 72px;
   justify-content: flex-start;
+}
+
+/* ── Bouton Ouvrir dans la colonne versions ────────────────────────────── */
+.version-open-btn {
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-bottom: 4px;
 }
 
 /* ── Historique de versions sur les cartes ─────────────────────────────── */

@@ -281,38 +281,46 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                         )}
                         <div className="project-card-date">Modifié le {fmt(p.updated_at)}</div>
                       </div>
-                      <div className="project-card-actions">
-                        {!p.archived && (
-                          <button className="primary" onClick={() => void handleOpen(p)} disabled={loadingId === p.id}>
-                            {loadingId === p.id ? '…' : 'Ouvrir →'}
+                      {/* 3 boutons secondaires sur toute la largeur gauche */}
+                      {owned && (
+                        <div className="project-card-actions">
+                          {!p.archived && (
+                            <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
+                              ↗ Partager
+                            </button>
+                          )}
+                          <button
+                            className="btn-archive"
+                            onClick={() => void handleArchive(p)}
+                            disabled={archivingId === p.id}
+                            title={p.archived ? 'Désarchiver ce projet' : 'Archiver ce projet'}
+                          >
+                            {archivingId === p.id ? '…' : p.archived ? '↩ Désarchiver' : '📦 Archiver'}
                           </button>
-                        )}
-                        {owned && (
-                          <>
-                            {!p.archived && (
-                              <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
-                                ↗
-                              </button>
-                            )}
-                            <button
-                              className="btn-archive"
-                              onClick={() => void handleArchive(p)}
-                              disabled={archivingId === p.id}
-                              title={p.archived ? 'Désarchiver ce projet' : 'Archiver ce projet'}
-                            >
-                              {archivingId === p.id ? '…' : p.archived ? '↩' : '📦'}
-                            </button>
-                            <button className="danger" onClick={() => void handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer ce projet">
-                              {deletingId === p.id ? '…' : '🗑'}
-                            </button>
-                          </>
-                        )}
-                      </div>
+                          <button className="danger" onClick={() => void handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer ce projet">
+                            {deletingId === p.id ? '…' : '🗑'}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                    {/* ── Colonne versions (droite) — masquée si archivé ── */}
+                    {/* ── Colonne droite : Ouvrir + versions ── */}
                     <div className="project-card-versions">
                       {!owned && <span className="project-shared-badge">PARTAGÉ</span>}
+
+                      {/* Bouton Ouvrir en tête de colonne */}
+                      {!p.archived && (
+                        <button
+                          className="primary version-open-btn"
+                          onClick={() => void handleOpen(p)}
+                          disabled={loadingId === p.id}
+                          title="Ouvrir la version en cours"
+                        >
+                          {loadingId === p.id ? '…' : 'Ouvrir →'}
+                        </button>
+                      )}
+
+                      {/* Versions archivées */}
                       {!p.archived && (p.versions_meta ?? []).map((vm) => (
                         <button
                           key={vm.id}
@@ -324,7 +332,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                         </button>
                       ))}
                       {!p.archived && (
-                        <button className="version-badge version-badge-current" title="Version en cours — Ouvrir en édition" onClick={() => void handleOpen(p)}>
+                        <button className="version-badge version-badge-current" title="Version en cours" onClick={() => void handleOpen(p)}>
                           En cours
                         </button>
                       )}
