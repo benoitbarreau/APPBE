@@ -2543,10 +2543,11 @@ select {
   text-overflow: ellipsis;
 }
 
-/* Poubelle : même hauteur, largeur fixe */
+/* Poubelle : même taille que les autres boutons */
 .project-card-actions .danger {
-  flex: 0 0 auto;
-  padding: 7px 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
   font-size: 13px;
   text-align: center;
 }
