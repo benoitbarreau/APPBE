@@ -59,7 +59,14 @@ select {
 
 .app {
   display: flex;
+  flex-direction: row;
+}
+.app-main {
+  flex: 1;
+  display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 .app-header {
   height: 44px;
@@ -261,12 +268,12 @@ select {
 .app-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 280px 1fr 360px;
+  grid-template-columns: 1fr 360px;
   min-height: 0;
   transition: grid-template-columns 0.2s ease;
 }
-.app-body.left-collapsed {
-  grid-template-columns: 36px 1fr 360px;
+.app-body.right-collapsed {
+  grid-template-columns: 1fr 36px;
 }
 
 .sidebar {
@@ -277,13 +284,26 @@ select {
   min-height: 0;
   overflow: hidden;
 }
+
+/* ── Sidebar gauche pleine hauteur ── */
+.sidebar.left {
+  width: 280px;
+  flex-shrink: 0;
+  transition: width 0.2s ease;
+}
+.sidebar.left.collapsed {
+  width: 36px;
+  align-items: center;
+  overflow: visible;
+}
+
 .sidebar.right {
   border-right: none;
   border-left: 1px solid var(--border);
 }
 
-/* ── Sidebar gauche réduite ── */
-.sidebar.left.collapsed {
+/* ── Sidebar droite réduite ── */
+.sidebar.right.collapsed {
   align-items: center;
   overflow: visible;
 }
@@ -319,6 +339,69 @@ select {
 .palette-expand-label {
   writing-mode: vertical-lr;
   text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* ── Panneau droit repliable ── */
+.right-panel-topbar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.right-panel-topbar .tabs {
+  flex: 1;
+  border-bottom: none;
+}
+.right-collapse-btn {
+  flex-shrink: 0;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+}
+.right-collapse-btn:hover {
+  background: var(--bg);
+  color: var(--primary);
+  border: none;
+  border-left: 1px solid var(--border);
+}
+.right-expand-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+.right-expand-btn:hover {
+  background: var(--bg);
+  color: var(--primary);
+  border: none;
+}
+.right-expand-icon {
+  font-size: 13px;
+}
+.right-expand-label {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  transform: rotate(180deg);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;

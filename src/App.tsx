@@ -209,6 +209,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   };
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -249,197 +250,224 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
   return (
     <div className="app">
-      {/* ── Bannière lecture seule ───────────────────────────────────────── */}
-      {readOnly && (
-        <div className="readonly-banner">
-          🔒 Lecture seule — Version {readOnlyVersion ?? "archivée"} — Cette version ne peut pas être modifiée
-          <button onClick={onBackToProjects} className="readonly-back-btn">
-            ← Retour aux projets
-          </button>
-        </div>
-      )}
-
-      <header className="app-header">
-        <div className="header-left">
-          {onBackToProjects && (
-            <button
-              onClick={handleBackToProjects}
-              title="Retour à la liste des projets"
-              className="btn-back"
-            >
-              ← Projets
-            </button>
-          )}
-          <div className="brand">SynoX</div>
-          <span className="header-sep">|</span>
-          <input
-            className="project-name-input"
-            value={currentProjectName}
-            onChange={e => !readOnly && setProjectName(e.target.value)}
-            placeholder="Sans titre"
-            readOnly={readOnly}
-            title={readOnly ? "Version en lecture seule" : "Nom du projet (cliquer pour renommer)"}
+      {/* ── Sidebar gauche pleine hauteur ────────────────────────────────── */}
+      <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
+        {paletteOpen ? (
+          <ProductPalette
+            onAdd={handleAdd}
+            onEdit={(id) => setEditing(id)}
+            onNew={() => setEditing("new")}
+            onImport={() => setImporting(true)}
+            onCollapse={() => setPaletteOpen(false)}
           />
-          {currentProjectId && !readOnly && (
-            <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
-          )}
-        </div>
-
-        <div className="header-actions">
-          {!readOnly && (
-            <button onClick={handleNew} title="Créer un nouveau projet vide">
-              Nouveau
-            </button>
-          )}
-          {!readOnly && (
-            <button
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className={savedOk ? "btn-saved" : ""}
-              title="Sauvegarder dans le cloud"
-            >
-              {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
-            </button>
-          )}
-
-          <div className="header-separator" />
-
-          <button onClick={handleAutoLayout} title="Replacer les produits">
-            Réorganiser
+        ) : (
+          <button
+            className="palette-expand-btn"
+            onClick={() => setPaletteOpen(true)}
+            title="Afficher le catalogue"
+          >
+            <span className="palette-expand-icon">▶</span>
+            <span className="palette-expand-label">Catalogue</span>
           </button>
-          <div className="export-menu" ref={exportMenuRef}>
-            <button onClick={() => setExportMenuOpen((v) => !v)}>Exporter ▾</button>
-            {exportMenuOpen && (
-              <div className="export-dropdown">
-                <button onClick={() => { setExportMenuOpen(false); exportProject(); }}>
-                  JSON (projet complet)
-                </button>
-                <button onClick={() => handleExport("png")}>PNG</button>
-                <button onClick={() => handleExport("jpeg")}>JPEG</button>
-                <button onClick={() => handleExport("svg")}>SVG (Visio, AutoCAD)</button>
-                <button onClick={() => handleExport("pdf")}>PDF</button>
-              </div>
+        )}
+      </aside>
+
+      {/* ── Zone principale : bannière + header + onglets + body ─────────── */}
+      <div className="app-main">
+        {/* ── Bannière lecture seule ─────────────────────────────────────── */}
+        {readOnly && (
+          <div className="readonly-banner">
+            🔒 Lecture seule — Version {readOnlyVersion ?? "archivée"} — Cette version ne peut pas être modifiée
+            <button onClick={onBackToProjects} className="readonly-back-btn">
+              ← Retour aux projets
+            </button>
+          </div>
+        )}
+
+        <header className="app-header">
+          <div className="header-left">
+            {onBackToProjects && (
+              <button
+                onClick={handleBackToProjects}
+                title="Retour à la liste des projets"
+                className="btn-back"
+              >
+                ← Projets
+              </button>
+            )}
+            <div className="brand">SynoX</div>
+            <span className="header-sep">|</span>
+            <input
+              className="project-name-input"
+              value={currentProjectName}
+              onChange={e => !readOnly && setProjectName(e.target.value)}
+              placeholder="Sans titre"
+              readOnly={readOnly}
+              title={readOnly ? "Version en lecture seule" : "Nom du projet (cliquer pour renommer)"}
+            />
+            {currentProjectId && !readOnly && (
+              <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
             )}
           </div>
 
-          <div className="header-separator" />
+          <div className="header-actions">
+            {!readOnly && (
+              <button onClick={handleNew} title="Créer un nouveau projet vide">
+                Nouveau
+              </button>
+            )}
+            {!readOnly && (
+              <button
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className={savedOk ? "btn-saved" : ""}
+                title="Sauvegarder dans le cloud"
+              >
+                {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
+              </button>
+            )}
 
-          {profile?.role === "admin" && onOpenAdminDashboard && (
-            <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
-              Tableau de bord
+            <div className="header-separator" />
+
+            <button onClick={handleAutoLayout} title="Replacer les produits">
+              Réorganiser
             </button>
-          )}
-          <button onClick={() => setAdminOpen(true)} title="Mon compte">
-            ⚙ Mon compte
+            <div className="export-menu" ref={exportMenuRef}>
+              <button onClick={() => setExportMenuOpen((v) => !v)}>Exporter ▾</button>
+              {exportMenuOpen && (
+                <div className="export-dropdown">
+                  <button onClick={() => { setExportMenuOpen(false); exportProject(); }}>
+                    JSON (projet complet)
+                  </button>
+                  <button onClick={() => handleExport("png")}>PNG</button>
+                  <button onClick={() => handleExport("jpeg")}>JPEG</button>
+                  <button onClick={() => handleExport("svg")}>SVG (Visio, AutoCAD)</button>
+                  <button onClick={() => handleExport("pdf")}>PDF</button>
+                </div>
+              )}
+            </div>
+
+            <div className="header-separator" />
+
+            {profile?.role === "admin" && onOpenAdminDashboard && (
+              <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
+                Tableau de bord
+              </button>
+            )}
+            <button onClick={() => setAdminOpen(true)} title="Mon compte">
+              ⚙ Mon compte
+            </button>
+          </div>
+        </header>
+
+        {/* ── Barre d'onglets ────────────────────────────────────────────── */}
+        <div className="tab-bar">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`tab-item${activeTabId === tab.id ? " active" : ""}`}
+            >
+              {editingTabId === tab.id ? (
+                <input
+                  ref={tabInputRef}
+                  className="tab-name-input"
+                  value={editingTabName}
+                  autoFocus
+                  onChange={e => setEditingTabName(e.target.value)}
+                  onBlur={() => commitTabName(tab.id)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") commitTabName(tab.id);
+                    if (e.key === "Escape") setEditingTabId(null);
+                  }}
+                />
+              ) : (
+                <button
+                  className="tab-name"
+                  onClick={() => setActiveTab(tab.id)}
+                  onDoubleClick={() => startTabEdit(tab.id, tab.name)}
+                  title="Double-clic pour renommer"
+                >
+                  {tab.name}
+                </button>
+              )}
+              <button
+                className="tab-dup"
+                onClick={() => duplicateTab(tab.id)}
+                title="Dupliquer ce synoptique"
+              >
+                ⎘
+              </button>
+              {tabs.length > 1 && (
+                <button
+                  className="tab-close"
+                  onClick={() => removeTab(tab.id)}
+                  title="Fermer ce synoptique"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            className="tab-add"
+            onClick={() => addTab()}
+            title="Ajouter un synoptique"
+          >
+            +
           </button>
         </div>
-      </header>
 
-      {/* ── Barre d'onglets ──────────────────────────────────────────────── */}
-      <div className="tab-bar">
-        {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={`tab-item${activeTabId === tab.id ? " active" : ""}`}
-          >
-            {editingTabId === tab.id ? (
-              <input
-                ref={tabInputRef}
-                className="tab-name-input"
-                value={editingTabName}
-                autoFocus
-                onChange={e => setEditingTabName(e.target.value)}
-                onBlur={() => commitTabName(tab.id)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") commitTabName(tab.id);
-                  if (e.key === "Escape") setEditingTabId(null);
-                }}
-              />
+        {/* ── Canvas + panneau droit ─────────────────────────────────────── */}
+        <div className={`app-body${rightPanelOpen ? "" : " right-collapsed"}`}>
+          {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
+          <main className="canvas" key={activeTabId}>
+            <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
+            <Cartouche />
+          </main>
+
+          <aside className={`sidebar right${rightPanelOpen ? "" : " collapsed"}`}>
+            {rightPanelOpen ? (
+              <>
+                <div className="right-panel-topbar">
+                  <div className="tabs">
+                    <button className={rightTab === "cables" ? "active" : ""} onClick={() => setRightTab("cables")}>
+                      Câbles
+                    </button>
+                    <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
+                      Etiquettes
+                    </button>
+                    <button className={rightTab === "zones" ? "active" : ""} onClick={() => setRightTab("zones")}>
+                      Zones
+                    </button>
+                    <button className={rightTab === "legend" ? "active" : ""} onClick={() => setRightTab("legend")}>
+                      Légende
+                    </button>
+                  </div>
+                  <button
+                    className="right-collapse-btn"
+                    onClick={() => setRightPanelOpen(false)}
+                    title="Réduire le panneau"
+                  >
+                    ▶
+                  </button>
+                </div>
+                {rightTab === "cables" && <CableList />}
+                {rightTab === "etiquettes" && <EtiquettesList />}
+                {rightTab === "zones" && <ZonesList />}
+                {rightTab === "legend" && <Legend />}
+              </>
             ) : (
               <button
-                className="tab-name"
-                onClick={() => setActiveTab(tab.id)}
-                onDoubleClick={() => startTabEdit(tab.id, tab.name)}
-                title="Double-clic pour renommer"
+                className="right-expand-btn"
+                onClick={() => setRightPanelOpen(true)}
+                title="Afficher le panneau"
               >
-                {tab.name}
+                <span className="right-expand-icon">◀</span>
+                <span className="right-expand-label">Outils</span>
               </button>
             )}
-            <button
-              className="tab-dup"
-              onClick={() => duplicateTab(tab.id)}
-              title="Dupliquer ce synoptique"
-            >
-              ⎘
-            </button>
-            {tabs.length > 1 && (
-              <button
-                className="tab-close"
-                onClick={() => removeTab(tab.id)}
-                title="Fermer ce synoptique"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          className="tab-add"
-          onClick={() => addTab()}
-          title="Ajouter un synoptique"
-        >
-          +
-        </button>
-      </div>
-
-      <div className={`app-body${paletteOpen ? "" : " left-collapsed"}`}>
-        <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
-          {paletteOpen ? (
-            <ProductPalette
-              onAdd={handleAdd}
-              onEdit={(id) => setEditing(id)}
-              onNew={() => setEditing("new")}
-              onImport={() => setImporting(true)}
-              onCollapse={() => setPaletteOpen(false)}
-            />
-          ) : (
-            <button
-              className="palette-expand-btn"
-              onClick={() => setPaletteOpen(true)}
-              title="Afficher le catalogue"
-            >
-              <span className="palette-expand-icon">▶</span>
-              <span className="palette-expand-label">Catalogue</span>
-            </button>
-          )}
-        </aside>
-
-        {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
-        <main className="canvas" key={activeTabId}>
-          <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
-          <Cartouche />
-        </main>
-
-        <aside className="sidebar right">
-          <div className="tabs">
-            <button className={rightTab === "cables" ? "active" : ""} onClick={() => setRightTab("cables")}>
-              Câbles
-            </button>
-            <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
-              Etiquettes
-            </button>
-            <button className={rightTab === "zones" ? "active" : ""} onClick={() => setRightTab("zones")}>
-              Zones
-            </button>
-            <button className={rightTab === "legend" ? "active" : ""} onClick={() => setRightTab("legend")}>
-              Légende
-            </button>
-          </div>
-          {rightTab === "cables" && <CableList />}
-          {rightTab === "etiquettes" && <EtiquettesList />}
-          {rightTab === "zones" && <ZonesList />}
-          {rightTab === "legend" && <Legend />}
-        </aside>
+          </aside>
+        </div>
       </div>
 
       {editing !== null && (
