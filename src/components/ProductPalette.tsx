@@ -26,10 +26,12 @@ export function ProductPalette({
     () => new Map(catalogCategories.map((c) => [c.name, c.color])),
     [catalogCategories],
   );
-  const [closedGroups, setClosedGroups] = useState<Set<string>>(new Set());
+  // Groupes explicitement ouverts — départ vide = tout replié par défaut.
+  // Quand un filtre est actif, tous les groupes s'affichent (résultats visibles).
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
   const toggleGroup = (key: string) =>
-    setClosedGroups((prev) => {
+    setOpenGroups((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -116,19 +118,20 @@ export function ProductPalette({
           <div className="palette-empty">Aucun produit trouvé</div>
         )}
         {grouped.map(([group, items]) => {
-          const closed = closedGroups.has(group);
+          // Ouvert si : filtre actif (on veut voir les résultats) OU groupe explicitement ouvert
+          const isOpen = filter.trim() !== "" || openGroups.has(group);
           return (
             <div key={group} className="palette-group">
               <button
                 className="palette-group-title"
                 onClick={() => toggleGroup(group)}
-                title={closed ? "Développer" : "Réduire"}
+                title={isOpen ? "Réduire" : "Développer"}
               >
-                <span className={`palette-group-chevron${closed ? " closed" : ""}`}>▾</span>
+                <span className={`palette-group-chevron${isOpen ? "" : " closed"}`}>▾</span>
                 <span className="palette-group-name">{group}</span>
                 <span className="palette-group-count">{items.length}</span>
               </button>
-              {!closed && items.map((p) => {
+              {isOpen && items.map((p) => {
                 const catColor = categoryColorMap.get(p.category);
                 return (
                   <div
