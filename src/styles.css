@@ -594,6 +594,7 @@ select {
 .cable-edge-len {
   text-align: right !important;
   padding: 0 !important;
+  font-weight: 700 !important;
   -moz-appearance: textfield;
   appearance: textfield;
   min-width: 1ch;
