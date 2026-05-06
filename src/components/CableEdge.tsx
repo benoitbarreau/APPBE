@@ -718,7 +718,6 @@ export function CableEdge({
             <input
               className="cable-edge-type"
               value={cable.cableType}
-              style={{ width: `${Math.max(cable.cableType.length, 1) + 0.3}ch` }}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
             {cableView === "detailed" && (
@@ -729,7 +728,6 @@ export function CableEdge({
                   min={0}
                   step={0.5}
                   value={cable.lengthMeters}
-                  style={{ width: `${String(cable.lengthMeters).length + 0.3}ch` }}
                   onChange={(e) =>
                     updateCable(cable.id, { lengthMeters: Number(e.target.value) })
                   }

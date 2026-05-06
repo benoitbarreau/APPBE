@@ -584,6 +584,7 @@ select {
   padding: 0 !important;
   text-align: left !important;
   min-width: 1ch;
+  field-sizing: content;
 }
 .cable-edge-len,
 .cable-edge-unit {
@@ -596,6 +597,7 @@ select {
   -moz-appearance: textfield;
   appearance: textfield;
   min-width: 1ch;
+  field-sizing: content;
 }
 .cable-edge-len::-webkit-inner-spin-button,
 .cable-edge-len::-webkit-outer-spin-button {
