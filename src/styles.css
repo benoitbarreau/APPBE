@@ -3369,6 +3369,49 @@ select {
   border: 1px solid #fecaca;
 }
 
+/* ── Panneau Aide ────────────────────────────────────────────────────── */
+.help-actions {
+  margin-top: 12px;
+}
+.help-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #2f6fed 0%, #6b3fb5 100%);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(47, 111, 237, 0.25);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.help-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(47, 111, 237, 0.35);
+}
+.help-btn-primary:active {
+  transform: translateY(0);
+}
+.help-contact {
+  margin-top: 28px;
+  padding: 14px 16px;
+  background: #f6f8fb;
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.help-contact a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.help-contact a:hover {
+  text-decoration: underline;
+}
+
 /* ── Bouton compte (header ProjectsPage) ────────────────────────────────── */
 
 .btn-account {

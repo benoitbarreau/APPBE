@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/useAuth";
 
-type Panel = "info" | "name" | "password";
+type Panel = "info" | "name" | "password" | "help";
 
 export function AdminSettings({ onClose }: { onClose: () => void }) {
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -96,6 +96,12 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
             >
               Mot de passe
             </button>
+            <button
+              className={panel === "help" ? "active" : ""}
+              onClick={() => setPanel("help")}
+            >
+              Aide
+            </button>
           </nav>
 
           {/* ── Panneau contenu ── */}
@@ -160,6 +166,38 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
                 >
                   {nameSaving ? "Enregistrement…" : "Enregistrer"}
                 </button>
+              </div>
+            )}
+
+            {/* Aide / Documentation */}
+            {panel === "help" && (
+              <div>
+                <p className="account-hint">
+                  Le guide utilisateur couvre toutes les fonctionnalités de SynoX :
+                  ajout de produits, câblage, zones, labels, exports A3, multi-onglets…
+                </p>
+                <div className="help-actions">
+                  <a
+                    href={`${import.meta.env.BASE_URL}guide-utilisateur.html`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="help-btn-primary"
+                  >
+                    📖 Ouvrir le guide utilisateur
+                  </a>
+                  <p className="account-hint" style={{ marginTop: 18 }}>
+                    Le guide s'ouvre dans un nouvel onglet. Vous pouvez l'enregistrer
+                    en PDF depuis le bouton « 🖨 Enregistrer en PDF » en haut de la
+                    page (ou avec Ctrl+P → Enregistrer au format PDF).
+                  </p>
+                </div>
+                <div className="help-contact">
+                  <strong>Une question ?</strong>
+                  <br />
+                  <a href="mailto:contact@videosynergie.com">
+                    contact@videosynergie.com
+                  </a>
+                </div>
               </div>
             )}
 
