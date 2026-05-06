@@ -121,14 +121,37 @@ function getViewportElement(): HTMLElement | null {
   return document.querySelector(".react-flow__viewport") as HTMLElement | null;
 }
 
-/** Fixe les largeurs des inputs câble avant capture (field-sizing non supporté par html-to-image). */
+/** Fixe les largeurs des inputs câble avant capture (field-sizing non supporté par html-to-image).
+ *
+ * Problème : `field-sizing: content` ignore la propriété `width` — régler inp.style.width
+ * n'a aucun effet tant que field-sizing est actif. html-to-image clone le DOM sans ce support,
+ * ce qui fait rétrécir les inputs et tronque la valeur affichée.
+ *
+ * Solution :
+ *  1. Mesurer la largeur réellement rendue via getBoundingClientRect() (field-sizing actif).
+ *  2. Désactiver field-sizing en le passant à "normal" via setProperty().
+ *  3. Appliquer la largeur mesurée en px.
+ *  4. Restaurer les deux propriétés après la capture.
+ */
 function fixCableLabelWidths(): () => void {
   const inputs = document.querySelectorAll<HTMLInputElement>(".cable-edge-type, .cable-edge-len");
   const restores: Array<() => void> = [];
   inputs.forEach((inp) => {
-    const prev = inp.style.width;
-    inp.style.width = `${Math.max(inp.scrollWidth, 8)}px`;
-    restores.push(() => { inp.style.width = prev; });
+    const prevWidth = inp.style.width;
+    const prevFieldSizing = inp.style.getPropertyValue("field-sizing");
+    // Mesure avant tout changement (field-sizing: content encore actif)
+    const w = inp.getBoundingClientRect().width;
+    // Désactiver field-sizing (sinon il ignore width)
+    inp.style.setProperty("field-sizing", "normal");
+    inp.style.width = `${Math.max(w, 8)}px`;
+    restores.push(() => {
+      inp.style.width = prevWidth;
+      if (prevFieldSizing) {
+        inp.style.setProperty("field-sizing", prevFieldSizing);
+      } else {
+        inp.style.removeProperty("field-sizing");
+      }
+    });
   });
   return () => restores.forEach((r) => r());
 }
