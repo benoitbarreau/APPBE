@@ -405,20 +405,24 @@ export async function printDiagram(
     /* ── Impression ── */
     @media print {
       .toolbar, .page-header { display: none !important; }
-      html, body {
+      html { margin: 0; padding: 0; }
+      body {
         margin: 0 !important; padding: 0 !important;
         background: #fff !important;
-        width: 420mm; height: 297mm;
       }
       .page {
         margin: 0 !important; padding: 0 !important;
         box-shadow: none !important;
         width: 420mm; height: 297mm;
         overflow: hidden;
-        page-break-after: always;
-        break-after: page;
+        display: block;
       }
-      .page:last-child { page-break-after: avoid; break-after: avoid; }
+      /* page-break-BEFORE sur toutes les pages sauf la première :
+         on n'ajoute jamais de saut APRÈS la dernière → pas de page blanche */
+      .page + .page {
+        page-break-before: always;
+        break-before: page;
+      }
       .page img { display: block; width: 420mm; height: 297mm; }
       @page { size: A3 landscape; margin: 0; }
     }
