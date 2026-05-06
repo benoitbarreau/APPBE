@@ -229,9 +229,52 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
     if (lower.endsWith(".xls") || lower.endsWith(".xlsx")) {
       try {
         const text = await file.text();
-        if (lower.endsWith(".xls") && text.includes("<table")) {
+
+        // Cas 1 : .xlsx ou .xls binaire → on ne sait pas lire, redirection CSV
+        const isBinaryXlsx =
+          lower.endsWith(".xlsx") ||
+          (text.length > 0 && text.charCodeAt(0) === 0x50 /* "P" début zip */);
+        if (isBinaryXlsx) {
+          setInfo(
+            "Format XLSX binaire non supporté. Réenregistrez en CSV depuis Excel " +
+              "(Fichier → Enregistrer sous → CSV UTF-8).",
+          );
+          return;
+        }
+
+        // Cas 2 : frameset Excel multi-fichiers (Excel a réenregistré le fichier
+        // SynoX). Les données sont dans un fichier _fichiers/sheet001.htm
+        // séparé qui n'est pas accessible.
+        const isExcelFrameset =
+          /Excel\s+Workbook\s+Frameset/i.test(text) ||
+          /_fichiers\//.test(text) ||
+          /content=Excel\.Sheet/i.test(text);
+        if (isExcelFrameset) {
+          setInfo(
+            "Ce fichier .xls a été réenregistré par Excel en mode multi-fichiers : " +
+              "les données sont dans un fichier annexe _fichiers/sheet001.htm que SynoX " +
+              "ne peut pas lire seul. Solution : depuis Excel, faites « Enregistrer sous » → " +
+              "CSV UTF-8, puis importez le .csv ici.",
+          );
+          return;
+        }
+
+        // Cas 3 : .xls SynoX (HTML simple) — parser la première table.
+        if (text.includes("<table")) {
           const dom = new DOMParser().parseFromString(text, "text/html");
-          const rows = Array.from(dom.querySelectorAll("tr"));
+          const tables = Array.from(dom.querySelectorAll("table"));
+          // Choisir la table qui contient le plus de lignes (les <table>
+          // de navigation Excel ont peu de lignes).
+          const dataTable = tables.reduce<HTMLTableElement | null>((best, t) => {
+            const rowCount = t.querySelectorAll("tr").length;
+            const bestRows = best?.querySelectorAll("tr").length ?? 0;
+            return rowCount > bestRows ? (t as HTMLTableElement) : best;
+          }, null);
+          if (!dataTable) {
+            setInfo("Aucune table de données trouvée dans ce fichier .xls.");
+            return;
+          }
+          const rows = Array.from(dataTable.querySelectorAll("tr"));
           const csv = rows
             .map((tr) =>
               Array.from(tr.querySelectorAll("th,td"))
@@ -242,9 +285,9 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           importCsvText(csv, file.name);
           return;
         }
+
         setInfo(
-          "Format XLSX binaire non supporté. Réenregistrez en CSV depuis Excel " +
-            "(Fichier → Enregistrer sous → CSV UTF-8).",
+          "Fichier .xls non reconnu. Réenregistrez-le en CSV UTF-8 depuis Excel.",
         );
       } catch (e) {
         setInfo("Lecture impossible : " + (e instanceof Error ? e.message : "fichier invalide."));
@@ -378,6 +421,12 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
             Pour importer <strong>un seul produit</strong>, créez un CSV/JSON avec
             une seule entrée. En cas de doublon (même ID ou même marque+référence),
             vous pourrez choisir d'écraser ou d'ignorer pour chaque conflit.
+          </p>
+          <p className="muted" style={{ fontSize: 11, marginTop: -4, color: "#b06800" }}>
+            ⚠ Si vous avez ouvert un .xls SynoX dans Excel et l'avez
+            réenregistré, Excel le transforme en multi-fichiers et SynoX ne peut
+            plus le relire. Préférez l'export <strong>CSV</strong> pour les
+            allers-retours avec Excel.
           </p>
 
           {info && <div className="info-banner">{info} {sourceFile && `(${sourceFile})`}</div>}
