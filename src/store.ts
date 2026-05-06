@@ -73,6 +73,8 @@ interface State {
   addNode: (productId: string, position: { x: number; y: number }) => string;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
   removeNode: (id: string) => void;
+  /** Réordonne les nœuds (drag & drop dans la liste des étiquettes produits). */
+  reorderNodes: (fromIndex: number, toIndex: number) => void;
 
   addCable: (
     c: Omit<Cable, "id" | "cableType" | "number"> & { cableType?: string },
@@ -323,6 +325,22 @@ export const useAppStore = create<State>()(
             nodes: s.nodes.filter((n) => n.id !== id),
             cables: s.cables.filter((c) => c.fromNodeId !== id && c.toNodeId !== id),
           })),
+        reorderNodes: (fromIndex, toIndex) =>
+          set((s) => {
+            if (
+              fromIndex === toIndex ||
+              fromIndex < 0 ||
+              fromIndex >= s.nodes.length ||
+              toIndex < 0 ||
+              toIndex >= s.nodes.length
+            ) {
+              return {};
+            }
+            const next = [...s.nodes];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            return { nodes: next };
+          }),
 
         // ── Câbles ──────────────────────────────────────────────────────
 

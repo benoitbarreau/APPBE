@@ -1,5 +1,5 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import { getEffectivePorts } from "../ports";
 import { type Port } from "../types";
 
@@ -24,6 +24,8 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const cables = useAppStore((s) => s.cables);
   const zones = useAppStore((s) => s.zones);
   const setNodeZone = useAppStore((s) => s.setNodeZone);
+  const updateNode = useAppStore((s) => s.updateNode);
+  const readOnly = useEditorState((s) => s.readOnly);
   if (!node || !product) return null;
 
   const { inputs, outputs, middle } = getEffectivePorts(product, node);
@@ -64,7 +66,33 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             : undefined
         }
       >
-        <div className="product-node-name">{product.manufacturer}</div>
+        <div className="product-node-name-row">
+          <div className="product-node-name">{product.manufacturer}</div>
+          <input
+            className="product-node-label"
+            value={node.label ?? ""}
+            placeholder="Étiquette"
+            readOnly={readOnly}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) =>
+              !readOnly && updateNode(node.id, { label: e.target.value })
+            }
+            style={
+              headerColor
+                ? {
+                    color: headerColor,
+                    borderColor:
+                      headerColor === "#ffffff"
+                        ? "rgba(255,255,255,0.45)"
+                        : "rgba(0,0,0,0.25)",
+                  }
+                : undefined
+            }
+            title="Étiquette du produit (ex. numéro d'inventaire)"
+          />
+        </div>
         <div
           className="product-node-ref"
           style={headerSubColor ? { color: headerSubColor } : undefined}

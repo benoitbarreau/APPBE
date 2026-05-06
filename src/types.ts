@@ -37,6 +37,8 @@ export interface PlacedProduct {
   name: string;
   position: { x: number; y: number };
   zoneId?: string;
+  /** Étiquette libre affichée sur le bloc (ex. numéro d'inventaire, nom court). */
+  label?: string;
   portOverrides?: Record<string, PortPlacement>;
   portLabelOverrides?: Record<string, string>;
   portOrder?: string[];

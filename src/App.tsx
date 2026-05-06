@@ -6,6 +6,7 @@ import { ProductEditor } from "./components/ProductEditor";
 import { ImportDialog } from "./components/ImportDialog";
 import { CableList } from "./components/CableList";
 import { EtiquettesList } from "./components/EtiquettesList";
+import { ProductLabelsList } from "./components/ProductLabelsList";
 import { Legend } from "./components/Legend";
 import { ZonesList } from "./components/ZonesList";
 import { Cartouche } from "./components/Cartouche";
@@ -61,7 +62,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "legend" | "zones">("cables");
+  const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "labels" | "legend" | "zones">("cables");
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
 
@@ -625,6 +626,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                     <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
                       Etiquettes
                     </button>
+                    <button className={rightTab === "labels" ? "active" : ""} onClick={() => setRightTab("labels")}>
+                      Label
+                    </button>
                     <button className={rightTab === "zones" ? "active" : ""} onClick={() => setRightTab("zones")}>
                       Zones
                     </button>
@@ -642,6 +646,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 </div>
                 {rightTab === "cables" && <CableList />}
                 {rightTab === "etiquettes" && <EtiquettesList />}
+                {rightTab === "labels" && <ProductLabelsList />}
                 {rightTab === "zones" && <ZonesList />}
                 {rightTab === "legend" && <Legend />}
               </>
