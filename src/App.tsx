@@ -13,7 +13,7 @@ import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
-import { exportDiagram } from "./export";
+import { exportDiagram, printDiagram } from "./export";
 import { useAuth } from "./auth/useAuth";
 import {
   saveProject,
@@ -202,6 +202,25 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     URL.revokeObjectURL(url);
   };
 
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    try {
+      setPrinting(true);
+      const state = useAppStore.getState();
+      await printDiagram(reactFlow, {
+        legend: {
+          signals: state.signals,
+          zones: state.zones,
+        },
+      });
+    } catch (e) {
+      alert("Echec de l'impression : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -339,6 +358,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 </div>
               )}
             </div>
+            <button
+              onClick={() => void handlePrint()}
+              disabled={printing}
+              title="Prévisualiser et imprimer en A3"
+            >
+              {printing ? "Génération…" : "🖨 Imprimer"}
+            </button>
           </div>
 
           <div className="header-actions">

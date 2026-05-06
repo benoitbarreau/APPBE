@@ -309,6 +309,125 @@ function suffixedFilename(filename: string, suffix: string): string {
   return `${filename.slice(0, dot)}${suffix}${filename.slice(dot)}`;
 }
 
+interface PrintOptions {
+  background?: string;
+  legend?: LegendData;
+}
+
+/**
+ * Génère les pages A3 en PNG, ouvre une fenêtre de prévisualisation
+ * et déclenche l'impression native du navigateur.
+ */
+export async function printDiagram(
+  rf: ReactFlowAccess,
+  opts: PrintOptions = {},
+): Promise<void> {
+  const { background = "#ffffff", legend } = opts;
+
+  const allNodes = rf.getNodes();
+  const productNodes = allNodes.filter(
+    (n) => typeof (n as { id?: string }).id === "string" &&
+           !(n as { id: string }).id.startsWith(PAGE_NODE_ID),
+  );
+  if (productNodes.length === 0) throw new Error("Aucun produit sur le synoptique");
+
+  const pages = computePages(allNodes);
+
+  // Génère toutes les pages
+  const dataUrls: string[] = [];
+  for (const p of pages) {
+    if (legend) {
+      const diag = await snapshotDiagram("png", p, background);
+      dataUrls.push(await composeWithLegend(diag, legend));
+    } else {
+      dataUrls.push(await snapshotFull("png", p, background));
+    }
+  }
+
+  // Ouvre une nouvelle fenêtre de prévisualisation
+  const win = window.open("", "_blank", "width=1200,height=850");
+  if (!win) throw new Error("La fenêtre de prévisualisation a été bloquée par le navigateur.\nAutorisez les popups pour ce site.");
+
+  const pagesHtml = dataUrls
+    .map(
+      (url, i) => `
+      <div class="page">
+        <div class="page-header">Page ${i + 1} / ${dataUrls.length}</div>
+        <img src="${url}" alt="Synoptique page ${i + 1}" />
+      </div>`,
+    )
+    .join("\n");
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Impression — SynoX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Barre d'outils (masquée à l'impression) ── */
+    .toolbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px;
+      background: #1c1f24; color: #fff;
+      font-family: -apple-system, Arial, sans-serif; font-size: 14px;
+    }
+    .toolbar h1 { font-size: 15px; font-weight: 600; flex: 1; }
+    .toolbar button {
+      padding: 7px 18px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .btn-print { background: #2563eb; color: #fff; }
+    .btn-print:hover { background: #1d4ed8; }
+    .btn-close { background: #374151; color: #fff; }
+    .btn-close:hover { background: #4b5563; }
+    .page-count { font-size: 13px; color: #9ca3af; }
+
+    /* ── Corps prévisualisation ── */
+    body { background: #e5e7eb; padding: 70px 20px 30px; }
+    .page {
+      position: relative;
+      margin: 0 auto 28px;
+      background: #fff;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      /* Ratio A3 paysage */
+      width: min(100%, calc(100vh * 420 / 297));
+    }
+    .page-header {
+      position: absolute; top: 6px; right: 10px;
+      font-family: -apple-system, Arial, sans-serif;
+      font-size: 11px; color: #6b7280;
+    }
+    .page img { display: block; width: 100%; height: auto; }
+
+    /* ── Impression ── */
+    @media print {
+      .toolbar, .page-header { display: none !important; }
+      body { background: #fff; padding: 0; }
+      .page {
+        margin: 0; box-shadow: none;
+        width: 100%; page-break-after: always;
+      }
+      .page:last-child { page-break-after: avoid; }
+      @page { size: A3 landscape; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>🖨 Prévisualisation impression — SynoX</h1>
+    <span class="page-count">${dataUrls.length} page${dataUrls.length > 1 ? "s" : ""} · Format A3 paysage</span>
+    <button class="btn-print" onclick="window.print()">Imprimer</button>
+    <button class="btn-close" onclick="window.close()">Fermer</button>
+  </div>
+  ${pagesHtml}
+</body>
+</html>`);
+  win.document.close();
+}
+
 export async function exportDiagram(
   rf: ReactFlowAccess,
   opts: ExportOptions,
