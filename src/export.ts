@@ -369,14 +369,16 @@ function drawPageNumber(
   pageNum: number,
   totalPages: number,
   botY: number,
+  botH: number,
   sc: number,
 ): void {
   if (totalPages <= 1) return;
   ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
   ctx.fillStyle = "#374151";
-  ctx.textBaseline = "top";
+  ctx.textBaseline = "bottom";
   ctx.textAlign = "left";
-  ctx.fillText(`PAGE ${pageNum}`, 18 * sc, botY + 12 * sc);
+  // Bas à gauche
+  ctx.fillText(`PAGE ${pageNum}`, 18 * sc, botY + botH - 8 * sc);
   ctx.textBaseline = "alphabetic";
 }
 
@@ -407,11 +409,6 @@ async function composePage(
   // Synoptique (partie haute)
   ctx.drawImage(diagImg, 0, 0, W, botY);
 
-  // Séparateur fin
-  ctx.strokeStyle = "#d1d5db";
-  ctx.lineWidth = sc;
-  ctx.beginPath(); ctx.moveTo(0, botY); ctx.lineTo(W, botY); ctx.stroke();
-
   // Cartouche (droite, 25 % de la largeur)
   const carW = Math.round(W * 0.25);
   const carX = W - carW;
@@ -423,8 +420,8 @@ async function composePage(
   // Mention légale (centré dans la zone gauche)
   drawConfidentialityNotice(ctx, botY, botH, carX, sc);
 
-  // Numéro de page (si plusieurs pages)
-  drawPageNumber(ctx, pageNum, totalPages, botY, sc);
+  // Numéro de page (si plusieurs pages) — bas à gauche
+  drawPageNumber(ctx, pageNum, totalPages, botY, botH, sc);
 
   return canvas.toDataURL("image/png");
 }
