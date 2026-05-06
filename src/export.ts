@@ -41,9 +41,9 @@ const RASTER_W = 2480;   // 1x width
 const RASTER_H = 1754;   // 1x height
 const PIX = 2;           // pixelRatio
 
-// Bande inférieure : cartouche + mention légale (≈ 33mm sur A3)
-const BOTTOM_H = 200;
-const DIAGRAM_H = RASTER_H - BOTTOM_H;  // 1554px
+// Bande inférieure : cartouche + mention légale (≈ 26mm sur A3)
+const BOTTOM_H = 160;
+const DIAGRAM_H = RASTER_H - BOTTOM_H;  // 1594px
 
 const NODE_W = 240;
 const NODE_H = 220;
@@ -193,105 +193,139 @@ async function drawCartouche(
   sc: number,
 ): Promise<void> {
   const bw = 1.5 * sc;
-  const pad = 6 * sc;
+  const pad = 8 * sc;
 
-  // Fond blanc
+  // ── Helper : texte centré dans une cellule ────────────────────────────
+  const cell = (
+    text: string,
+    x: number, y: number, w: number, h: number,
+    font: string, color: string,
+  ) => {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(clipText(ctx, text, w - pad * 2), x + w / 2, y + h / 2);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  };
+
+  // ── Helper : ligne horizontale ────────────────────────────────────────
+  const hline = (y: number, x1 = cx, x2 = cx + cw) => {
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = bw;
+    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+  };
+
+  // ── Helper : ligne verticale ──────────────────────────────────────────
+  const vline = (x: number, y1: number, y2: number) => {
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = bw;
+    ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+  };
+
+  // Fond blanc + bordure extérieure
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(cx, cy, cw, ch);
-
-  // Bordure extérieure noire
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = bw;
   ctx.strokeRect(cx + bw / 2, cy + bw / 2, cw - bw, ch - bw);
 
-  const row1H = 32 * sc;  // CLIENT
-  const row2H = 32 * sc;  // LIEU
-  const bottomH = ch - row1H - row2H;
-  const row2Y = cy + row1H;
-  const bottomY = row2Y + row2H;
+  // ── Hauteurs des lignes ───────────────────────────────────────────────
+  // 5 lignes : CLIENT | LIEU | campus/BE | tabName/author | date/version
+  const row1H = Math.round(ch * 0.22);          // CLIENT
+  const row2H = Math.round(ch * 0.19);          // LIEU
+  const bodyH = ch - row1H - row2H;             // 3 lignes restantes
+  const rowH  = Math.round(bodyH / 3);          // hauteur de chaque ligne corps
+  // Ajustement pour combler arrondi
+  const row5H = bodyH - rowH * 2;
 
-  // ── Ligne CLIENT ──────────────────────────────────────────────────────
-  ctx.textBaseline = "middle";
-  ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#000000";
-  ctx.fillText("CLIENT :", cx + pad, cy + row1H / 2);
-  const clientLW = ctx.measureText("CLIENT :").width + 4 * sc;
-  ctx.font = `${10 * sc}px Arial, sans-serif`;
-  ctx.fillText(
-    clipText(ctx, data.client || "—", cw - pad - clientLW - pad),
-    cx + pad + clientLW, cy + row1H / 2,
+  const y2 = cy + row1H;
+  const y3 = y2 + row2H;
+  const y4 = y3 + rowH;
+  const y5 = y4 + rowH;
+
+  // ── Colonnes ──────────────────────────────────────────────────────────
+  // Logo : droite 25 % | corps gauche : col1 51 % + col2 49 %
+  const col3W = Math.round(cw * 0.25);
+  const bodyW  = cw - col3W;
+  const col1W  = Math.round(bodyW * 0.51);
+  const col2W  = bodyW - col1W;
+  const x2col  = cx + col1W;          // séparateur col1/col2
+  const x3col  = cx + col1W + col2W;  // séparateur corps/logo
+
+  // ── ROW 1 : CLIENT (pleine largeur, centré, gras) ─────────────────────
+  cell(
+    `CLIENT : ${data.client || "—"}`,
+    cx, cy, cw, row1H,
+    `bold ${13 * sc}px Arial, sans-serif`, "#000000",
+  );
+  hline(y2);
+
+  // ── ROW 2 : LIEU (corps 75 %, centré) ────────────────────────────────
+  cell(
+    `LIEU : ${data.lieu || "—"}`,
+    cx, y2, bodyW, row2H,
+    `${11 * sc}px Arial, sans-serif`, "#000000",
+  );
+  // séparateur vertical logo (démarre ici)
+  vline(x3col, y2, cy + ch);
+  hline(y3, cx, x3col);
+
+  // ── séparateur vertical col1/col2 (du bas de LIEU au bas du cartouche)
+  vline(x2col, y3, cy + ch);
+
+  // ── ROW 3 : campus | "Bureau d'étude" ────────────────────────────────
+  cell(
+    data.campus || "—",
+    cx, y3, col1W, rowH,
+    `bold ${12 * sc}px Arial, sans-serif`, "#000000",
+  );
+  cell(
+    "Bureau d'étude",
+    x2col, y3, col2W, rowH,
+    `${9 * sc}px Arial, sans-serif`, "#888888",
+  );
+  hline(y4, cx, x3col);
+
+  // ── ROW 4 : tabName | authorName ──────────────────────────────────────
+  cell(
+    data.tabName || "",
+    cx, y4, col1W, rowH,
+    `${11 * sc}px Arial, sans-serif`, "#000000",
+  );
+  cell(
+    data.authorName || "—",
+    x2col, y4, col2W, rowH,
+    `bold ${11 * sc}px Arial, sans-serif`, "#000000",
+  );
+  hline(y5, cx, x3col);
+
+  // ── ROW 5 : date | version ────────────────────────────────────────────
+  cell(
+    data.date || "",
+    cx, y5, col1W, row5H,
+    `${9 * sc}px Arial, sans-serif`, "#555555",
+  );
+  cell(
+    `Version : ${data.version || "V1.0"}`,
+    x2col, y5, col2W, row5H,
+    `${9 * sc}px Arial, sans-serif`, "#555555",
   );
 
-  ctx.strokeStyle = "#000000";
-  ctx.lineWidth = bw;
-  ctx.beginPath(); ctx.moveTo(cx, row2Y); ctx.lineTo(cx + cw, row2Y); ctx.stroke();
-
-  // ── Ligne LIEU ────────────────────────────────────────────────────────
-  ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#000000";
-  ctx.fillText("LIEU :", cx + pad, row2Y + row2H / 2);
-  const lieuLW = ctx.measureText("LIEU :").width + 4 * sc;
-  ctx.font = `${10 * sc}px Arial, sans-serif`;
-  ctx.fillText(
-    clipText(ctx, data.lieu || "—", cw - pad - lieuLW - pad),
-    cx + pad + lieuLW, row2Y + row2H / 2,
-  );
-
-  ctx.beginPath(); ctx.moveTo(cx, bottomY); ctx.lineTo(cx + cw, bottomY); ctx.stroke();
-
-  // ── Section basse (3 colonnes) ────────────────────────────────────────
-  const col1W = Math.round(cw * 0.30);
-  const col2W = Math.round(cw * 0.38);
-  const col3W = cw - col1W - col2W;
-  const col2X = cx + col1W;
-  const col3X = col2X + col2W;
-
-  ctx.beginPath(); ctx.moveTo(col2X, bottomY); ctx.lineTo(col2X, cy + ch); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(col3X, bottomY); ctx.lineTo(col3X, cy + ch); ctx.stroke();
-
-  const lineH = 23 * sc;
-  ctx.textBaseline = "top";
-
-  // Col 1 : campus / tabName / date
-  let y1 = bottomY + 14 * sc;
-  ctx.font = `${9 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#333333";
-  ctx.fillText(clipText(ctx, data.campus, col1W - pad * 2), cx + pad, y1);
-  y1 += lineH;
-  ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#000000";
-  ctx.fillText(clipText(ctx, data.tabName, col1W - pad * 2), cx + pad, y1);
-  y1 += lineH;
-  ctx.font = `${8 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#555555";
-  ctx.fillText(clipText(ctx, data.date, col1W - pad * 2), cx + pad, y1);
-
-  // Col 2 : Bureau d'étude / authorName / version
-  let y2 = bottomY + 14 * sc;
-  ctx.font = `${8 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#888888";
-  ctx.fillText("Bureau d'étude", col2X + pad, y2);
-  y2 += lineH;
-  ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#000000";
-  ctx.fillText(clipText(ctx, data.authorName, col2W - pad * 2), col2X + pad, y2);
-  y2 += lineH;
-  ctx.font = `${8 * sc}px Arial, sans-serif`;
-  ctx.fillStyle = "#888888";
-  ctx.fillText(`Version : ${data.version || "V1.0"}`, col2X + pad, y2);
-
-  // Col 3 : Logo
+  // ── Logo : col3, lignes 2-5 ───────────────────────────────────────────
   const logoSrc = getLogoSrc();
   if (logoSrc) {
     try {
       const logo = await loadImage(logoSrc);
+      const logoAreaH = cy + ch - y2;
       const maxLW = col3W - pad * 2;
-      const maxLH = bottomH - pad * 2;
+      const maxLH = logoAreaH - pad * 2;
       const ratio = logo.naturalWidth / logo.naturalHeight;
       let imgW = maxLW, imgH = imgW / ratio;
       if (imgH > maxLH) { imgH = maxLH; imgW = imgH * ratio; }
-      const imgX = col3X + (col3W - imgW) / 2;
-      const imgY = bottomY + (bottomH - imgH) / 2;
+      const imgX = x3col + (col3W - imgW) / 2;
+      const imgY = y2 + (logoAreaH - imgH) / 2;
       ctx.drawImage(logo, imgX, imgY, imgW, imgH);
     } catch { /* logo absent — silencieux */ }
   }
