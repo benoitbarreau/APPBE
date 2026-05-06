@@ -3948,6 +3948,18 @@ select {
   font-size: 12px;
   line-height: 1;
 }
+/* Bouton de suppression bloqué : icône cadenas + style discret */
+.ip-table .ip-remove-btn-blocked {
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+  background: transparent !important;
+  cursor: help;
+}
+.ip-table .ip-remove-btn-blocked:hover {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  background: #fff5f5 !important;
+}
 
 /* Ligne vide */
 .ip-table-empty-row {

@@ -151,6 +151,25 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     setOnlyDuplicates(false);
   };
 
+  /** Suppression d'une ligne — bloquée si l'IP est renseignée et non-doublon.
+   *  L'utilisateur doit d'abord vider le champ IP pour confirmer son intention.
+   *  Les IP en doublon restent supprimables (ce qui résout le doublon). */
+  const handleRemoveRow = (row: IPTableRow) => {
+    const ipValue = (row.ip ?? "").trim();
+    const isDuplicate = duplicateMap.get(row.id)?.has("ip") ?? false;
+    if (ipValue && !isDuplicate) {
+      alert(
+        `Suppression bloquée.\n\n` +
+          `Cette ligne contient une adresse IP renseignée :\n` +
+          `   ${ipValue}\n\n` +
+          `Pour supprimer la ligne, videz d'abord le champ IP.\n` +
+          `Cette protection évite la perte accidentelle d'une adresse IP unique.`,
+      );
+      return;
+    }
+    removeIPRow(tabId, row.id);
+  };
+
   const hasActiveFilter =
     onlyDuplicates || COLUMNS.some((c) => filters[c.key].trim() !== "");
 
@@ -296,7 +315,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
                 readOnly={readOnly}
                 onChange={(patch) => updateIPRow(tabId, row.id, patch)}
-                onRemove={() => removeIPRow(tabId, row.id)}
+                onRemove={() => handleRemoveRow(row)}
               />
             ))}
             {visibleRows.length === 0 && (
@@ -384,15 +403,24 @@ function IPRow({
         );
       })}
       <td className="ip-col-actions">
-        {!readOnly && (
-          <button
-            className="danger ip-remove-btn"
-            onClick={onRemove}
-            title="Supprimer cette ligne"
-          >
-            ✕
-          </button>
-        )}
+        {!readOnly && (() => {
+          const ipFilled = (row.ip ?? "").trim() !== "";
+          const ipDup = duplicates.has("ip");
+          const blocked = ipFilled && !ipDup;
+          return (
+            <button
+              className={`danger ip-remove-btn${blocked ? " ip-remove-btn-blocked" : ""}`}
+              onClick={onRemove}
+              title={
+                blocked
+                  ? "Suppression bloquée — videz d'abord le champ IP"
+                  : "Supprimer cette ligne"
+              }
+            >
+              {blocked ? "🔒" : "✕"}
+            </button>
+          );
+        })()}
       </td>
     </tr>
   );
