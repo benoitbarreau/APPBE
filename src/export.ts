@@ -282,9 +282,9 @@ async function drawCartouche(
     `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   cell(
-    "Bureau d'étude",
+    "BUREAU D'ÉTUDE",
     x2col, y3, col2W, rowH,
-    `${9 * sc}px Arial, sans-serif`, "#888888",
+    `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   hline(y4, cx, x3col);
 
@@ -305,12 +305,12 @@ async function drawCartouche(
   cell(
     data.date || "",
     cx, y5, col1W, row5H,
-    `${9 * sc}px Arial, sans-serif`, "#555555",
+    `${11 * sc}px Arial, sans-serif`, "#000000",
   );
   cell(
     `Version : ${data.version || "V1.0"}`,
     x2col, y5, col2W, row5H,
-    `${9 * sc}px Arial, sans-serif`, "#555555",
+    `${11 * sc}px Arial, sans-serif`, "#000000",
   );
 
   // ── Logo : col3, lignes 2-5 ───────────────────────────────────────────
