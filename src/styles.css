@@ -3903,6 +3903,21 @@ select {
 .ip-table tbody tr.ip-row-manual:hover td {
   background: #fff5cc;
 }
+/* Teinte de fond selon la zone du produit lié — variable injectée via
+   inline style. color-mix maintient une bonne lisibilité en mélangeant
+   la couleur de zone avec du blanc à 88%. */
+.ip-table tbody tr.ip-row-zone td {
+  background: color-mix(in srgb, var(--row-zone-color) 18%, #fff);
+}
+.ip-table tbody tr.ip-row-zone:hover td {
+  background: color-mix(in srgb, var(--row-zone-color) 30%, #fff);
+}
+/* Une cellule en doublon IP doit rester rouge même quand la ligne a une
+   couleur de zone — le doublon est plus prioritaire visuellement. */
+.ip-table tbody tr td.ip-cell-dup,
+.ip-table tbody tr.ip-row-zone td.ip-cell-dup {
+  background: #ffe5e5 !important;
+}
 .ip-table tbody td input {
   width: 100%;
   border: none;

@@ -69,6 +69,8 @@ type SortDir = "asc" | "desc";
 
 export function IPTableEditor({ tabId }: { tabId: string }) {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
+  const allTabs = useAppStore((s) => s.tabs);
+  const allZones = useAppStore((s) => s.zones);
   const syncIPTable = useAppStore((s) => s.syncIPTable);
   const updateIPRow = useAppStore((s) => s.updateIPRow);
   const addIPRow = useAppStore((s) => s.addIPRow);
@@ -113,6 +115,40 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   // d'import ou de migration), on n'en garde qu'une — sinon React
   // afficherait des doublons visuels et le tri pourrait sembler fautif.
   const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
+
+  // ── Map nodeId → zoneId à travers tous les onglets synoptiques ──────
+  // Permet d'afficher le fond de la ligne à la couleur de la zone du
+  // produit auquel elle est liée (via productInstanceIds).
+  const nodeIdToZoneId = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    for (const t of allTabs) {
+      if (isIPTableTab(t)) continue;
+      for (const node of t.nodes ?? []) {
+        m.set(node.id, node.zoneId);
+      }
+    }
+    return m;
+  }, [allTabs]);
+
+  const zoneColorById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const z of allZones) m.set(z.id, z.color);
+    return m;
+  }, [allZones]);
+
+  /** Pour une ligne donnée, retourne la couleur de zone du premier
+   *  PlacedProduct lié qui en a une. undefined sinon (ligne manuelle ou
+   *  produits sans zone). */
+  const zoneColorForRow = (row: IPTableRow): string | undefined => {
+    for (const iid of row.productInstanceIds) {
+      const zid = nodeIdToZoneId.get(iid);
+      if (zid) {
+        const c = zoneColorById.get(zid);
+        if (c) return c;
+      }
+    }
+    return undefined;
+  };
 
   // ── Détection des doublons IP — pure, sans side-effect ──────────────
   const duplicateMap = useMemo(() => detectIPDuplicates(rows), [rows]);
@@ -326,6 +362,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 tabId={tabId}
                 row={row}
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
+                zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
                 onChange={(patch) => updateIPRow(tabId, row.id, patch)}
                 onRemove={() => handleRemoveRow(row)}
@@ -383,6 +420,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 function IPRow({
   row,
   duplicates,
+  zoneColor,
   readOnly,
   onChange,
   onRemove,
@@ -390,12 +428,22 @@ function IPRow({
   tabId: string;
   row: IPTableRow;
   duplicates: Set<IPColumn>;
+  zoneColor?: string;
   readOnly: boolean;
   onChange: (patch: Partial<IPTableRow>) => void;
   onRemove: () => void;
 }) {
+  // Fond de la ligne teinté par la couleur de la zone du produit lié.
+  // On utilise une variable CSS pour permettre au :hover de garder l'effet
+  // tout en assombrissant légèrement la teinte.
+  const trStyle: React.CSSProperties | undefined = zoneColor
+    ? ({ "--row-zone-color": zoneColor } as React.CSSProperties)
+    : undefined;
+  const className =
+    (row.manual ? "ip-row-manual" : "ip-row-auto") +
+    (zoneColor ? " ip-row-zone" : "");
   return (
-    <tr className={row.manual ? "ip-row-manual" : "ip-row-auto"}>
+    <tr className={className} style={trStyle}>
       {COLUMNS.map((col) => {
         const isDup =
           (col.key === "ip" || col.key === "ipDante" || col.key === "ipDanteSec") &&
