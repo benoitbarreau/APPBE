@@ -88,11 +88,18 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         >
           {product.reference}
         </div>
-        <div
-          className="product-node-cat"
-          style={headerSubColor ? { color: headerSubColor } : undefined}
-        >
-          {product.category}
+        <div className="product-node-cat-row">
+          <div
+            className="product-node-cat"
+            style={headerSubColor ? { color: headerSubColor } : undefined}
+          >
+            {product.category}
+          </div>
+          {zone && (
+            <div className="product-node-zone-name" title={`Zone : ${zone.label}`}>
+              {zone.label}
+            </div>
+          )}
         </div>
         {selected && (
           <select

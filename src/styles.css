@@ -1326,11 +1326,29 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.product-node-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
 .product-node-cat {
   font-size: 9px;
   color: var(--muted);
   font-style: italic;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.product-node-zone-name {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  color: #000;
+  white-space: nowrap;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
