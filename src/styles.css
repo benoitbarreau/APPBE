@@ -586,6 +586,14 @@ select {
   min-width: 1ch;
   field-sizing: content;
 }
+.cable-edge-sep {
+  color: #fff;
+  font-weight: 700;
+  padding: 0 1px;
+  text-shadow: none;
+  pointer-events: none;
+  user-select: none;
+}
 .cable-edge-len,
 .cable-edge-unit {
   color: #00BFD8;

@@ -720,6 +720,7 @@ export function CableEdge({
               value={cable.cableType}
               onChange={(e) => updateCable(cable.id, { cableType: e.target.value })}
             />
+            {cableView === "detailed" && <span className="cable-edge-sep">–</span>}
             {cableView === "detailed" && (
               <>
                 <input
