@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
 import { ProductPalette } from "./components/ProductPalette";
@@ -78,7 +79,22 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const duplicateTab = useAppStore((s) => s.duplicateTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const [addTabMenuOpen, setAddTabMenuOpen] = useState(false);
+  const [addTabMenuPos, setAddTabMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const addTabBtnRef = useRef<HTMLButtonElement>(null);
   const addTabMenuRef = useRef<HTMLDivElement>(null);
+
+  /** Ouvre/ferme le menu et calcule la position du dropdown selon le bouton. */
+  const toggleAddTabMenu = () => {
+    if (addTabMenuOpen) {
+      setAddTabMenuOpen(false);
+      return;
+    }
+    if (addTabBtnRef.current) {
+      const rect = addTabBtnRef.current.getBoundingClientRect();
+      setAddTabMenuPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setAddTabMenuOpen(true);
+  };
 
   // Onglet actif (utilisé pour basculer entre DiagramCanvas et IPTableEditor)
   const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -344,13 +360,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [exportMenuOpen]);
 
-  // Fermer le menu "+" au clic extérieur
+  // Fermer le menu "+" au clic extérieur (en excluant le bouton et le menu lui-même)
   useEffect(() => {
     if (!addTabMenuOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (addTabMenuRef.current && !addTabMenuRef.current.contains(e.target as Node)) {
-        setAddTabMenuOpen(false);
-      }
+      const target = e.target as Node;
+      if (addTabBtnRef.current?.contains(target)) return;
+      if (addTabMenuRef.current?.contains(target)) return;
+      setAddTabMenuOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -630,38 +647,50 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               )}
             </div>
           ))}
-          <div className="tab-add-wrap" ref={addTabMenuRef}>
-            <button
-              className="tab-add"
-              onClick={() => setAddTabMenuOpen((v) => !v)}
-              title="Ajouter un onglet"
-            >
-              +
-            </button>
-            {addTabMenuOpen && (
-              <div className="tab-add-menu">
-                <button
-                  onClick={() => {
-                    setAddTabMenuOpen(false);
-                    addTab();
-                  }}
-                >
-                  <strong>+ Synoptique</strong>
-                  <small>Canvas graphique avec produits et câbles</small>
-                </button>
-                <button
-                  onClick={() => {
-                    setAddTabMenuOpen(false);
-                    addIPTableTab();
-                  }}
-                >
-                  <strong>+ Tableau IP</strong>
-                  <small>Tableur des équipements réseau (IP, MAC, login…)</small>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            ref={addTabBtnRef}
+            className="tab-add"
+            onClick={toggleAddTabMenu}
+            title="Ajouter un onglet"
+          >
+            +
+          </button>
         </div>
+
+        {/* Menu d'ajout d'onglet (rendu via portail pour éviter le clipping
+            par le overflow du tab-bar). */}
+        {addTabMenuOpen && addTabMenuPos &&
+          createPortal(
+            <div
+              ref={addTabMenuRef}
+              className="tab-add-menu"
+              style={{
+                position: "fixed",
+                top: addTabMenuPos.top,
+                left: addTabMenuPos.left,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setAddTabMenuOpen(false);
+                  addTab();
+                }}
+              >
+                <strong>+ Synoptique</strong>
+                <small>Canvas graphique avec produits et câbles</small>
+              </button>
+              <button
+                onClick={() => {
+                  setAddTabMenuOpen(false);
+                  addIPTableTab();
+                }}
+              >
+                <strong>+ Tableau IP</strong>
+                <small>Tableur des équipements réseau (IP, MAC, login…)</small>
+              </button>
+            </div>,
+            document.body,
+          )}
 
         {/* ── Canvas + panneau droit ─────────────────────────────────────── */}
         <div className={`app-body${rightPanelOpen ? "" : " right-collapsed"}`}>

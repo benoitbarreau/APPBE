@@ -3665,22 +3665,18 @@ select {
    TABLEAU IP
    ═══════════════════════════════════════════════════════════════════ */
 
-/* Menu d'ajout d'onglet (Synoptique / Tableau IP) */
-.tab-add-wrap {
-  position: relative;
-  display: inline-block;
-}
+/* Menu d'ajout d'onglet (Synoptique / Tableau IP).
+   Rendu via React portal au niveau document.body avec position: fixed,
+   pour échapper au overflow du tab-bar. La position top/left est calculée
+   en JS depuis getBoundingClientRect du bouton. */
 .tab-add-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   min-width: 240px;
   padding: 4px;
-  z-index: 200;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 2px;
