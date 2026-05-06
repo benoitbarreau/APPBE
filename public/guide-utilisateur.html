@@ -317,7 +317,7 @@
   <p class="cover-tag">Synoptiques audiovisuels — Vidéo Synergie</p>
   <h2 class="cover-title">Guide utilisateur</h2>
   <p class="cover-sub">Tout ce qu'il faut savoir, expliqué simplement</p>
-  <p class="cover-meta">Version du guide — Mai 2026</p>
+  <p class="cover-meta">Version du guide — Mai 2026 (mise à jour Tableau IP)</p>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -338,12 +338,14 @@
     <li><span>Les labels — étiqueter chaque produit</span><span>p. 16</span></li>
     <li><span>Le panneau « Outils » à droite</span><span>p. 18</span></li>
     <li><span>Plusieurs synoptiques dans un projet (onglets)</span><span>p. 20</span></li>
-    <li><span>Le cartouche du document</span><span>p. 21</span></li>
-    <li><span>Sauvegarder son travail</span><span>p. 22</span></li>
-    <li><span>Exporter et imprimer en A3</span><span>p. 23</span></li>
-    <li><span>Mode lecture seule (versions archivées)</span><span>p. 25</span></li>
-    <li><span>Mon compte</span><span>p. 26</span></li>
-    <li><span>Raccourcis et astuces</span><span>p. 27</span></li>
+    <li><span>Le Tableau IP <span class="pill green">nouveau</span></span><span>p. 21</span></li>
+    <li><span>Importer / exporter le catalogue produits</span><span>p. 25</span></li>
+    <li><span>Le cartouche du document</span><span>p. 26</span></li>
+    <li><span>Sauvegarder son travail</span><span>p. 27</span></li>
+    <li><span>Exporter et imprimer en A3</span><span>p. 28</span></li>
+    <li><span>Mode lecture seule (versions archivées)</span><span>p. 30</span></li>
+    <li><span>Mon compte</span><span>p. 31</span></li>
+    <li><span>Raccourcis et astuces</span><span>p. 32</span></li>
   </ol>
 </div>
 
@@ -698,6 +700,11 @@
   <p>Cliquez sur le rectangle blanc et glissez-le. Pratique quand l'étiquette chevauche un autre élément.</p>
 </div>
 
+<div class="box tip">
+  <p class="box-title">💡 Longueurs de câbles modifiables en lot</p>
+  <p>Dans l'onglet <strong>Étiquettes</strong> du panneau Outils, double-cliquez la valeur de la colonne « Longueur (m) » pour la modifier directement. Pratique pour saisir d'un coup toutes les longueurs après mesures sur site. À la création, la longueur d'un câble est vide tant que vous ne l'avez pas saisie.</p>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════
      8. ZONES
      ═══════════════════════════════════════════════════════════ -->
@@ -906,10 +913,246 @@
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════
-     12. CARTOUCHE
+     12. TABLEAU IP
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>12. Le cartouche du document</h1>
+<h1>12. Le Tableau IP <span class="pill green" style="vertical-align: middle; font-size: 11pt;">nouveau</span></h1>
+
+<p>Le Tableau IP est un type d'onglet spécial, dédié au recensement des équipements <strong>réseau</strong> du projet : adresses IP, MAC, identifiants, mots de passe, numéros de série. Il fonctionne comme un tableur Excel intégré, et il se synchronise automatiquement avec les produits placés dans vos synoptiques.</p>
+
+<h3>Créer un Tableau IP</h3>
+<ol class="steps">
+  <li>Cliquez sur le bouton <span class="btn-mock">+</span> à droite de la barre d'onglets.</li>
+  <li>Dans le menu qui apparaît, choisissez <strong>+ Tableau IP</strong>.</li>
+  <li>Un nouvel onglet est créé. Si vos synoptiques contiennent déjà des produits avec un <strong>label</strong>, ils sont automatiquement injectés dans le tableau.</li>
+</ol>
+
+<div class="box tip">
+  <p class="box-title">💡 Un Tableau IP par projet, ça suffit</p>
+  <p>Vous pouvez en créer plusieurs si nécessaire (par bâtiment par ex.), mais en général un seul Tableau IP centralise tous les équipements réseau du projet.</p>
+</div>
+
+<h3>Anatomie de l'écran</h3>
+
+<div class="figure">
+  <svg viewBox="0 0 600 320" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="320" fill="#fafbfd"/>
+    <!-- Toolbar -->
+    <rect x="10" y="10" width="580" height="32" fill="#f8f9fb" stroke="#d6dbe2"/>
+    <text x="20" y="32" font-size="13" font-weight="700">Tableau IP — Bâtiment A</text>
+    <rect x="350" y="16" width="80" height="20" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="390" y="30" font-size="9" text-anchor="middle">⟳ Synchroniser</text>
+    <rect x="435" y="16" width="60" height="20" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="465" y="30" font-size="9" text-anchor="middle">+ Ligne</text>
+    <rect x="500" y="16" width="80" height="20" fill="#2f6fed" rx="3"/>
+    <text x="540" y="30" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">Exporter ▾</text>
+    <!-- Cartouche réseau -->
+    <text x="20" y="60" font-size="10" font-weight="700" fill="#2f6fed">① Cartouche réseau</text>
+    <rect x="10" y="68" width="580" height="42" fill="#fff" stroke="#000"/>
+    <line x1="126" y1="68" x2="126" y2="110" stroke="#000"/>
+    <line x1="242" y1="68" x2="242" y2="110" stroke="#000"/>
+    <line x1="358" y1="68" x2="358" y2="110" stroke="#000"/>
+    <line x1="474" y1="68" x2="474" y2="110" stroke="#000"/>
+    <rect x="10" y="68" width="580" height="14" fill="#333"/>
+    <text x="68" y="78" fill="#fff" font-size="8" text-anchor="middle" font-weight="700">PLAGE IP</text>
+    <text x="184" y="78" fill="#fff" font-size="8" text-anchor="middle" font-weight="700">DHCP</text>
+    <text x="300" y="78" fill="#fff" font-size="8" text-anchor="middle" font-weight="700">DNS</text>
+    <text x="416" y="78" fill="#fff" font-size="8" text-anchor="middle" font-weight="700">PASSERELLE</text>
+    <text x="532" y="78" fill="#fff" font-size="8" text-anchor="middle" font-weight="700">NTP</text>
+    <text x="68" y="100" font-size="9" text-anchor="middle">192.168.1.0/24</text>
+    <text x="184" y="100" font-size="9" text-anchor="middle">.100-150</text>
+    <text x="416" y="100" font-size="9" text-anchor="middle">192.168.1.1</text>
+    <!-- Tableau -->
+    <text x="20" y="135" font-size="10" font-weight="700" fill="#2f6fed">② Tableau des équipements</text>
+    <rect x="10" y="142" width="580" height="20" fill="#333"/>
+    <text x="60" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">PRODUIT</text>
+    <text x="160" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">LABEL</text>
+    <text x="240" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">IP</text>
+    <text x="340" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">LOGIN</text>
+    <text x="440" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">N° SERIE</text>
+    <text x="540" y="156" fill="#fff" font-size="9" text-anchor="middle" font-weight="700">MAC</text>
+    <!-- Filter row -->
+    <rect x="10" y="162" width="580" height="14" fill="#fafbfd" stroke="#d6dbe2"/>
+    <text x="60" y="173" font-size="8" fill="#888" text-anchor="middle">🔍 Filtre</text>
+    <text x="160" y="173" font-size="8" fill="#888" text-anchor="middle">🔍</text>
+    <text x="240" y="173" font-size="8" fill="#888" text-anchor="middle">🔍</text>
+    <!-- Rows colorés par zone -->
+    <rect x="10" y="176" width="580" height="20" fill="#fff5e6" stroke="#d6dbe2"/>
+    <text x="60" y="190" font-size="9" text-anchor="middle">Crestron DM-MD8x8</text>
+    <text x="160" y="190" font-size="9" text-anchor="middle" fill="#cc0000" font-weight="700">DM-04</text>
+    <text x="240" y="190" font-size="9" text-anchor="middle">192.168.1.40</text>
+    <rect x="10" y="196" width="580" height="20" fill="#e6f0ff" stroke="#d6dbe2"/>
+    <text x="60" y="210" font-size="9" text-anchor="middle">Extron DMP 64+</text>
+    <text x="160" y="210" font-size="9" text-anchor="middle" fill="#cc0000" font-weight="700">DSP-01</text>
+    <text x="240" y="210" font-size="9" text-anchor="middle">192.168.1.41</text>
+    <rect x="10" y="216" width="580" height="20" fill="#e6f0ff" stroke="#d6dbe2"/>
+    <text x="60" y="230" font-size="9" text-anchor="middle">Extron DMP 64+</text>
+    <text x="160" y="230" font-size="9" text-anchor="middle" fill="#cc0000" font-weight="700">DSP-02</text>
+    <text x="240" y="230" font-size="9" text-anchor="middle">192.168.1.42</text>
+    <rect x="10" y="236" width="580" height="20" fill="#fffbe9" stroke="#d6dbe2"/>
+    <text x="60" y="250" font-size="9" text-anchor="middle" font-style="italic">(ligne manuelle)</text>
+    <!-- Annotations -->
+    <line x1="120" y1="186" x2="20" y2="270" stroke="#f59e0b" stroke-dasharray="3"/>
+    <text x="20" y="282" font-size="9" font-weight="700" fill="#b06800">③ Couleur de zone</text>
+    <line x1="350" y1="246" x2="430" y2="280" stroke="#f59e0b" stroke-dasharray="3"/>
+    <text x="430" y="295" font-size="9" font-weight="700" fill="#b06800">④ Ligne manuelle (jaune)</text>
+  </svg>
+  <span class="caption">Vue d'ensemble du Tableau IP</span>
+</div>
+
+<table>
+  <tr><th>Élément</th><th>Description</th></tr>
+  <tr><td>① <strong>Cartouche réseau</strong></td><td>5 champs éditables — PLAGE IP, DHCP, DNS, PASSERELLE, NTP — qui apparaissent dans tous les exports.</td></tr>
+  <tr><td>② <strong>Tableau</strong></td><td>11 colonnes : PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC, LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE.</td></tr>
+  <tr><td>③ <strong>Couleur de zone</strong></td><td>Pour chaque ligne issue d'un synoptique, le fond reprend la couleur de la zone du produit. Repère visuel immédiat de l'emplacement.</td></tr>
+  <tr><td>④ <strong>Lignes manuelles</strong></td><td>Teintées jaune pâle pour les distinguer des lignes auto-synchronisées.</td></tr>
+</table>
+
+<div class="page-break"></div>
+<h2>Remplir le Tableau IP</h2>
+
+<h3>Méthode 1 : Synchroniser depuis les synoptiques</h3>
+<p>Si vos produits ont déjà un <strong>label</strong> sur les synoptiques, le bouton <span class="btn-mock">⟳ Synchroniser</span> remplit automatiquement le tableau :</p>
+<ul>
+  <li>Une ligne par label unique (insensible à la casse).</li>
+  <li>Si le même label apparaît dans plusieurs synoptiques, les instances sont fusionnées en une seule ligne.</li>
+  <li>Les colonnes <em>PRODUIT</em> et <em>LABEL</em> sont auto-remplies.</li>
+  <li>Les autres colonnes (IP, MAC, etc.) restent à votre charge.</li>
+</ul>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Pas de label, pas de ligne</p>
+  <p>Les produits sans label ne sont pas injectés dans le Tableau IP — il faut un identifiant pour pouvoir suivre l'équipement.</p>
+</div>
+
+<h3>Méthode 2 : Ajouter manuellement</h3>
+<p>Bouton <span class="btn-mock">+ Ligne</span> (en haut ou en bas du tableau) → une ligne vide apparaît, à remplir entièrement à la main. Idéal pour les équipements absents des synoptiques (switch d'infrastructure, serveur, etc.).</p>
+
+<h3>Méthode 3 : Importer un fichier</h3>
+<p>Bouton <span class="btn-mock">Importer…</span> → sélectionnez un CSV ou XLS. SynoX reconnaît automatiquement les colonnes connues (PRODUIT, LABEL, IP, etc.) en français comme en anglais.</p>
+
+<div class="box tip">
+  <p class="box-title">💡 Re-synchroniser n'écrase pas vos saisies</p>
+  <p>Une fois que vous avez saisi des IP, mots de passe, etc., un <strong>⟳ Synchroniser</strong> ultérieur ne touchera <strong>jamais</strong> à ces colonnes. Seuls PRODUIT et LABEL sont rafraîchis.</p>
+</div>
+
+<h2>Édition du tableau</h2>
+
+<table>
+  <tr><th>Action</th><th>Comment</th></tr>
+  <tr><td>Modifier une cellule</td><td>Cliquez dedans et tapez. La sauvegarde se fait au clic ailleurs.</td></tr>
+  <tr><td>Trier</td><td>Cliquez sur l'en-tête d'une colonne (asc/desc/asc…).</td></tr>
+  <tr><td>Filtrer</td><td>Tapez dans le champ 🔍 sous chaque en-tête. Plusieurs filtres se combinent.</td></tr>
+  <tr><td>Effacer les filtres</td><td>Bouton <span class="btn-mock">Effacer les filtres</span> dans la barre de statut.</td></tr>
+  <tr><td>Supprimer une ligne</td><td>Bouton <span class="btn-mock">✕</span> à droite de la ligne (peut être verrouillé, voir ci-dessous).</td></tr>
+</table>
+
+<h2>Modifier le LABEL — synchro inverse</h2>
+<p>Quand vous modifiez le LABEL d'une ligne <strong>liée à un produit synoptique</strong>, le nouveau label est <strong>propagé instantanément</strong> à toutes les occurrences du produit dans tous les synoptiques. Pratique pour renommer un équipement à un seul endroit.</p>
+
+<div class="page-break"></div>
+<h2>Détection des doublons IP</h2>
+
+<p>SynoX surveille en permanence les colonnes <strong>IP, IP DANTE</strong> et <strong>IP DANTE SEC</strong>. Toute valeur identique dans n'importe quelle de ces colonnes (même entre lignes différentes ou colonnes différentes) déclenche :</p>
+
+<ul>
+  <li>Les cellules concernées passent en <span style="background:#ffe5e5; padding: 1px 6px; color:#cc0000; font-weight:700;">⚠ rouge</span></li>
+  <li>Un badge dans la barre de statut indique le nombre de lignes en conflit</li>
+  <li>Une option <em>« Afficher uniquement les doublons »</em> filtre la vue</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 La détection se met à jour en temps réel</p>
+  <p>Modifiez une IP en doublon → l'alerte disparaît immédiatement.</p>
+</div>
+
+<h2>Verrou de suppression</h2>
+
+<p>Pour éviter de perdre par mégarde une adresse IP ou un numéro de série unique, le bouton de suppression est <strong>automatiquement verrouillé</strong> dès qu'un de ces champs est rempli :</p>
+
+<ul>
+  <li>L'icône passe de <span class="btn-mock danger">✕</span> à <span class="btn-mock">🔒</span></li>
+  <li>Au clic, un message indique quels champs vider en premier</li>
+  <li>Une fois ces champs vides, l'icône redevient <span class="btn-mock danger">✕</span> et la suppression fonctionne</li>
+</ul>
+
+<p>Les lignes dont l'IP est en <strong>doublon</strong> restent supprimables (la suppression résout justement le doublon).</p>
+
+<h2>Exporter et imprimer</h2>
+
+<p>Bouton <span class="btn-mock primary">Exporter ▾</span> → ouvre une fenêtre de paramétrage :</p>
+
+<table>
+  <tr><th>Choix</th><th>Options</th></tr>
+  <tr><td>Format</td><td>PDF — Excel — Imprimer</td></tr>
+  <tr><td>Lignes</td><td>Toutes ou seulement celles visibles avec les filtres actifs</td></tr>
+  <tr><td>Titre du document</td><td>Éditable</td></tr>
+  <tr><td>Modèle</td><td>Complet, Réseau, Client, Maintenance, ou personnalisé</td></tr>
+  <tr><td>Colonnes</td><td>Cases à cocher pour ajuster manuellement le modèle</td></tr>
+</table>
+
+<table>
+  <tr><th>Modèle</th><th>Colonnes incluses</th></tr>
+  <tr><td><strong>Complet</strong></td><td>Toutes les colonnes</td></tr>
+  <tr><td><strong>Réseau</strong></td><td>PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC, MAC, MAC DANTE</td></tr>
+  <tr><td><strong>Client</strong></td><td>PRODUIT, LABEL, IP, LOGIN, MOT DE PASSE</td></tr>
+  <tr><td><strong>Maintenance</strong></td><td>PRODUIT, LABEL, ID, IP, LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE</td></tr>
+</table>
+
+<div class="box">
+  <p class="box-title">ℹ️ Format A3 ou A4 ?</p>
+  <p>SynoX choisit automatiquement : A4 paysage si vous gardez ≤ 6 colonnes, A3 paysage au-delà — pour que tout reste lisible sans coupure.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Le cartouche réseau est inclus dans tous les exports</p>
+  <p>Pas besoin de le ressaisir : PLAGE IP, DHCP, DNS, PASSERELLE et NTP apparaissent en haut du PDF, du fichier Excel et de l'impression.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     13. CATALOGUE IMPORT/EXPORT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>13. Importer / exporter le catalogue produits</h1>
+
+<p>Le catalogue de produits (à gauche dans l'éditeur) peut être <strong>partagé</strong> avec un collègue, sauvegardé localement, ou alimenté par un fichier maître. Trois formats sont disponibles : CSV, XLS (Excel), JSON.</p>
+
+<h3>Exporter</h3>
+<ol class="steps">
+  <li>Dans le bandeau « Catalogue » à gauche, cliquez sur <span class="btn-mock">Exporter ▾</span>.</li>
+  <li>Choisissez le format :
+    <ul>
+      <li><strong>CSV</strong> : lisible par Excel directement (séparateur <code>;</code>, encodage UTF-8 avec accents).</li>
+      <li><strong>XLS</strong> : ouvre nativement dans Excel.</li>
+      <li><strong>JSON</strong> : seul format qui inclut les images des produits — à utiliser pour un transfert complet.</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Importer</h3>
+<ol class="steps">
+  <li>Bouton <span class="btn-mock">Importer…</span> → modale d'import.</li>
+  <li>Sélectionnez votre fichier (.json, .csv, .xls).</li>
+  <li>Si un produit du fichier <strong>existe déjà</strong> (même ID, ou même marque + référence), une fenêtre vous demande quoi faire pour <em>chaque</em> conflit :
+    <ul>
+      <li><strong>⟳ Écraser celui-ci</strong> — remplace les données du produit existant</li>
+      <li><strong>⏭ Ignorer celui-ci</strong> — conserve l'existant, passe au suivant</li>
+      <li><strong>Tout écraser</strong> — applique l'écrasement à tous les conflits restants</li>
+      <li><strong>Tout ignorer</strong> — conserve tout l'existant pour les conflits restants</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Pièges à éviter avec Excel</p>
+  <p>Si vous ouvrez un .xls SynoX dans Excel et que vous l'enregistrez, Excel le transforme en mode multi-fichiers et SynoX ne peut plus le relire. <strong>Préférez le format CSV pour les allers-retours avec Excel.</strong></p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     14. CARTOUCHE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>14. Le cartouche du document</h1>
 
 <p>Le cartouche, c'est le bandeau d'identification en bas du synoptique. Il apparaît automatiquement dans tous les exports et impressions.</p>
 
@@ -957,10 +1200,10 @@
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════
-     13. SAUVEGARDER
+     15. SAUVEGARDER
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>13. Sauvegarder son travail</h1>
+<h1>15. Sauvegarder son travail</h1>
 
 <p>Tout passe par le bouton <span class="btn-mock primary">Sauvegarder</span> en haut à gauche.</p>
 
@@ -982,6 +1225,11 @@
   <p>Il n'y a pas de sauvegarde automatique. Un raccourci pratique : <kbd>Ctrl</kbd>+<kbd>S</kbd> dans le navigateur déclenche le bouton Sauvegarder (sur la plupart des navigateurs).</p>
 </div>
 
+<div class="box tip">
+  <p class="box-title">💡 Vos modifs survivent à un F5</p>
+  <p>Si vous rafraîchissez la page (F5) ou fermez puis rouvrez le navigateur en plein travail, vous retrouvez votre projet ouvert exactement où vous l'aviez laissé — y compris les modifications non sauvegardées. Le travail n'est jamais perdu par un simple rechargement.</p>
+</div>
+
 <h3>Versions archivées</h3>
 <p>Les <strong>3 dernières versions</strong> archivées restent accessibles depuis la page « Mes projets ». Cliquez sur une version archivée pour l'ouvrir en lecture seule.</p>
 
@@ -991,10 +1239,10 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     14. EXPORTER / IMPRIMER
+     16. EXPORTER / IMPRIMER
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>14. Exporter et imprimer en A3</h1>
+<h1>16. Exporter et imprimer en A3</h1>
 
 <p>SynoX produit des documents professionnels au format <strong>A3 paysage</strong>, prêts à diffuser.</p>
 
@@ -1048,10 +1296,10 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     15. LECTURE SEULE
+     17. LECTURE SEULE
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>15. Mode lecture seule (versions archivées)</h1>
+<h1>17. Mode lecture seule (versions archivées)</h1>
 
 <p>Quand vous ouvrez une version archivée, l'application bascule en mode <strong>lecture seule</strong>. Une bannière jaune s'affiche en haut.</p>
 
@@ -1087,19 +1335,19 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     16. MON COMPTE
+     18. MON COMPTE
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>16. Mon compte</h1>
+<h1>18. Mon compte</h1>
 
 <p>Le bouton <span class="btn-mock primary">Mon compte</span> en haut à droite donne accès aux paramètres personnels.</p>
 
 <table>
   <tr><th>Onglet</th><th>Contenu</th></tr>
-  <tr><td>Profil</td><td>Nom, email, mot de passe.</td></tr>
-  <tr><td>Catalogue personnel</td><td>Vos produits ajoutés au catalogue (synchronisés sur tous vos appareils).</td></tr>
-  <tr><td>Signaux</td><td>Vos couleurs et libellés de signaux personnalisés.</td></tr>
-  <tr><td>Zones</td><td>Vos zones personnelles (utilisables sur tous vos projets).</td></tr>
+  <tr><td>Informations</td><td>Nom affiché, email, rôle, date d'inscription.</td></tr>
+  <tr><td>Modifier le nom</td><td>Changer votre nom complet visible dans l'application.</td></tr>
+  <tr><td>Mot de passe</td><td>Changer votre mot de passe (min. 6 caractères).</td></tr>
+  <tr><td><strong>Aide</strong></td><td>Bouton <span class="btn-mock primary">📖 Ouvrir le guide utilisateur</span> qui ouvre ce document, et lien de contact.</td></tr>
 </table>
 
 <h3>Bouton « Se déconnecter »</h3>
@@ -1114,10 +1362,10 @@
 </ul>
 
 <!-- ═══════════════════════════════════════════════════════════
-     17. RACCOURCIS ET ASTUCES
+     19. RACCOURCIS ET ASTUCES
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>17. Raccourcis et astuces</h1>
+<h1>19. Raccourcis et astuces</h1>
 
 <h3>Raccourcis clavier</h3>
 <table>
@@ -1165,7 +1413,7 @@
 </div>
 
 <div class="footer-note">
-  Guide utilisateur SynoX — version Mai 2026 — Vidéo Synergie<br>
+  Guide utilisateur SynoX — Mai 2026 (révision Tableau IP) — Vidéo Synergie<br>
   Pour toute question : <strong>contact@videosynergie.com</strong>
 </div>
 
