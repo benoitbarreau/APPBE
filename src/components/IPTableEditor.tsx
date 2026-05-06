@@ -151,19 +151,32 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     setOnlyDuplicates(false);
   };
 
-  /** Suppression d'une ligne — bloquée si l'IP est renseignée et non-doublon.
-   *  L'utilisateur doit d'abord vider le champ IP pour confirmer son intention.
-   *  Les IP en doublon restent supprimables (ce qui résout le doublon). */
+  /** Suppression d'une ligne — bloquée si l'IP (et non-doublon) ou le N° de
+   *  série est renseigné. L'utilisateur doit d'abord vider ces champs pour
+   *  confirmer son intention. Les IP en doublon restent supprimables. */
   const handleRemoveRow = (row: IPTableRow) => {
     const ipValue = (row.ip ?? "").trim();
-    const isDuplicate = duplicateMap.get(row.id)?.has("ip") ?? false;
-    if (ipValue && !isDuplicate) {
+    const serialValue = (row.serialNumber ?? "").trim();
+    const ipDup = duplicateMap.get(row.id)?.has("ip") ?? false;
+    const ipBlocks = ipValue !== "" && !ipDup;
+    const serialBlocks = serialValue !== "";
+
+    if (ipBlocks || serialBlocks) {
+      const filled: string[] = [];
+      if (ipBlocks) filled.push(`   • IP : ${ipValue}`);
+      if (serialBlocks) filled.push(`   • N° SERIE : ${serialValue}`);
+      const fieldsLabel =
+        ipBlocks && serialBlocks
+          ? "les champs IP et N° SERIE"
+          : ipBlocks
+            ? "le champ IP"
+            : "le champ N° SERIE";
       alert(
         `Suppression bloquée.\n\n` +
-          `Cette ligne contient une adresse IP renseignée :\n` +
-          `   ${ipValue}\n\n` +
-          `Pour supprimer la ligne, videz d'abord le champ IP.\n` +
-          `Cette protection évite la perte accidentelle d'une adresse IP unique.`,
+          `Cette ligne contient des données importantes :\n` +
+          filled.join("\n") +
+          `\n\nPour supprimer la ligne, videz d'abord ${fieldsLabel}.\n` +
+          `Cette protection évite la perte accidentelle de données uniques.`,
       );
       return;
     }
@@ -406,14 +419,22 @@ function IPRow({
         {!readOnly && (() => {
           const ipFilled = (row.ip ?? "").trim() !== "";
           const ipDup = duplicates.has("ip");
-          const blocked = ipFilled && !ipDup;
+          const ipBlocks = ipFilled && !ipDup;
+          const serialBlocks = (row.serialNumber ?? "").trim() !== "";
+          const blocked = ipBlocks || serialBlocks;
+          const fields =
+            ipBlocks && serialBlocks
+              ? "les champs IP et N° SERIE"
+              : ipBlocks
+                ? "le champ IP"
+                : "le champ N° SERIE";
           return (
             <button
               className={`danger ip-remove-btn${blocked ? " ip-remove-btn-blocked" : ""}`}
               onClick={onRemove}
               title={
                 blocked
-                  ? "Suppression bloquée — videz d'abord le champ IP"
+                  ? `Suppression bloquée — videz d'abord ${fields}`
                   : "Supprimer cette ligne"
               }
             >
