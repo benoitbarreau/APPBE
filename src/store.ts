@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   Cable,
+  IPNetworkInfo,
+  IPTableRow,
   PlacedProduct,
   Port,
   PortPlacement,
@@ -14,7 +16,8 @@ import type {
   Zone,
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
-import { DEFAULT_SIGNAL_DEFS } from "./types";
+import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, isIPTableTab, isSynopticTab } from "./types";
+import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
 const DEFAULT_ZONES: Zone[] = [
   { id: "baie", label: "Baie", color: "#FF8A3D" },
@@ -60,11 +63,30 @@ interface State {
 
   // ── Actions onglets ───────────────────────────────────────────────────
   addTab: (name?: string) => void;
+  /** Crée un onglet Tableau IP, optionnellement pré-rempli depuis les synoptiques. */
+  addIPTableTab: (name?: string, autoSync?: boolean) => string;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
   duplicateTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   setActiveTabTrade: (trade: string) => void;
+
+  // ── Tableau IP ────────────────────────────────────────────────────────
+  /** Synchronise les lignes d'un Tableau IP avec l'état actuel des synoptiques. */
+  syncIPTable: (tabId: string) => void;
+  /** Met à jour une ligne. Si le LABEL change ET que la ligne est liée à des
+   *  PlacedProducts (lignes auto), met aussi à jour le label sur ces noeuds. */
+  updateIPRow: (tabId: string, rowId: string, patch: Partial<IPTableRow>) => void;
+  /** Ajoute une ligne manuelle vide. */
+  addIPRow: (tabId: string) => string;
+  /** Supprime une ligne. */
+  removeIPRow: (tabId: string, rowId: string) => void;
+  /** Ajoute plusieurs lignes en une fois (utilisé pour l'import). */
+  addIPRows: (tabId: string, rows: IPTableRow[]) => void;
+  /** Met à jour le cartouche réseau d'un Tableau IP. */
+  updateIPNetwork: (tabId: string, patch: Partial<IPNetworkInfo>) => void;
+  /** Met à jour le titre de document du Tableau IP. */
+  updateIPTitle: (tabId: string, title: string) => void;
 
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -134,25 +156,42 @@ const uid = (): string =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-/** Crée un onglet vide avec des zones par défaut */
+/** Crée un onglet synoptique vide avec des zones par défaut. */
 const makeDefaultTab = (name = "Synoptique 1"): Tab => ({
   id: uid(),
   name,
+  kind: "synoptic",
   nodes: [],
   cables: [],
   zones: [...DEFAULT_ZONES],
 });
 
+/** Crée un onglet Tableau IP vierge. */
+const makeIPTab = (name = "Tableau IP"): Tab => ({
+  id: uid(),
+  name,
+  kind: "iptable",
+  nodes: [],
+  cables: [],
+  zones: [],
+  rows: [],
+  network: { ...DEFAULT_IP_NETWORK },
+  documentTitle: "",
+});
+
 /**
  * Retourne le tableau tabs avec l'état de travail courant flushé dans l'onglet actif.
  * À appeler avant un switch d'onglet ou avant la sauvegarde.
+ *
+ * Pour un onglet de type "iptable" l'état de travail (nodes/cables/zones) n'est
+ * PAS pertinent — on conserve l'onglet tel quel.
  */
 const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "zones">): Tab[] =>
-  s.tabs.map((t) =>
-    t.id === s.activeTabId
-      ? { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones }
-      : t,
-  );
+  s.tabs.map((t) => {
+    if (t.id !== s.activeTabId) return t;
+    if (isIPTableTab(t)) return t;
+    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones };
+  });
 
 export const useAppStore = create<State>()(
   persist(
@@ -180,7 +219,8 @@ export const useAppStore = create<State>()(
         addTab: (name?) =>
           set((s) => {
             const flushed = flushActive(s);
-            const newTab = makeDefaultTab(name ?? `Synoptique ${flushed.length + 1}`);
+            const synopticCount = flushed.filter((t) => isSynopticTab(t)).length;
+            const newTab = makeDefaultTab(name ?? `Synoptique ${synopticCount + 1}`);
             return {
               tabs: [...flushed, newTab],
               activeTabId: newTab.id,
@@ -192,6 +232,32 @@ export const useAppStore = create<State>()(
             };
           }),
 
+        addIPTableTab: (name, autoSync = true) => {
+          const newId = uid();
+          set((s) => {
+            const flushed = flushActive(s);
+            const ipCount = flushed.filter((t) => isIPTableTab(t)).length;
+            const tabName = name ?? (ipCount === 0 ? "Tableau IP" : `Tableau IP ${ipCount + 1}`);
+            const newTab: Tab = makeIPTab(tabName);
+            newTab.id = newId;
+            // Auto-sync depuis les synoptiques si demandé
+            if (autoSync) {
+              newTab.rows = syncIPRowsFromSynoptics([], flushed, s.products);
+            }
+            return {
+              tabs: [...flushed, newTab],
+              activeTabId: newTab.id,
+              // L'état de travail synoptique n'est plus pertinent → vide
+              nodes: [],
+              cables: [],
+              zones: [],
+              selectedNodeId: null,
+              selectedCableId: null,
+            };
+          });
+          return newId;
+        },
+
         removeTab: (tabId) =>
           set((s) => {
             if (s.tabs.length <= 1) return {};
@@ -202,12 +268,23 @@ export const useAppStore = create<State>()(
             }
             const idx = flushed.findIndex((t) => t.id === tabId);
             const newActive = newTabs[Math.min(idx, newTabs.length - 1)];
+            if (isIPTableTab(newActive)) {
+              return {
+                tabs: newTabs,
+                activeTabId: newActive.id,
+                nodes: [],
+                cables: [],
+                zones: [],
+                selectedNodeId: null,
+                selectedCableId: null,
+              };
+            }
             return {
               tabs: newTabs,
               activeTabId: newActive.id,
-              nodes: newActive.nodes,
-              cables: newActive.cables,
-              zones: newActive.zones,
+              nodes: newActive.nodes ?? [],
+              cables: newActive.cables ?? [],
+              zones: newActive.zones ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -224,6 +301,145 @@ export const useAppStore = create<State>()(
               t.id === s.activeTabId
                 ? { ...t, trade, name: trade.trim() || t.name }
                 : t,
+            ),
+          })),
+
+        // ── Actions Tableau IP ──────────────────────────────────────────
+
+        syncIPTable: (tabId) =>
+          set((s) => {
+            const flushed = flushActive(s);
+            const target = flushed.find((t) => t.id === tabId);
+            if (!target || !isIPTableTab(target)) return {};
+            const next = syncIPRowsFromSynoptics(
+              target.rows ?? [],
+              flushed,
+              s.products,
+            );
+            return {
+              tabs: flushed.map((t) =>
+                t.id === tabId ? { ...t, rows: next } : t,
+              ),
+            };
+          }),
+
+        updateIPRow: (tabId, rowId, patch) =>
+          set((s) => {
+            const target = s.tabs.find((t) => t.id === tabId);
+            if (!target || !isIPTableTab(target)) return {};
+            const oldRow = (target.rows ?? []).find((r) => r.id === rowId);
+            if (!oldRow) return {};
+            const newRow = { ...oldRow, ...patch };
+
+            // Synchro inverse : si le LABEL change ET que la ligne est liée à
+            // des PlacedProducts, propager le nouveau label dans tous les
+            // synoptiques. Concerne lignes auto + lignes manuelles liées.
+            const labelChanged =
+              patch.label !== undefined && patch.label !== oldRow.label;
+            const hasLinks = oldRow.productInstanceIds.length > 0;
+
+            const updatedTabs = s.tabs.map((t) =>
+              t.id === tabId
+                ? {
+                    ...t,
+                    rows: (t.rows ?? []).map((r) => (r.id === rowId ? newRow : r)),
+                  }
+                : t,
+            );
+
+            if (!labelChanged || !hasLinks) {
+              return { tabs: updatedTabs };
+            }
+
+            // Propagation du LABEL dans les onglets synoptiques (et dans
+            // l'état de travail nodes[] si l'onglet actif est concerné)
+            const nodeRefs = findNodesByInstanceIds(
+              updatedTabs,
+              oldRow.productInstanceIds,
+            );
+            const newLabel = patch.label!;
+
+            const tabsWithLabelSync = updatedTabs.map((t) => {
+              if (!isSynopticTab(t)) return t;
+              const refs = nodeRefs.filter((r) => r.tabId === t.id);
+              if (refs.length === 0) return t;
+              const refIds = new Set(refs.map((r) => r.nodeId));
+              return {
+                ...t,
+                nodes: (t.nodes ?? []).map((n) =>
+                  refIds.has(n.id) ? { ...n, label: newLabel } : n,
+                ),
+              };
+            });
+
+            // Si l'onglet actif est un synoptique, on doit aussi mettre à
+            // jour l'état de travail s.nodes — sinon on verrait l'ancien
+            // label tant qu'on n'a pas changé d'onglet.
+            const activeIsSynoptic = isSynopticTab(
+              s.tabs.find((t) => t.id === s.activeTabId) ?? s.tabs[0],
+            );
+            if (!activeIsSynoptic) {
+              return { tabs: tabsWithLabelSync };
+            }
+            const refIdsActive = new Set(
+              nodeRefs
+                .filter((r) => r.tabId === s.activeTabId)
+                .map((r) => r.nodeId),
+            );
+            return {
+              tabs: tabsWithLabelSync,
+              nodes: s.nodes.map((n) =>
+                refIdsActive.has(n.id) ? { ...n, label: newLabel } : n,
+              ),
+            };
+          }),
+
+        addIPRow: (tabId) => {
+          const newRow = makeEmptyRow(true);
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isIPTableTab(t)
+                ? { ...t, rows: [...(t.rows ?? []), newRow] }
+                : t,
+            ),
+          }));
+          return newRow.id;
+        },
+
+        removeIPRow: (tabId, rowId) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isIPTableTab(t)
+                ? { ...t, rows: (t.rows ?? []).filter((r) => r.id !== rowId) }
+                : t,
+            ),
+          })),
+
+        addIPRows: (tabId, rows) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isIPTableTab(t)
+                ? { ...t, rows: [...(t.rows ?? []), ...rows] }
+                : t,
+            ),
+          })),
+
+        updateIPNetwork: (tabId, patch) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isIPTableTab(t)
+                ? {
+                    ...t,
+                    network: { ...(t.network ?? DEFAULT_IP_NETWORK), ...patch },
+                  }
+                : t,
+            ),
+          })),
+
+        updateIPTitle: (tabId, title) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isIPTableTab(t) ? { ...t, documentTitle: title } : t,
             ),
           })),
 
@@ -281,12 +497,24 @@ export const useAppStore = create<State>()(
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target) return {};
+            // Pour un onglet IP, l'état de travail synoptique est vidé
+            if (isIPTableTab(target)) {
+              return {
+                tabs: flushed,
+                activeTabId: tabId,
+                nodes: [],
+                cables: [],
+                zones: [],
+                selectedNodeId: null,
+                selectedCableId: null,
+              };
+            }
             return {
               tabs: flushed,
               activeTabId: tabId,
-              nodes: target.nodes,
-              cables: target.cables,
-              zones: target.zones,
+              nodes: target.nodes ?? [],
+              cables: target.cables ?? [],
+              zones: target.zones ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -677,7 +905,7 @@ export const useAppStore = create<State>()(
     },
     {
       name: "av-diagram-generator",
-      version: 9,
+      version: 10,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & {
           adminCode?: unknown;
@@ -721,6 +949,14 @@ export const useAppStore = create<State>()(
           state.activeTabId = tab.id;
         }
         if (!state.activeTabId) state.activeTabId = state.tabs[0].id;
+
+        // v10 : ajout du discriminator `kind` sur les onglets
+        // Les anciens onglets sans `kind` sont implicitement des synoptiques.
+        if (fromVersion < 10 && state.tabs) {
+          state.tabs = state.tabs.map((t) =>
+            t.kind === undefined ? { ...t, kind: "synoptic" as const } : t,
+          );
+        }
 
         return state as unknown as State;
       },

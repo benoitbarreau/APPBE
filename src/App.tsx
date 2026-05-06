@@ -9,6 +9,8 @@ import { EtiquettesList } from "./components/EtiquettesList";
 import { ProductLabelsList } from "./components/ProductLabelsList";
 import { Legend } from "./components/Legend";
 import { ZonesList } from "./components/ZonesList";
+import { IPTableEditor } from "./components/IPTableEditor";
+import { isIPTableTab } from "./types";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
@@ -70,10 +72,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const addTab = useAppStore((s) => s.addTab);
+  const addIPTableTab = useAppStore((s) => s.addIPTableTab);
   const removeTab = useAppStore((s) => s.removeTab);
   const renameTab = useAppStore((s) => s.renameTab);
   const duplicateTab = useAppStore((s) => s.duplicateTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const [addTabMenuOpen, setAddTabMenuOpen] = useState(false);
+  const addTabMenuRef = useRef<HTMLDivElement>(null);
+
+  // Onglet actif (utilisé pour basculer entre DiagramCanvas et IPTableEditor)
+  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const activeIsIPTab = activeTab ? isIPTableTab(activeTab) : false;
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
   const tabInputRef = useRef<HTMLInputElement>(null);
@@ -277,7 +286,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handlePrintAllTabs = async () => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
-    const flushedTabs = getFlushedTabs();
+    // Filtrer les onglets Tableau IP — ils ont leur propre export depuis l'éditeur
+    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t));
     let totalPages = 0;
     for (const tab of flushedTabs) totalPages += computePageRects(tab.nodes).length;
 
@@ -334,6 +344,18 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [exportMenuOpen]);
 
+  // Fermer le menu "+" au clic extérieur
+  useEffect(() => {
+    if (!addTabMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (addTabMenuRef.current && !addTabMenuRef.current.contains(e.target as Node)) {
+        setAddTabMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [addTabMenuOpen]);
+
   const handleExportCurrentTab = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     try {
       const state = useAppStore.getState();
@@ -352,7 +374,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
-    const flushedTabs = getFlushedTabs();
+    // Filtrer les onglets Tableau IP — ils ont leur propre export depuis l'éditeur
+    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t));
     const refLabel =
       state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
 
@@ -607,21 +630,51 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               )}
             </div>
           ))}
-          <button
-            className="tab-add"
-            onClick={() => addTab()}
-            title="Ajouter un synoptique"
-          >
-            +
-          </button>
+          <div className="tab-add-wrap" ref={addTabMenuRef}>
+            <button
+              className="tab-add"
+              onClick={() => setAddTabMenuOpen((v) => !v)}
+              title="Ajouter un onglet"
+            >
+              +
+            </button>
+            {addTabMenuOpen && (
+              <div className="tab-add-menu">
+                <button
+                  onClick={() => {
+                    setAddTabMenuOpen(false);
+                    addTab();
+                  }}
+                >
+                  <strong>+ Synoptique</strong>
+                  <small>Canvas graphique avec produits et câbles</small>
+                </button>
+                <button
+                  onClick={() => {
+                    setAddTabMenuOpen(false);
+                    addIPTableTab();
+                  }}
+                >
+                  <strong>+ Tableau IP</strong>
+                  <small>Tableur des équipements réseau (IP, MAC, login…)</small>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Canvas + panneau droit ─────────────────────────────────────── */}
         <div className={`app-body${rightPanelOpen ? "" : " right-collapsed"}`}>
           {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
           <main className="canvas" key={activeTabId}>
-            <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
-            <Cartouche />
+            {activeIsIPTab ? (
+              <IPTableEditor tabId={activeTabId} />
+            ) : (
+              <>
+                <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
+                <Cartouche />
+              </>
+            )}
           </main>
 
           <aside className={`sidebar right${rightPanelOpen ? "" : " collapsed"}`}>

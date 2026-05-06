@@ -83,14 +83,68 @@ export interface ProjectMeta {
   date: string;
 }
 
-/** Un synoptique au sein d'un projet (= un onglet) */
+/** Une ligne du Tableau IP. */
+export interface IPTableRow {
+  /** ID interne stable. */
+  id: string
+  /** IDs des PlacedProduct liés (dans les onglets synoptiques). Vide pour les
+   *  lignes ajoutées manuellement → permet de modifier le LABEL sans perdre
+   *  le lien quand le LABEL change. */
+  productInstanceIds: string[]
+  /** True = ligne ajoutée manuellement (n'écrit pas dans les synoptiques). */
+  manual: boolean
+  product: string
+  label: string
+  deviceId: string
+  ip: string
+  ipDante: string
+  ipDanteSec: string
+  login: string
+  password: string
+  serialNumber: string
+  mac: string
+  macDante: string
+}
+
+/** Cartouche réseau du Tableau IP. */
+export interface IPNetworkInfo {
+  plageIp: string
+  dhcp: string
+  dns: string
+  passerelle: string
+  ntp: string
+}
+
+/** Un onglet au sein d'un projet. Type discriminé par `kind`.
+ *  - `kind` absent ou 'synoptic' → onglet synoptique graphique (rétrocompat).
+ *  - `kind === 'iptable'` → onglet Tableau IP. */
 export interface Tab {
   id: string
   name: string
-  trade?: string   // Lot propre à cet onglet
+  kind?: 'synoptic' | 'iptable'
+  // ── Champs synoptique (toujours présents, vides pour onglets IP) ─────
+  trade?: string
   nodes: PlacedProduct[]
   cables: Cable[]
   zones: Zone[]
+  // ── Champs Tableau IP (présents pour onglets IP uniquement) ──────────
+  rows?: IPTableRow[]
+  network?: IPNetworkInfo
+  documentTitle?: string
+}
+
+/** Helper : true si l'onglet est un Tableau IP. */
+export const isIPTableTab = (t: Tab): boolean => t.kind === 'iptable'
+/** Helper : true si l'onglet est un synoptique (compat ascendant si kind absent). */
+export const isSynopticTab = (t: Tab): boolean => t.kind !== 'iptable'
+
+/** Cartouche réseau par défaut à la création d'un Tableau IP. */
+export const DEFAULT_IP_NETWORK: IPNetworkInfo = {
+  plageIp: '',
+  dhcp: '',
+  dns: '',
+  passerelle: '',
+  ntp: '',
 }
 
 export interface SignalDef {
