@@ -127,10 +127,14 @@ function getViewportElement(): HTMLElement | null {
  * n'a aucun effet tant que field-sizing est actif. html-to-image clone le DOM sans ce support,
  * ce qui fait rétrécir les inputs et tronque la valeur affichée.
  *
+ * ⚠️  getBoundingClientRect() est FAUX ici : il retourne des px viewport (multipliés par le
+ *     zoom React Flow). Si le canvas est à 80%, tous les inputs seraient trop étroits.
+ *     offsetWidth retourne des px CSS (layout), indépendant des CSS transforms parents.
+ *
  * Solution :
- *  1. Mesurer la largeur réellement rendue via getBoundingClientRect() (field-sizing actif).
- *  2. Désactiver field-sizing en le passant à "normal" via setProperty().
- *  3. Appliquer la largeur mesurée en px.
+ *  1. Mesurer offsetWidth (px CSS, zoom-agnostique) — field-sizing: content encore actif.
+ *  2. Désactiver field-sizing via setProperty("field-sizing","normal").
+ *  3. Appliquer la largeur mesurée + 2px de marge de sécurité.
  *  4. Restaurer les deux propriétés après la capture.
  */
 function fixCableLabelWidths(): () => void {
@@ -139,11 +143,12 @@ function fixCableLabelWidths(): () => void {
   inputs.forEach((inp) => {
     const prevWidth = inp.style.width;
     const prevFieldSizing = inp.style.getPropertyValue("field-sizing");
-    // Mesure avant tout changement (field-sizing: content encore actif)
-    const w = inp.getBoundingClientRect().width;
+    // offsetWidth = px CSS layout, non affecté par les transforms (zoom React Flow)
+    const w = inp.offsetWidth;
     // Désactiver field-sizing (sinon il ignore width)
     inp.style.setProperty("field-sizing", "normal");
-    inp.style.width = `${Math.max(w, 8)}px`;
+    // +2px de marge pour éviter toute troncature due aux arrondis
+    inp.style.width = `${Math.max(w + 2, 8)}px`;
     restores.push(() => {
       inp.style.width = prevWidth;
       if (prevFieldSizing) {
