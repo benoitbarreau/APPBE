@@ -1305,7 +1305,7 @@ select {
   text-align: right;
   padding: 1px 4px;
   border-radius: 3px;
-  border: 1px dashed rgba(204, 0, 0, 0.45);
+  border: none;
   background: transparent;
   color: #cc0000;
   outline: none;
@@ -1317,8 +1317,6 @@ select {
   color: rgba(204, 0, 0, 0.55);
 }
 .product-node-label:focus {
-  border-style: solid;
-  border-color: #cc0000;
   background: rgba(255, 255, 255, 0.55);
 }
 .product-node-ref {
