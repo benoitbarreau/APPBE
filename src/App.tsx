@@ -222,15 +222,12 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     try {
       const state = useAppStore.getState();
       const refLabel = state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
-      const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
       await exportDiagram(reactFlow, {
         format,
         filename: `${refLabel}.${format}`,
         legend: {
           signals: state.signals,
           zones: state.zones,
-          meta: state.projectMeta,
-          trade: activeTab?.trade ?? state.projectMeta.trade ?? "",
         },
       });
     } catch (e) {

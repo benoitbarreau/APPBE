@@ -2,15 +2,13 @@ import { toPng, toJpeg, toSvg } from "html-to-image";
 import jsPDF from "jspdf";
 import { getViewportForBounds } from "@xyflow/react";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "./page";
-import type { SignalDef, Zone, ProjectMeta } from "./types";
+import type { SignalDef, Zone } from "./types";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "pdf";
 
 export interface LegendData {
   signals: Record<string, SignalDef>;
   zones: Zone[];
-  meta: ProjectMeta;
-  trade: string; // Lot de l'onglet actif
 }
 
 interface ExportOptions {
@@ -25,14 +23,18 @@ interface ReactFlowAccess {
   getNodes: () => any[];
 }
 
-// A3 landscape print dimensions
+// A3 landscape at ~300 dpi (pixelRatio 2 × RASTER)
 const A3_W_MM = 420;
 const A3_H_MM = 297;
-// Working raster for the snapshot. Width/height match A3 aspect ratio
-// (420/297 = 1.414). pixelRatio 2 doubles the actual canvas, giving
-// effective ~300dpi A3 output.
-const RASTER_W = 2480;
-const RASTER_H = 1754;
+const RASTER_W = 2480;   // 1x width  (× 2 = 4960px ≈ 300dpi A3 width)
+const RASTER_H = 1754;   // 1x height (× 2 = 3508px ≈ 300dpi A3 height)
+const PIX = 2;           // pixelRatio
+
+// Hauteur réservée pour la bande légende (en px 1x ≈ 35mm sur A3)
+const LEGEND_H = 206;
+// Hauteur disponible pour le synoptique
+const DIAGRAM_H = RASTER_H - LEGEND_H;
+
 const NODE_W = 240;
 const NODE_H = 220;
 
@@ -54,22 +56,13 @@ function getViewportElement(): HTMLElement | null {
 }
 
 interface PageRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  index: number;
+  x: number; y: number; width: number; height: number; index: number;
 }
 
-function computePages(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nodes: any[],
-): PageRect[] {
-  let maxRight = PAGE_BOUNDS.width;
-  let maxBottom = PAGE_BOUNDS.height;
-  let minLeft = 0;
-  let minTop = 0;
-  for (const n of nodes) {
+function computePages(nodes: unknown[]): PageRect[] {
+  let maxRight = PAGE_BOUNDS.width, maxBottom = PAGE_BOUNDS.height;
+  let minLeft = 0, minTop = 0;
+  for (const n of nodes as { id?: string; position?: { x: number; y: number } }[]) {
     if (typeof n.id === "string" && n.id.startsWith(PAGE_NODE_ID)) continue;
     const x = n.position?.x ?? 0;
     const y = n.position?.y ?? 0;
@@ -84,40 +77,74 @@ function computePages(
   const rowEnd = Math.max(1, Math.ceil(maxBottom / PAGE_BOUNDS.height));
   const result: PageRect[] = [];
   let idx = 1;
-  for (let r = rowStart; r < rowEnd; r++) {
-    for (let c = colStart; c < colEnd; c++) {
-      result.push({
-        x: c * PAGE_BOUNDS.width,
-        y: r * PAGE_BOUNDS.height,
-        width: PAGE_BOUNDS.width,
-        height: PAGE_BOUNDS.height,
-        index: idx++,
-      });
-    }
-  }
+  for (let r = rowStart; r < rowEnd; r++)
+    for (let c = colStart; c < colEnd; c++)
+      result.push({ x: c * PAGE_BOUNDS.width, y: r * PAGE_BOUNDS.height,
+                     width: PAGE_BOUNDS.width, height: PAGE_BOUNDS.height, index: idx++ });
   return result;
 }
 
-/**
- * field-sizing:content n'est pas supporté par html-to-image (canvas).
- * Avant la capture, on fixe une largeur explicite sur chaque input de
- * label câble, puis on restaure après.
- */
+/** Fixe les largeurs des inputs câble avant capture (field-sizing non supporté par html-to-image). */
 function fixCableLabelWidths(): () => void {
-  const inputs = document.querySelectorAll<HTMLInputElement>(
-    ".cable-edge-type, .cable-edge-len",
-  );
+  const inputs = document.querySelectorAll<HTMLInputElement>(".cable-edge-type, .cable-edge-len");
   const restores: Array<() => void> = [];
   inputs.forEach((inp) => {
     const prev = inp.style.width;
-    const w = Math.max(inp.scrollWidth, 8);
-    inp.style.width = `${w}px`;
+    inp.style.width = `${Math.max(inp.scrollWidth, 8)}px`;
     restores.push(() => { inp.style.width = prev; });
   });
   return () => restores.forEach((r) => r());
 }
 
-async function snapshotToDataUrl(
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/**
+ * Capture le synoptique sur une hauteur réduite (DIAGRAM_H) pour laisser
+ * la place à la bande légende en bas, dans les limites A3.
+ */
+async function snapshotDiagram(
+  format: "png" | "jpeg" | "svg",
+  bounds: { x: number; y: number; width: number; height: number },
+  background: string,
+): Promise<string> {
+  const viewport = getViewportElement();
+  if (!viewport) throw new Error("React Flow viewport introuvable");
+  const restoreWidths = fixCableLabelWidths();
+  // On mappe les bounds sur DIAGRAM_H (pas RASTER_H) pour réserver la bande légende
+  const tx = getViewportForBounds(bounds, RASTER_W, DIAGRAM_H, 0.5, 4, 0);
+  const opts = {
+    backgroundColor: background,
+    width: RASTER_W,
+    height: DIAGRAM_H,
+    pixelRatio: PIX,
+    style: {
+      width: `${RASTER_W}px`,
+      height: `${DIAGRAM_H}px`,
+      transform: `translate(${tx.x}px, ${tx.y}px) scale(${tx.zoom})`,
+    },
+    cacheBust: true,
+    skipFonts: true,
+  };
+  try {
+    if (format === "png") return await toPng(viewport, opts);
+    if (format === "jpeg") return await toJpeg(viewport, { ...opts, quality: 0.95 });
+    return await toSvg(viewport, opts);
+  } finally {
+    restoreWidths();
+  }
+}
+
+/**
+ * Capture le snoptique pleine hauteur A3 (sans bande légende) pour le SVG.
+ */
+async function snapshotFull(
   format: "png" | "jpeg" | "svg",
   bounds: { x: number; y: number; width: number; height: number },
   background: string,
@@ -130,7 +157,7 @@ async function snapshotToDataUrl(
     backgroundColor: background,
     width: RASTER_W,
     height: RASTER_H,
-    pixelRatio: 2,
+    pixelRatio: PIX,
     style: {
       width: `${RASTER_W}px`,
       height: `${RASTER_H}px`,
@@ -148,170 +175,129 @@ async function snapshotToDataUrl(
   }
 }
 
-// ── Cartouche + légende canvas ───────────────────────────────────────────────
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
 /**
- * Compose le snapshot du synoptique avec une bande en bas :
- *   • bas-gauche  : légende types de câbles
- *   • au-dessus   : zones
- *   • bas-droite  : cartouche
- * Retourne un data-url PNG.
+ * Compose le synoptique (hauteur réduite) + bande légende en bas.
+ * Résultat = A3 exact (RASTER_W × RASTER_H × PIX).
+ *
+ * Bande du bas :
+ *   • Gauche   : types de câbles (pastilles + libellés, 2 colonnes)
+ *   • Milieu   : zones (rectangles colorés + libellés)
+ *   • Droite   : cartouche capturé depuis le DOM
  */
-async function composeWithLegend(diagramDataUrl: string, ld: LegendData): Promise<string> {
-  const img = await loadImage(diagramDataUrl);
-  const imgW = img.naturalWidth;   // RASTER_W * pixelRatio = 4960
-  const imgH = img.naturalHeight;  // RASTER_H * pixelRatio = 3508
-  const sc = imgW / RASTER_W;      // scale factor (= pixelRatio = 2)
-
-  // Hauteur de la bande légende (proportionnelle à A3)
-  const stripH = Math.round(260 * sc);
-  const pad = Math.round(16 * sc);
-  const font = `${Math.round(11 * sc)}px -apple-system, Arial, sans-serif`;
-  const fontBold = `bold ${Math.round(11 * sc)}px -apple-system, Arial, sans-serif`;
-  const fontTitle = `bold ${Math.round(12 * sc)}px -apple-system, Arial, sans-serif`;
-  const lineH = Math.round(20 * sc);
-  const rowH  = Math.round(22 * sc);
-  const dotR  = Math.round(6 * sc);
+async function composeWithLegend(
+  diagramDataUrl: string,
+  ld: LegendData,
+): Promise<string> {
+  const diagImg = await loadImage(diagramDataUrl);
+  const sc = PIX;
+  const W = RASTER_W * sc;         // 4960
+  const H = RASTER_H * sc;         // 3508 = A3 total
+  const stripH = LEGEND_H * sc;    // 412  = bande légende
+  const stripY = H - stripH;       // y de début de la bande
 
   const canvas = document.createElement("canvas");
-  canvas.width  = imgW;
-  canvas.height = imgH + stripH;
+  canvas.width  = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d")!;
 
   // Fond blanc
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, W, H);
 
-  // Synoptique
-  ctx.drawImage(img, 0, 0);
+  // Synoptique (occupe les 2/3 supérieurs de l'A3)
+  ctx.drawImage(diagImg, 0, 0, W, stripY);
 
-  // Séparateur
+  // Séparateur haut de bande
   ctx.strokeStyle = "#b0b8c4";
-  ctx.lineWidth = Math.round(1.5 * sc);
-  ctx.beginPath();
-  ctx.moveTo(0, imgH);
-  ctx.lineTo(imgW, imgH);
-  ctx.stroke();
+  ctx.lineWidth = sc;
+  ctx.beginPath(); ctx.moveTo(0, stripY); ctx.lineTo(W, stripY); ctx.stroke();
 
-  const stripY = imgH;
+  const pad = 18 * sc;
+  const rowH = 22 * sc;
+  const font    = `${11 * sc}px -apple-system, Arial, sans-serif`;
+  const fontB   = `bold ${11 * sc}px -apple-system, Arial, sans-serif`;
+  const fontTit = `bold ${12 * sc}px -apple-system, Arial, sans-serif`;
+  const dotR = 6 * sc;
 
-  // ── Cartouche (bas-droite, 30% de la largeur) ────────────────────────────
-  const carW = Math.round(imgW * 0.30);
-  const carX = imgW - carW;
+  // ── Cartouche (droite, 45% de la largeur) ─────────────────────────────
+  const carW = Math.round(W * 0.45);
+  const carX = W - carW;
 
-  // Bordure cartouche
-  ctx.strokeStyle = "#d8dde4";
-  ctx.lineWidth = Math.round(sc);
-  ctx.strokeRect(carX + pad / 2, stripY + pad / 2, carW - pad, stripH - pad);
-
-  // Séparateur vertical gauche cartouche
-  ctx.beginPath();
-  ctx.moveTo(carX, stripY);
-  ctx.lineTo(carX, stripY + stripH);
-  ctx.stroke();
-
-  const fields: { label: string; value: string }[] = [
-    { label: "Campus / Site", value: ld.meta.campus },
-    { label: "Lot",           value: ld.trade },
-    { label: "Date",          value: ld.meta.date },
-    { label: "Client",        value: ld.meta.client },
-    { label: "Lieu",          value: ld.meta.lieu },
-    { label: "Bureau d'étude",value: ld.meta.bureauEtude },
-    { label: "Auteur",        value: ld.meta.authorName },
-    { label: "Version",       value: ld.meta.version },
-  ];
-
-  // 2 colonnes dans le cartouche
-  const carColW = (carW - pad * 2) / 2;
-  let carCol = 0;
-  let carY = stripY + pad * 1.5;
-  for (const f of fields) {
-    const fx = carX + pad + carCol * carColW;
-    ctx.font = `bold ${Math.round(9 * sc)}px -apple-system, Arial, sans-serif`;
-    ctx.fillStyle = "#6c7480";
-    ctx.fillText(f.label.toUpperCase(), fx, carY);
-    ctx.font = `${Math.round(11 * sc)}px -apple-system, Arial, sans-serif`;
-    ctx.fillStyle = "#1c1f24";
-    ctx.fillText(f.value || "—", fx, carY + Math.round(14 * sc));
-    carCol++;
-    if (carCol >= 2) { carCol = 0; carY += lineH * 1.6; }
-    if (carY > stripY + stripH - pad) break;
+  // Capture du composant Cartouche depuis le DOM
+  const cartoucheEl = document.querySelector(".cartouche") as HTMLElement | null;
+  if (cartoucheEl) {
+    try {
+      const carDataUrl = await toPng(cartoucheEl, {
+        pixelRatio: sc,
+        backgroundColor: "#ffffff",
+        skipFonts: true,
+      });
+      const carImg = await loadImage(carDataUrl);
+      // Ajuster la hauteur en conservant le ratio
+      const ratio = carImg.naturalWidth / carImg.naturalHeight;
+      const carH = Math.min(stripH - pad / 2, Math.round(carW / ratio));
+      const carY = stripY + (stripH - carH) / 2;
+      ctx.drawImage(carImg, carX, carY, carW, carH);
+    } catch {
+      // Fallback si la capture échoue : rien
+    }
   }
 
-  // ── Zone gauche (types de câbles + zones) ───────────────────────────────
-  const leftW = imgW - carW;
-  const midX  = Math.round(leftW * 0.42); // séparation zones | câbles
+  // Séparateur vertical gauche du cartouche
+  ctx.strokeStyle = "#d8dde4";
+  ctx.lineWidth = sc;
+  ctx.beginPath(); ctx.moveTo(carX, stripY + pad / 2); ctx.lineTo(carX, H - pad / 2); ctx.stroke();
 
-  // ── Légende types de câbles (bas-gauche, 42% largeur) ──────────────────
+  // Zone disponible pour légende câbles + zones
+  const legendW = carX;
+  const midX = Math.round(legendW * 0.50); // séparation câbles | zones
+
+  // ── Types de câbles (gauche, 0 → midX) ───────────────────────────────
   const signalList = Object.values(ld.signals).filter((s) => s.label);
   let lx = pad;
   let ly = stripY + pad;
-  ctx.font = fontTitle;
-  ctx.fillStyle = "#1c1f24";
-  ctx.fillText("Types de câbles", lx, ly + Math.round(12 * sc));
-  ly += lineH * 1.4;
+  ctx.font = fontTit; ctx.fillStyle = "#1c1f24";
+  ctx.fillText("Types de câbles", lx, ly + 12 * sc);
+  ly += 20 * sc;
 
   const cols = 2;
   const colW = (midX - pad * 2) / cols;
-  let col = 0;
-  let colY = ly;
+  let col = 0, colY = ly;
   for (const sig of signalList) {
     const cx = lx + col * colW;
     ctx.beginPath();
     ctx.arc(cx + dotR, colY + dotR, dotR, 0, Math.PI * 2);
     ctx.fillStyle = sig.color;
     ctx.fill();
-    ctx.font = font;
-    ctx.fillStyle = "#1c1f24";
-    ctx.fillText(sig.label, cx + dotR * 2 + Math.round(4 * sc), colY + dotR + Math.round(4 * sc));
+    ctx.font = font; ctx.fillStyle = "#1c1f24";
+    ctx.fillText(sig.label, cx + dotR * 2 + 4 * sc, colY + dotR + 4 * sc);
     col++;
     if (col >= cols) { col = 0; colY += rowH; }
-    if (colY + rowH > stripY + stripH - pad / 2) break;
+    if (colY + rowH > H - pad / 2) break;
   }
-
-  // ── Zones (au-dessus légende câbles = même colonne gauche, haut) ────────
-  // On inverse : zones en premier (haut de la bande), câbles en dessous
-  // → Re-calculer positions de façon inversée
-  // On va dessiner : zones d'abord, puis câbles en dessous, tout dans la colonne gauche
 
   // Séparateur vertical milieu
   ctx.strokeStyle = "#d8dde4";
-  ctx.lineWidth = Math.round(sc);
-  ctx.beginPath();
-  ctx.moveTo(midX, stripY + pad / 2);
-  ctx.lineTo(midX, stripY + stripH - pad / 2);
-  ctx.stroke();
+  ctx.lineWidth = sc;
+  ctx.beginPath(); ctx.moveTo(midX, stripY + pad / 2); ctx.lineTo(midX, H - pad / 2); ctx.stroke();
 
-  // ── Zones (moitié droite de la zone gauche) ──────────────────────────────
+  // ── Zones (droite de la zone gauche, midX → carX) ────────────────────
   const zoneX = midX + pad;
   let zy = stripY + pad;
-  ctx.font = fontTitle;
-  ctx.fillStyle = "#1c1f24";
-  ctx.fillText("Zones", zoneX, zy + Math.round(12 * sc));
-  zy += lineH * 1.4;
+  ctx.font = fontTit; ctx.fillStyle = "#1c1f24";
+  ctx.fillText("Zones", zoneX, zy + 12 * sc);
+  zy += 20 * sc;
 
   for (const zone of ld.zones) {
-    const rectW = Math.round(20 * sc);
-    const rectH = Math.round(14 * sc);
+    const rW = 20 * sc, rH = 14 * sc;
     ctx.fillStyle = zone.color;
-    ctx.fillRect(zoneX, zy, rectW, rectH);
-    ctx.strokeStyle = "#aaa";
-    ctx.lineWidth = Math.round(0.5 * sc);
-    ctx.strokeRect(zoneX, zy, rectW, rectH);
-    ctx.font = fontBold;
-    ctx.fillStyle = "#1c1f24";
-    ctx.fillText(zone.label, zoneX + rectW + Math.round(6 * sc), zy + Math.round(11 * sc));
+    ctx.fillRect(zoneX, zy, rW, rH);
+    ctx.strokeStyle = "#aaa"; ctx.lineWidth = 0.5 * sc;
+    ctx.strokeRect(zoneX, zy, rW, rH);
+    ctx.font = fontB; ctx.fillStyle = "#1c1f24";
+    ctx.fillText(zone.label, zoneX + rW + 6 * sc, zy + 11 * sc);
     zy += rowH;
-    if (zy + rowH > stripY + stripH - pad / 2) break;
+    if (zy + rowH > H - pad / 2) break;
   }
 
   return canvas.toDataURL("image/png");
@@ -327,43 +313,35 @@ export async function exportDiagram(
   rf: ReactFlowAccess,
   opts: ExportOptions,
 ): Promise<void> {
-  const {
-    format,
-    filename = `synoptique.${format}`,
-    background = "#ffffff",
-    legend,
-  } = opts;
+  const { format, filename = `synoptique.${format}`, background = "#ffffff", legend } = opts;
 
   const allNodes = rf.getNodes();
   const productNodes = allNodes.filter(
-    (n) => typeof n.id === "string" && !n.id.startsWith(PAGE_NODE_ID),
+    (n) => typeof (n as { id?: string }).id === "string" &&
+           !(n as { id: string }).id.startsWith(PAGE_NODE_ID),
   );
-  if (productNodes.length === 0)
-    throw new Error("Aucun produit sur le synoptique");
+  if (productNodes.length === 0) throw new Error("Aucun produit sur le synoptique");
 
   const pages = computePages(allNodes);
 
-  /** Applique le compositing légende si les données sont disponibles */
-  const withLegend = async (dataUrl: string): Promise<string> =>
-    legend ? composeWithLegend(dataUrl, legend) : dataUrl;
+  /** Prend le snapshot puis applique le compositing si legend fournie */
+  const buildPage = async (p: PageRect): Promise<string> => {
+    if (!legend || format === "svg") {
+      return snapshotFull(format === "svg" ? "svg" : "png", p, background);
+    }
+    const diag = await snapshotDiagram("png", p, background);
+    return composeWithLegend(diag, legend);
+  };
 
   if (format === "pdf") {
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a3",
-      compress: true,
-    });
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3", compress: true });
     let first = true;
     for (const p of pages) {
-      let dataUrl = await snapshotToDataUrl("png", p, background);
-      dataUrl = await withLegend(dataUrl);
+      const dataUrl = await buildPage(p);
       if (!first) pdf.addPage("a3", "landscape");
       first = false;
-      // La bande légende allonge l'image, ajuster la hauteur mm en proportion
-      const ratio = legend ? (RASTER_H * 2 + 260 * 2) / (RASTER_H * 2) : 1;
-      const h = A3_H_MM * ratio;
-      pdf.addImage(dataUrl, "PNG", 0, 0, A3_W_MM, h, undefined, "FAST");
+      // L'image composée est exactement A3 (RASTER_W × RASTER_H × PIX)
+      pdf.addImage(dataUrl, "PNG", 0, 0, A3_W_MM, A3_H_MM, undefined, "FAST");
     }
     pdf.save(filename);
     return;
@@ -371,12 +349,10 @@ export async function exportDiagram(
 
   if (format === "png" || format === "jpeg" || format === "svg") {
     if (pages.length === 1) {
-      let dataUrl = await snapshotToDataUrl(format === "svg" ? "svg" : format, pages[0], background);
-      if (format !== "svg") dataUrl = await withLegend(dataUrl);
+      const dataUrl = await buildPage(pages[0]);
       if (format === "svg") {
         const svgText = decodeURIComponent(dataUrl.split(",")[1] ?? "");
-        const blob = new Blob([svgText], { type: "image/svg+xml" });
-        downloadBlob(blob, filename);
+        downloadBlob(new Blob([svgText], { type: "image/svg+xml" }), filename);
       } else {
         downloadDataUrl(dataUrl, filename);
       }
@@ -384,16 +360,13 @@ export async function exportDiagram(
     }
     for (const p of pages) {
       const fname = suffixedFilename(filename, `-page${p.index}`);
-      let dataUrl = await snapshotToDataUrl(format === "svg" ? "svg" : format, p, background);
-      if (format !== "svg") dataUrl = await withLegend(dataUrl);
+      const dataUrl = await buildPage(p);
       if (format === "svg") {
         const svgText = decodeURIComponent(dataUrl.split(",")[1] ?? "");
-        const blob = new Blob([svgText], { type: "image/svg+xml" });
-        downloadBlob(blob, fname);
+        downloadBlob(new Blob([svgText], { type: "image/svg+xml" }), fname);
       } else {
         downloadDataUrl(dataUrl, fname);
       }
     }
-    return;
   }
 }
