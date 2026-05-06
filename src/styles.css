@@ -677,11 +677,12 @@ select {
 /* ── En-tête ── */
 .palette-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: relative;
 }
 .palette-header h3 {
   margin: 0;
@@ -690,9 +691,15 @@ select {
 }
 .palette-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  align-items: center;
 }
+/* Garder le bouton de repli en haut à droite, séparé des actions */
 .palette-collapse-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
   font-size: 11px;
   padding: 3px 7px;
   color: var(--muted);
