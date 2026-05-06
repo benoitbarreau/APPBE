@@ -1743,6 +1743,100 @@ select {
   background: #f0f3f8;
 }
 
+/* ── Résolution de conflits import catalogue ──────────────────────── */
+.conflict-compare {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: stretch;
+  margin: 16px 0;
+}
+.conflict-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fafbfd;
+}
+.conflict-card.incoming {
+  border-color: var(--primary);
+  background: #f0f6ff;
+  box-shadow: 0 0 0 1px var(--primary) inset;
+}
+.conflict-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.conflict-card.incoming .conflict-card-title {
+  color: var(--primary);
+}
+.conflict-vs {
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.product-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+.product-summary li {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+  gap: 10px;
+}
+.product-summary li:last-child {
+  border-bottom: none;
+}
+.product-summary li > span:first-child {
+  color: var(--muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.product-summary li > *:last-child {
+  text-align: right;
+  word-break: break-all;
+}
+.product-summary code {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.conflict-progress {
+  text-align: center;
+  font-size: 11px;
+  margin: 8px 0 14px;
+  font-style: italic;
+}
+.conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 10px 0 14px;
+}
+.conflict-actions button {
+  flex: 0 0 auto;
+}
+.conflict-counters {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* Menu Exporter dans la palette catalogue */
 .palette-export-menu {
   position: relative;
