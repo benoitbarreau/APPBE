@@ -164,16 +164,14 @@ export function ProtectedRoute() {
     }
   }, [user?.id, profile?.status, setReadOnly])
 
-  // ── Persistance continue de la vue active ────────────────────────────
-  useEffect(() => {
+  /** Sauvegarde explicite de la vue. Appelée dans les handlers de
+   *  navigation, jamais via un useEffect basé sur des deps : évite la
+   *  race où l'effet écraserait la vue persistée juste avant que la
+   *  restauration n'ait pu agir au tout premier render. */
+  const persistView = (p: Page, ro: boolean, rov?: string) => {
     if (!user) return
-    savePersistedView({
-      userId: user.id,
-      page,
-      readOnly,
-      readOnlyVersion,
-    })
-  }, [user?.id, page, readOnly, readOnlyVersion])
+    savePersistedView({ userId: user.id, page: p, readOnly: ro, readOnlyVersion: rov })
+  }
 
   // Chargement depuis Supabase après connexion : produits, signaux, zones, catalogue.
   // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
@@ -212,6 +210,7 @@ export function ProtectedRoute() {
       setReadOnly(true)
       setReadOnlyVersion(version)
       setPage('editor')
+      persistView('editor', true, version)
     } catch (e) {
       alert("Impossible de charger cette version : " + (e instanceof Error ? e.message : String(e)))
     }
@@ -222,6 +221,15 @@ export function ProtectedRoute() {
     setReadOnly(false)
     setReadOnlyVersion(undefined)
     setPage('editor')
+    persistView('editor', false)
+  }
+
+  /** Retour à la liste — utilisé par App.onBackToProjects */
+  const handleBackToProjects = () => {
+    setReadOnly(false)
+    setReadOnlyVersion(undefined)
+    setPage('projects')
+    persistView('projects', false)
   }
 
   // ── Erreur fatale d'initialisation (timeout, session corrompue, …) ─────
@@ -293,7 +301,7 @@ export function ProtectedRoute() {
       {page === 'editor' && (
         <App
           onOpenAdminDashboard={openAdmin}
-          onBackToProjects={() => { setReadOnly(false); setReadOnlyVersion(undefined); setPage('projects') }}
+          onBackToProjects={handleBackToProjects}
           readOnly={readOnly}
           readOnlyVersion={readOnlyVersion}
         />
