@@ -405,12 +405,21 @@ export async function printDiagram(
     /* ── Impression ── */
     @media print {
       .toolbar, .page-header { display: none !important; }
-      body { background: #fff; padding: 0; }
-      .page {
-        margin: 0; box-shadow: none;
-        width: 100%; page-break-after: always;
+      html, body {
+        margin: 0 !important; padding: 0 !important;
+        background: #fff !important;
+        width: 420mm; height: 297mm;
       }
-      .page:last-child { page-break-after: avoid; }
+      .page {
+        margin: 0 !important; padding: 0 !important;
+        box-shadow: none !important;
+        width: 420mm; height: 297mm;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+      }
+      .page:last-child { page-break-after: avoid; break-after: avoid; }
+      .page img { display: block; width: 420mm; height: 297mm; }
       @page { size: A3 landscape; margin: 0; }
     }
   </style>
