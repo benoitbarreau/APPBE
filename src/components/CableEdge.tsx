@@ -732,7 +732,7 @@ export function CableEdge({
                     updateCable(cable.id, { lengthMeters: Number(e.target.value) })
                   }
                 />
-                <span className="cable-edge-unit">M</span>
+                <span className="cable-edge-unit">m</span>
               </>
             )}
             {selected && (
