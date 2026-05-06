@@ -121,58 +121,58 @@ function getViewportElement(): HTMLElement | null {
   return document.querySelector(".react-flow__viewport") as HTMLElement | null;
 }
 
-// Canvas réutilisé pour la mesure de largeur de texte
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (!_measureCanvas) _measureCanvas = document.createElement("canvas");
-  const ctx = _measureCanvas.getContext("2d");
-  if (!ctx) return 0;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
-/** Fixe les largeurs des inputs câble avant capture (field-sizing non supporté par html-to-image).
+/** Remplace les inputs des labels câble par des <span> identiques pendant la capture.
  *
- * Problèmes successifs rencontrés :
- *  1. `field-sizing: content` ignore la propriété `width` — il faut le désactiver d'abord.
- *  2. `setProperty("field-sizing", "normal")` est INVALIDE — les seules valeurs valides sont
- *     `fixed` (défaut) et `content`. Une valeur invalide est ignorée donc la règle CSS reste.
- *     → utiliser `"fixed"`.
- *  3. `getBoundingClientRect()` retourne des px viewport (× zoom React Flow) → trop petit.
- *  4. `offsetWidth` peut être imprécis si la mesure intervient avant le re-layout.
+ * Pourquoi : html-to-image a des bugs notoires avec les <input>, en particulier
+ * type="number" — la valeur n'est souvent pas rendue dans le clone, même si l'input
+ * a la bonne largeur. Combiné à `field-sizing: content` (ignoré par le cloneur),
+ * cela tronque ou supprime complètement le texte affiché.
  *
- * Solution la plus fiable : mesurer la largeur du texte via Canvas 2D (font + value),
- * ajouter padding + border + marge de sécurité, et appliquer cette largeur explicite.
+ * Solution la plus fiable : créer un <span> sœur avec le même rendu visuel et la même
+ * valeur, masquer l'input original (display:none) le temps de la capture, puis tout
+ * restaurer après. html-to-image rend les <span>/text nodes parfaitement.
  */
 function fixCableLabelWidths(): () => void {
   const inputs = document.querySelectorAll<HTMLInputElement>(".cable-edge-type, .cable-edge-len");
   const restores: Array<() => void> = [];
+
   inputs.forEach((inp) => {
-    const prevWidth = inp.style.width;
-    const prevFieldSizing = inp.style.getPropertyValue("field-sizing");
-
-    // Mesure exacte du texte avec la police effective
     const cs = window.getComputedStyle(inp);
-    const font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-    const textWidth = measureTextWidth(inp.value || inp.placeholder || "", font);
-    const padding = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-    const border = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
-    // +6px de marge pour absorber arrondis et caret éventuel
-    const target = Math.ceil(textWidth + padding + border + 6);
+    const span = document.createElement("span");
+    span.textContent = inp.value || "";
 
-    // Désactiver field-sizing avec valeur valide (sinon width est ignoré)
-    inp.style.setProperty("field-sizing", "fixed");
-    inp.style.width = `${Math.max(target, 8)}px`;
+    // Reproduire le rendu visuel de l'input
+    span.style.display = "inline-block";
+    span.style.whiteSpace = "nowrap";
+    span.style.font = cs.font;
+    span.style.fontStyle = cs.fontStyle;
+    span.style.fontWeight = cs.fontWeight;
+    span.style.fontSize = cs.fontSize;
+    span.style.fontFamily = cs.fontFamily;
+    span.style.color = cs.color;
+    span.style.background = cs.backgroundColor;
+    span.style.padding = cs.padding;
+    span.style.margin = cs.margin;
+    span.style.border = "none";
+    span.style.textAlign = cs.textAlign;
+    span.style.lineHeight = cs.lineHeight;
+    span.style.letterSpacing = cs.letterSpacing;
+    span.style.verticalAlign = "baseline";
+    // Préserver la classe pour les sélecteurs voisins (ex. margin-right négatif)
+    span.className = inp.className + " __cable-text-clone";
+
+    const parent = inp.parentNode;
+    if (!parent) return;
+    parent.insertBefore(span, inp);
+    const prevDisplay = inp.style.display;
+    inp.style.display = "none";
 
     restores.push(() => {
-      inp.style.width = prevWidth;
-      if (prevFieldSizing) {
-        inp.style.setProperty("field-sizing", prevFieldSizing);
-      } else {
-        inp.style.removeProperty("field-sizing");
-      }
+      span.remove();
+      inp.style.display = prevDisplay;
     });
   });
+
   return () => restores.forEach((r) => r());
 }
 
