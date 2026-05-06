@@ -262,11 +262,11 @@ async function drawCartouche(
   );
   hline(y2);
 
-  // ── ROW 2 : LIEU (corps 75 %, centré) ────────────────────────────────
+  // ── ROW 2 : LIEU (corps 75 %, centré, gras) ─────────────────────────
   cell(
     `LIEU : ${data.lieu || "—"}`,
     cx, y2, bodyW, row2H,
-    `${11 * sc}px Arial, sans-serif`, "#000000",
+    `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   // séparateur vertical logo (démarre ici)
   vline(x3col, y2, cy + ch);
@@ -279,7 +279,7 @@ async function drawCartouche(
   cell(
     data.campus || "—",
     cx, y3, col1W, rowH,
-    `bold ${12 * sc}px Arial, sans-serif`, "#000000",
+    `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   cell(
     "Bureau d'étude",
@@ -288,11 +288,11 @@ async function drawCartouche(
   );
   hline(y4, cx, x3col);
 
-  // ── ROW 4 : tabName | authorName ──────────────────────────────────────
+  // ── ROW 4 : tabName (lot — rouge gras) | authorName ──────────────────
   cell(
     data.tabName || "",
     cx, y4, col1W, rowH,
-    `${11 * sc}px Arial, sans-serif`, "#000000",
+    `bold ${11 * sc}px Arial, sans-serif`, "#cc0000",
   );
   cell(
     data.authorName || "—",
