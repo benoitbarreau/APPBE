@@ -84,6 +84,7 @@ export interface ProjectMeta {
 export interface Tab {
   id: string
   name: string
+  trade?: string   // Lot propre à cet onglet
   nodes: PlacedProduct[]
   cables: Cable[]
   zones: Zone[]

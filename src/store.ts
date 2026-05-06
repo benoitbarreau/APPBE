@@ -64,6 +64,7 @@ interface State {
   renameTab: (tabId: string, name: string) => void;
   duplicateTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
+  setActiveTabTrade: (trade: string) => void;
 
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -213,6 +214,15 @@ export const useAppStore = create<State>()(
         renameTab: (tabId, name) =>
           set((s) => ({
             tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, name } : t)),
+          })),
+
+        setActiveTabTrade: (trade) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === s.activeTabId
+                ? { ...t, trade, name: trade.trim() || t.name }
+                : t,
+            ),
           })),
 
         duplicateTab: (tabId) =>

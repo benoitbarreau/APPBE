@@ -7,8 +7,15 @@ export function Cartouche() {
   const meta = useAppStore((s) => s.projectMeta);
   const update = useAppStore((s) => s.updateProjectMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const tabs = useAppStore((s) => s.tabs);
+  const setActiveTabTrade = useAppStore((s) => s.setActiveTabTrade);
   const { profile } = useAuth();
   const readOnly = useEditorState((s) => s.readOnly);
+
+  // Trade propre à l'onglet actif (fallback sur projectMeta.trade pour anciens projets)
+  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const currentTrade = activeTab?.trade ?? meta.trade ?? "";
 
   // Pré-remplir "Auteur" avec le nom affiché de l'utilisateur connecté (si vide)
   useEffect(() => {
@@ -33,7 +40,13 @@ export function Cartouche() {
       {/* Colonne 1 : Campus / Site, Lot, Date */}
       <div className="cartouche-cell cartouche-site">
         <input className="cartouche-title" value={meta.campus} onChange={setField("campus")} placeholder="Campus / Site" readOnly={readOnly} />
-        <input className="cartouche-trade" value={meta.trade} onChange={setField("trade")} placeholder="Lot" readOnly={readOnly} />
+        <input
+          className="cartouche-trade"
+          value={currentTrade}
+          onChange={(e) => { if (!readOnly) setActiveTabTrade(e.target.value); }}
+          placeholder="Lot"
+          readOnly={readOnly}
+        />
         <input className="cartouche-date" value={meta.date} onChange={setField("date")} placeholder="Date" readOnly={readOnly} />
       </div>
 
