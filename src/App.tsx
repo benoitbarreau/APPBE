@@ -133,7 +133,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       const isModified = lastSavedHash.current !== "" && currentHash !== lastSavedHash.current;
       const isExistingProject = !!state.currentProjectId;
 
-      let metaToSave = state.projectMeta;
+      // ── Date du jour mise à jour à chaque sauvegarde ──────────────────
+      const todayStr = new Date().toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      let metaToSave = { ...state.projectMeta, date: todayStr };
+      updateProjectMeta({ date: todayStr });
+
       let versionsMeta = [...(state.currentVersionsMeta ?? [])];
 
       // ── Archivage + incrément de version si modification détectée ─────
@@ -155,7 +164,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           // Incrémenter la version dans les meta
           const newVersion = incrementVersion(currentVersion);
           updateProjectMeta({ version: newVersion });
-          metaToSave = { ...state.projectMeta, version: newVersion };
+          metaToSave = { ...metaToSave, version: newVersion };
           setVersionsMeta(versionsMeta);
         } catch {
           // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
