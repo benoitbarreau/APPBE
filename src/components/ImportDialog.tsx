@@ -2,6 +2,7 @@ import { useState } from "react";
 import { searchVendorCatalog, type ImportSearchResult } from "../catalog";
 import { useAppStore } from "../store";
 import type { Product } from "../types";
+import { parseProductsCsv } from "../lib/productImportExport";
 
 const VENDORS = ["All", "Extron", "Viewsonic", "Lindy", "Panasonic"] as const;
 
@@ -48,9 +49,77 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
       const arr = Array.isArray(data) ? data : [data];
       for (const p of arr) addProduct(p);
       setInfo(`${arr.length} produit(s) importé(s) depuis ${file.name}.`);
-    } catch (e) {
+    } catch {
       setInfo("Fichier JSON invalide.");
     }
+  };
+
+  /** Lit un fichier CSV/XLS exporté par SynoX et importe les produits. */
+  const importCsvFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const result = parseProductsCsv(text);
+      for (const p of result.products) addProduct(p);
+      const parts: string[] = [];
+      parts.push(`${result.products.length} produit(s) importé(s) depuis ${file.name}.`);
+      if (result.ignored > 0) parts.push(`${result.ignored} ligne(s) ignorée(s).`);
+      if (result.errors.length > 0) {
+        parts.push(result.errors.slice(0, 3).join(" "));
+        if (result.errors.length > 3) parts.push(`(+${result.errors.length - 3} autres erreurs)`);
+      }
+      setInfo(parts.join(" "));
+    } catch (e) {
+      setInfo("Lecture impossible : " + (e instanceof Error ? e.message : "fichier invalide."));
+    }
+  };
+
+  /**
+   * Dispatcher : choisit le bon parser selon l'extension. Les .xls exportés
+   * par SynoX sont en fait du HTML, donc on essaie d'abord CSV, sinon HTML.
+   */
+  const importFile = async (file: File) => {
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith(".json")) {
+      void importJsonFile(file);
+      return;
+    }
+    if (lower.endsWith(".csv")) {
+      void importCsvFile(file);
+      return;
+    }
+    if (lower.endsWith(".xls") || lower.endsWith(".xlsx")) {
+      // Tenter une lecture HTML (XLS-as-HTML produit par SynoX). On extrait
+      // le contenu des cellules, on le re-sérialise en CSV puis on parse.
+      try {
+        const text = await file.text();
+        if (lower.endsWith(".xls") && text.includes("<table")) {
+          const dom = new DOMParser().parseFromString(text, "text/html");
+          const rows = Array.from(dom.querySelectorAll("tr"));
+          const csv = rows
+            .map((tr) =>
+              Array.from(tr.querySelectorAll("th,td"))
+                .map((td) => `"${(td.textContent ?? "").replace(/"/g, '""')}"`)
+                .join(";"),
+            )
+            .join("\n");
+          const result = parseProductsCsv(csv);
+          for (const p of result.products) addProduct(p);
+          setInfo(
+            `${result.products.length} produit(s) importé(s) depuis ${file.name}.` +
+              (result.ignored ? ` ${result.ignored} ligne(s) ignorée(s).` : ""),
+          );
+          return;
+        }
+        setInfo(
+          "Format XLSX binaire non supporté. Réenregistrez en CSV depuis Excel " +
+            "(Fichier → Enregistrer sous → CSV UTF-8).",
+        );
+      } catch (e) {
+        setInfo("Lecture impossible : " + (e instanceof Error ? e.message : "fichier invalide."));
+      }
+      return;
+    }
+    setInfo("Format non reconnu. Acceptés : .json, .csv, .xls.");
   };
 
   return (
@@ -90,16 +159,23 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="form-row">
-            <label>Ou JSON</label>
+            <label>Importer un fichier</label>
             <input
               type="file"
-              accept="application/json"
+              accept=".json,.csv,.xls,application/json,text/csv,application/vnd.ms-excel"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) importJsonFile(f);
+                if (f) void importFile(f);
+                // reset pour pouvoir importer 2x le même fichier
+                e.target.value = "";
               }}
             />
           </div>
+          <p className="muted" style={{ fontSize: 11, marginTop: -8 }}>
+            Formats acceptés : <code>.json</code>, <code>.csv</code> (séparateur ;
+            ou ,), <code>.xls</code> exporté depuis SynoX. Pour un fichier Excel
+            natif, enregistrez-le d'abord en CSV UTF-8.
+          </p>
 
           {info && <div className="info-banner">{info}</div>}
 

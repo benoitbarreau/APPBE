@@ -1743,6 +1743,39 @@ select {
   background: #f0f3f8;
 }
 
+/* Menu Exporter dans la palette catalogue */
+.palette-export-menu {
+  position: relative;
+  display: inline-block;
+}
+.palette-export-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  min-width: 140px;
+  z-index: 2000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.palette-export-dropdown button {
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.palette-export-dropdown button:hover {
+  background: #f0f3f8;
+}
+
 .page-boundary {
   border: 2px dashed #d63838;
   background: transparent;

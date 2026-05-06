@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore, useCatalogMeta } from "../store";
 import type { Product } from "../types";
+import { exportProductsCsv, exportProductsXls } from "../lib/productImportExport";
 
 type GroupBy = "brand" | "category";
 
@@ -25,6 +26,42 @@ export function ProductPalette({
 
   const [filter, setFilter] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("brand");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fermer le menu export au clic extérieur
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
+
+  const handleExportJson = () => {
+    setExportMenuOpen(false);
+    const json = JSON.stringify(products, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "catalogue-produits.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    setExportMenuOpen(false);
+    exportProductsCsv(products);
+  };
+
+  const handleExportXls = () => {
+    setExportMenuOpen(false);
+    exportProductsXls(products);
+  };
 
   // Groupes ouverts — vide = tout replié par défaut
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -120,7 +157,23 @@ export function ProductPalette({
         <h3>Catalogue</h3>
         <div className="palette-actions">
           <button onClick={onNew} title="Créer un nouveau produit">+ Nouveau</button>
-          <button onClick={onImport} title="Importer depuis un fichier JSON">Importer…</button>
+          <button onClick={onImport} title="Importer des produits (JSON, CSV, XLS)">Importer…</button>
+          <div className="palette-export-menu" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={!products.length}
+              title="Exporter le catalogue"
+            >
+              Exporter ▾
+            </button>
+            {exportMenuOpen && (
+              <div className="palette-export-dropdown">
+                <button onClick={handleExportCsv}>CSV</button>
+                <button onClick={handleExportXls}>XLS (Excel)</button>
+                <button onClick={handleExportJson}>JSON</button>
+              </div>
+            )}
+          </div>
           {onCollapse && (
             <button
               className="palette-collapse-btn"
