@@ -308,6 +308,20 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 </td>
               </tr>
             )}
+            {/* Pied de tableau : bouton « + Ligne » sous la dernière ligne, à gauche */}
+            {!readOnly && (
+              <tr className="ip-add-row-tr">
+                <td colSpan={COLUMNS.length + 1} className="ip-add-row-cell">
+                  <button
+                    className="ip-add-row-btn"
+                    onClick={() => addIPRow(tabId)}
+                    title="Ajouter une ligne manuelle"
+                  >
+                    + Ligne
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

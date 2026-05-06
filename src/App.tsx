@@ -629,13 +629,15 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                   {tab.name}
                 </button>
               )}
-              <button
-                className="tab-dup"
-                onClick={() => duplicateTab(tab.id)}
-                title="Dupliquer ce synoptique"
-              >
-                ⎘
-              </button>
+              {!isIPTableTab(tab) && (
+                <button
+                  className="tab-dup"
+                  onClick={() => duplicateTab(tab.id)}
+                  title="Dupliquer ce synoptique"
+                >
+                  ⎘
+                </button>
+              )}
               {tabs.length > 1 && (
                 <button
                   className="tab-close"

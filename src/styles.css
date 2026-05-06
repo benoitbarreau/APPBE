@@ -3957,6 +3957,28 @@ select {
   font-style: italic;
 }
 
+/* Pied de tableau : bouton + Ligne sous la dernière ligne, à gauche */
+.ip-add-row-tr td.ip-add-row-cell {
+  border: none;
+  padding: 4px 0 8px;
+  background: transparent;
+  text-align: left;
+}
+.ip-add-row-btn {
+  font-size: 12px;
+  padding: 4px 12px;
+  color: var(--primary);
+  background: transparent;
+  border: 1px dashed var(--primary);
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ip-add-row-btn:hover {
+  background: #e8f0fe;
+  border-style: solid;
+}
+
 /* Modale d'export Tableau IP */
 .ip-export-columns {
   display: grid;
