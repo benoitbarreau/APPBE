@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
 
 type SortKey = "label" | "reference" | "zone" | "manual";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: Exclude<SortKey, "manual">; label: string }[] = [
-  { key: "label", label: "Étiquette" },
+  { key: "label", label: "Label" },
   { key: "reference", label: "Référence produit" },
   { key: "zone", label: "Zone" },
 ];
@@ -30,7 +30,13 @@ function downloadFile(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Cellule étiquette éditable (clic simple). */
+/** Cellule label éditable (clic simple).
+ *
+ * Garde un draft local pour ne pas commit à chaque frappe (évite re-renders
+ * massifs sur le diagramme), mais resynchronise depuis la prop quand l'input
+ * n'a pas le focus — sinon une saisie depuis le bloc produit ne remonterait
+ * pas dans la liste tant que cette cellule n'a pas été touchée.
+ */
 function LabelCell({
   id,
   label,
@@ -42,23 +48,25 @@ function LabelCell({
 }) {
   const updateNode = useAppStore((s) => s.updateNode);
   const [draft, setDraft] = useState(label);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false);
 
-  // Synchroniser le draft local quand la valeur change ailleurs
-  if (!inputRef.current && draft !== label) setDraft(label);
+  useEffect(() => {
+    if (!focused) setDraft(label);
+  }, [label, focused]);
 
   const commit = () => {
+    setFocused(false);
     if (draft !== label) updateNode(id, { label: draft });
   };
 
   return (
     <input
-      ref={inputRef}
       className="product-label-input"
       value={draft}
       placeholder="—"
       readOnly={readOnly}
       onChange={(e) => setDraft(e.target.value)}
+      onFocus={() => setFocused(true)}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -196,14 +204,14 @@ export function ProductLabelsList() {
 
   // ── Exports ──────────────────────────────────────────────────────────
   const exportCsv = () => {
-    const header = ["Étiquette", "Référence produit", "Zone"].join(";");
+    const header = ["Label", "Référence produit", "Zone"].join(";");
     const lines = rows.map((r) =>
       [r.label, r.reference, r.zoneLabel]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(";"),
     );
     downloadFile(
-      "etiquettes-produits.csv",
+      "labels-produits.csv",
       "﻿" + [header, ...lines].join("\n"),
       "text/csv;charset=utf-8",
     );
@@ -217,7 +225,7 @@ export function ProductLabelsList() {
         .replace(/>/g, "&gt;");
     const headerRow =
       "<tr>" +
-      ["Étiquette", "Référence produit", "Zone"]
+      ["Label", "Référence produit", "Zone"]
         .map((h) => `<th>${escape(h)}</th>`)
         .join("") +
       "</tr>";
@@ -235,7 +243,7 @@ export function ProductLabelsList() {
 <head><meta charset="utf-8" /></head>
 <body><table border="1"><thead>${headerRow}</thead><tbody>${bodyRows}</tbody></table></body>
 </html>`;
-    downloadFile("etiquettes-produits.xls", html, "application/vnd.ms-excel");
+    downloadFile("labels-produits.xls", html, "application/vnd.ms-excel");
   };
 
   const sortActive = sortKey !== "manual";
@@ -243,7 +251,7 @@ export function ProductLabelsList() {
   return (
     <div className="etiquettes-list product-labels-list">
       <div className="etiquettes-header">
-        <h3>Étiquettes produits ({rows.length})</h3>
+        <h3>Labels produits ({rows.length})</h3>
         <div className="etiquettes-actions">
           {sortActive && (
             <button

@@ -71,7 +71,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
           <input
             className="product-node-label"
             value={node.label ?? ""}
-            placeholder="Étiquette"
+            placeholder="Label"
             readOnly={readOnly}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -79,18 +79,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             onChange={(e) =>
               !readOnly && updateNode(node.id, { label: e.target.value })
             }
-            style={
-              headerColor
-                ? {
-                    color: headerColor,
-                    borderColor:
-                      headerColor === "#ffffff"
-                        ? "rgba(255,255,255,0.45)"
-                        : "rgba(0,0,0,0.25)",
-                  }
-                : undefined
-            }
-            title="Étiquette du produit (ex. numéro d'inventaire)"
+            title="Label du produit (ex. numéro d'inventaire)"
           />
         </div>
         <div

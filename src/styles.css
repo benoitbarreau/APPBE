@@ -1305,20 +1305,21 @@ select {
   text-align: right;
   padding: 1px 4px;
   border-radius: 3px;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  background: rgba(255, 255, 255, 0.85);
-  color: inherit;
+  border: 1px dashed rgba(204, 0, 0, 0.45);
+  background: transparent;
+  color: #cc0000;
   outline: none;
   font-family: inherit;
 }
 .product-node-label::placeholder {
   font-weight: 400;
   font-style: italic;
-  opacity: 0.55;
+  color: rgba(204, 0, 0, 0.55);
 }
 .product-node-label:focus {
-  border-color: var(--primary);
-  background: #fff;
+  border-style: solid;
+  border-color: #cc0000;
+  background: rgba(255, 255, 255, 0.55);
 }
 .product-node-ref {
   font-size: 9px;
