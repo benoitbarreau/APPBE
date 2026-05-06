@@ -24,10 +24,52 @@ function LoadingScreen({ message }: { message: string }) {
   )
 }
 
+/** Écran d'erreur d'initialisation avec actions de récupération. */
+function InitErrorScreen({
+  message,
+  onRetry,
+  onSignOut,
+}: {
+  message: string
+  onRetry: () => void
+  onSignOut: () => void
+}) {
+  return (
+    <div className="auth-page">
+      <div className="auth-hero">
+        <img src={logoUrl} alt="SynoX" className="auth-logo" />
+      </div>
+      <div className="auth-card">
+        <div className="auth-card-header">
+          <div className="auth-card-icon" style={{ fontSize: '22px' }}>⚠️</div>
+          <h1 className="auth-card-title">Démarrage impossible</h1>
+          <p className="auth-card-subtitle">
+            Une erreur est survenue à l'initialisation
+          </p>
+        </div>
+        <p className="auth-message" style={{ whiteSpace: 'pre-wrap' }}>
+          {message}
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button className="auth-btn-primary" onClick={onRetry}>
+            🔄 Réessayer
+          </button>
+          <button className="auth-btn-secondary" onClick={onSignOut}>
+            Se reconnecter
+          </button>
+        </div>
+        <p className="muted" style={{ marginTop: 16, fontSize: 11, textAlign: 'center' }}>
+          Si le problème persiste, fermez cet onglet, rouvrez-le, et reconnectez-vous.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 type Page = 'projects' | 'editor'
 
 export function ProtectedRoute() {
-  const { user, profile, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut, initError, retry } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
   const [page, setPage] = useState<Page>('projects')
@@ -94,6 +136,18 @@ export function ProtectedRoute() {
     setReadOnly(false)
     setReadOnlyVersion(undefined)
     setPage('editor')
+  }
+
+  // ── Erreur fatale d'initialisation (timeout, session corrompue, …) ─────
+  // Prioritaire sur tout le reste pour ne JAMAIS rester sur "Chargement…"
+  if (initError) {
+    return (
+      <InitErrorScreen
+        message={initError}
+        onRetry={retry}
+        onSignOut={() => void signOut()}
+      />
+    )
   }
 
   // ── Chargement initial ──────────────────────────────────────────────────

@@ -46,8 +46,12 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   const loadProjects = (archived: boolean) => {
     setListLoading(true)
     setError(null)
-    listProjects(archived)
-      .then(setProjects)
+    // Timeout de 10s : si Supabase ne répond pas, on libère l'UI avec un message
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout : la liste des projets met trop de temps à charger.')), 10_000),
+    )
+    Promise.race([listProjects(archived), timeout])
+      .then(rows => setProjects(rows as ProjectRow[]))
       .catch(e => setError(e instanceof Error ? e.message : 'Erreur chargement'))
       .finally(() => setListLoading(false))
   }
