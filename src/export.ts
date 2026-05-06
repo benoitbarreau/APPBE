@@ -91,6 +91,26 @@ function computePages(
   return result;
 }
 
+/**
+ * field-sizing:content n'est pas supporté par html-to-image (canvas).
+ * Avant la capture, on fixe une largeur explicite sur chaque input de
+ * label câble, puis on restaure après.
+ */
+function fixCableLabelWidths(): () => void {
+  const inputs = document.querySelectorAll<HTMLInputElement>(
+    ".cable-edge-type, .cable-edge-len",
+  );
+  const restores: Array<() => void> = [];
+  inputs.forEach((inp) => {
+    const prev = inp.style.width;
+    // scrollWidth reflète la largeur du contenu rendu
+    const w = Math.max(inp.scrollWidth, 8);
+    inp.style.width = `${w}px`;
+    restores.push(() => { inp.style.width = prev; });
+  });
+  return () => restores.forEach((r) => r());
+}
+
 async function snapshotToDataUrl(
   format: "png" | "jpeg" | "svg",
   bounds: { x: number; y: number; width: number; height: number },
@@ -98,6 +118,8 @@ async function snapshotToDataUrl(
 ): Promise<string> {
   const viewport = getViewportElement();
   if (!viewport) throw new Error("React Flow viewport introuvable");
+  // Fixer les largeurs des inputs câble avant capture (field-sizing non supporté)
+  const restoreWidths = fixCableLabelWidths();
   // 0 padding: the bounds rectangle should fill the raster exactly.
   const tx = getViewportForBounds(bounds, RASTER_W, RASTER_H, 0.5, 4, 0);
   const opts = {
@@ -113,10 +135,13 @@ async function snapshotToDataUrl(
     cacheBust: true,
     skipFonts: true,
   };
-  if (format === "png") return await toPng(viewport, opts);
-  if (format === "jpeg")
-    return await toJpeg(viewport, { ...opts, quality: 0.95 });
-  return await toSvg(viewport, opts);
+  try {
+    if (format === "png") return await toPng(viewport, opts);
+    if (format === "jpeg") return await toJpeg(viewport, { ...opts, quality: 0.95 });
+    return await toSvg(viewport, opts);
+  } finally {
+    restoreWidths();
+  }
 }
 
 function suffixedFilename(filename: string, suffix: string): string {

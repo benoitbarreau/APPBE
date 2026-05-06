@@ -560,24 +560,11 @@ export const useAppStore = create<State>()(
             }
           }
 
-          // ── Fusion signaux (légende) ──────────────────────────────────────
-          // Les signaux du store (cloud mergé au login) ont la priorité.
-          // Le projet fournit uniquement les signaux absents du store global.
-          const currentSignals = get().signals;
-          const mergedSignals: Record<string, SignalDef> = {
-            ...(data.signals ?? {}),
-            ...currentSignals,
-          };
-
-          // ── Fusion zones ──────────────────────────────────────────────────
-          // Les zones du store (cloud mergé au login) ont la priorité.
-          // Les zones du projet ajoutent celles absentes du store global.
-          const currentZones = get().zones;
-          const currentZoneIds = new Set(currentZones.map((z) => z.id));
-          const mergedZones: Zone[] = [
-            ...currentZones,
-            ...(activeTab.zones ?? []).filter((z) => !currentZoneIds.has(z.id)),
-          ];
+          // ── Signaux et zones : JAMAIS écrasés par le projet ─────────────
+          // Ces données sont globales (catalogue partagé d'équipe) et sont
+          // gérées exclusivement via Supabase user_signals / user_zones.
+          // Le JSONB projet peut les contenir pour compatibilité ascendante
+          // mais ne doit jamais écraser l'état courant du store.
 
           set({
             currentProjectId: id,
@@ -587,9 +574,8 @@ export const useAppStore = create<State>()(
             activeTabId,
             nodes: activeTab.nodes,
             cables: activeTab.cables,
-            zones: mergedZones,
+            // zones et signals : on garde ce qui est déjà dans le store
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
-            signals: mergedSignals,
             products: Array.from(mergedProductMap.values()),
             selectedNodeId: null,
             selectedCableId: null,
