@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Guide utilisateur — SynoX</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Réglages d'impression : A4 portrait, marges propres,
+     une page de garde, une table des matières, des sauts de page
+     entre les grandes sections.
+     ───────────────────────────────────────────────────────────── */
+  @page { size: A4 portrait; margin: 18mm 16mm; }
+  @media print {
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  :root {
+    --primary: #2f6fed;
+    --primary-soft: #e8f0fe;
+    --accent: #cc0000;
+    --green: #2e8b57;
+    --orange: #f59e0b;
+    --bg-soft: #f6f8fb;
+    --border: #d6dbe2;
+    --muted: #5a6472;
+    --text: #1c1f24;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: #fff;
+    font-size: 11.5pt;
+    line-height: 1.55;
+  }
+
+  /* ── Bandeau "Imprimer" en haut, masqué à l'impression ────── */
+  .toolbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--primary); color: #fff;
+    padding: 10px 18px; text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .toolbar button {
+    background: #fff; color: var(--primary);
+    border: none; border-radius: 4px;
+    padding: 6px 14px; font-weight: 700;
+    cursor: pointer; font-size: 11pt;
+  }
+  .toolbar button:hover { background: #eef4ff; }
+  .toolbar small { opacity: 0.85; margin-left: 12px; font-size: 10pt; }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 28px 60px;
+  }
+
+  /* ── Page de garde ─────────────────────────────────────────── */
+  .cover {
+    min-height: 240mm;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    background: linear-gradient(135deg, #2f6fed 0%, #6b3fb5 100%);
+    color: #fff;
+    margin: -24px -28px 0;
+    padding: 60px 40px;
+    position: relative;
+  }
+  .cover::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08) 0, transparent 35%);
+    pointer-events: none;
+  }
+  .cover-logo {
+    font-size: 64pt; font-weight: 900;
+    letter-spacing: -2px;
+    margin: 0 0 6px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .cover-tag {
+    font-size: 14pt; opacity: 0.9; margin: 0 0 80px;
+    font-weight: 300; letter-spacing: 0.5px;
+  }
+  .cover-title {
+    font-size: 36pt; font-weight: 800;
+    margin: 0; line-height: 1.1;
+  }
+  .cover-sub {
+    font-size: 16pt; opacity: 0.92; margin: 16px 0 0;
+    font-weight: 300;
+  }
+  .cover-meta {
+    margin-top: auto; padding-top: 60px;
+    font-size: 10pt; opacity: 0.75;
+  }
+
+  /* ── Sommaire ─────────────────────────────────────────────── */
+  .toc {
+    background: var(--bg-soft);
+    border-left: 4px solid var(--primary);
+    padding: 24px 28px;
+    border-radius: 4px;
+  }
+  .toc h2 { margin-top: 0; }
+  .toc ol {
+    list-style: none; padding: 0; margin: 12px 0 0;
+    counter-reset: tocnum;
+  }
+  .toc ol li {
+    counter-increment: tocnum;
+    padding: 6px 0;
+    border-bottom: 1px dotted var(--border);
+    display: flex; justify-content: space-between;
+    font-size: 11pt;
+  }
+  .toc ol li::before {
+    content: counter(tocnum) ".";
+    font-weight: 700; color: var(--primary);
+    width: 28px; flex-shrink: 0;
+  }
+  .toc ol li span:first-of-type { flex: 1; }
+  .toc ol li span:last-of-type { color: var(--muted); font-weight: 600; }
+
+  /* ── Titres ──────────────────────────────────────────────── */
+  h1 {
+    font-size: 24pt; color: var(--primary);
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 6px; margin: 0 0 18px;
+    page-break-after: avoid;
+  }
+  h2 {
+    font-size: 16pt; color: var(--primary);
+    margin: 32px 0 10px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 13pt; color: var(--text);
+    margin: 22px 0 8px;
+    page-break-after: avoid;
+  }
+
+  p { margin: 8px 0 12px; }
+  ul, ol { margin: 8px 0 12px; padding-left: 24px; }
+  li { margin: 4px 0; }
+
+  code, kbd {
+    background: #eef2f7;
+    border: 1px solid var(--border);
+    padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-size: 10pt;
+  }
+  kbd { box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+
+  /* ── Encadrés (astuce, attention, info) ──────────────────── */
+  .box {
+    margin: 14px 0;
+    padding: 12px 16px;
+    border-radius: 6px;
+    border-left: 4px solid var(--primary);
+    background: var(--primary-soft);
+    page-break-inside: avoid;
+  }
+  .box.tip {
+    border-color: var(--green);
+    background: #e8f5e9;
+  }
+  .box.warn {
+    border-color: var(--orange);
+    background: #fff7e0;
+  }
+  .box.danger {
+    border-color: var(--accent);
+    background: #ffe5e5;
+  }
+  .box-title {
+    font-weight: 700;
+    margin: 0 0 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .box-title svg { flex-shrink: 0; }
+  .box p:last-child { margin-bottom: 0; }
+
+  /* ── Étapes numérotées (procédures) ──────────────────────── */
+  .steps {
+    counter-reset: step;
+    list-style: none; padding: 0;
+    margin: 14px 0;
+  }
+  .steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 4px 0 14px 44px;
+    border-left: 2px solid var(--primary-soft);
+    margin-left: 14px;
+  }
+  .steps > li:last-child { border-left-color: transparent; }
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: -16px; top: 0;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--primary); color: #fff;
+    font-weight: 700; font-size: 11pt;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  /* ── Boutons illustrés (look bouton de l'app) ────────────── */
+  .btn-mock {
+    display: inline-block;
+    padding: 3px 9px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 10pt;
+    font-weight: 600;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .btn-mock.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-mock.danger { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Visuels SVG ─────────────────────────────────────────── */
+  .figure {
+    margin: 18px 0;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .figure svg {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fafbfd;
+    padding: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .figure .caption {
+    display: block;
+    font-size: 9.5pt;
+    color: var(--muted);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* ── Tableaux ────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 10.5pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-soft);
+    font-weight: 700;
+    color: var(--primary);
+  }
+  tr:nth-child(even) td { background: #fafbfd; }
+
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 9pt;
+    font-weight: 700;
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .pill.green { background: #d4f5d4; color: #2e8b57; }
+  .pill.red { background: #ffe5e5; color: var(--accent); }
+  .pill.orange { background: #ffe7c2; color: #b06800; }
+
+  .footer-note {
+    margin-top: 60px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 9.5pt;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Barre d'outils visible uniquement à l'écran -->
+<div class="toolbar no-print">
+  <button onclick="window.print()">🖨 Enregistrer en PDF</button>
+  <small>Astuce : dans la fenêtre d'impression, choisissez « Enregistrer au format PDF » comme destination.</small>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGE DE GARDE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="container">
+
+<section class="cover">
+  <h1 class="cover-logo">SynoX</h1>
+  <p class="cover-tag">Synoptiques audiovisuels — Vidéo Synergie</p>
+  <h2 class="cover-title">Guide utilisateur</h2>
+  <p class="cover-sub">Tout ce qu'il faut savoir, expliqué simplement</p>
+  <p class="cover-meta">Version du guide — Mai 2026</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SOMMAIRE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>Sommaire</h1>
+<div class="toc">
+  <ol>
+    <li><span>Bienvenue dans SynoX</span><span>p. 3</span></li>
+    <li><span>Premiers pas — Se connecter</span><span>p. 4</span></li>
+    <li><span>Mes projets</span><span>p. 5</span></li>
+    <li><span>L'écran principal</span><span>p. 6</span></li>
+    <li><span>Ajouter un produit sur le synoptique</span><span>p. 8</span></li>
+    <li><span>Relier les produits avec des câbles</span><span>p. 10</span></li>
+    <li><span>Modifier l'apparence d'un câble</span><span>p. 12</span></li>
+    <li><span>Les zones — colorer des groupes de produits</span><span>p. 14</span></li>
+    <li><span>Les labels — étiqueter chaque produit</span><span>p. 16</span></li>
+    <li><span>Le panneau « Outils » à droite</span><span>p. 18</span></li>
+    <li><span>Plusieurs synoptiques dans un projet (onglets)</span><span>p. 20</span></li>
+    <li><span>Le cartouche du document</span><span>p. 21</span></li>
+    <li><span>Sauvegarder son travail</span><span>p. 22</span></li>
+    <li><span>Exporter et imprimer en A3</span><span>p. 23</span></li>
+    <li><span>Mode lecture seule (versions archivées)</span><span>p. 25</span></li>
+    <li><span>Mon compte</span><span>p. 26</span></li>
+    <li><span>Raccourcis et astuces</span><span>p. 27</span></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     1. BIENVENUE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>1. Bienvenue dans SynoX</h1>
+
+<p>SynoX est une application web qui vous aide à créer rapidement des <strong>synoptiques audiovisuels</strong> : ces plans qui représentent les équipements et leurs raccordements (câbles, signaux, alimentations) dans une salle, une régie, un campus.</p>
+
+<h3>Ce que vous pouvez faire avec SynoX</h3>
+<ul>
+  <li>Glisser-déposer des produits depuis un catalogue.</li>
+  <li>Tracer des câbles entre les ports d'entrée et de sortie.</li>
+  <li>Étiqueter chaque produit, chaque câble, chaque zone.</li>
+  <li>Organiser plusieurs synoptiques dans un même projet (un par lot, par salle, etc.).</li>
+  <li>Exporter en PNG, JPEG, SVG, PDF, ou imprimer en format A3.</li>
+  <li>Sauvegarder dans le cloud avec un historique automatique des versions.</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 Pas besoin d'installer quoi que ce soit</p>
+  <p>SynoX fonctionne dans votre navigateur. Tous vos projets sont sauvegardés en ligne et accessibles depuis n'importe quel ordinateur.</p>
+</div>
+
+<h3>Pour qui ?</h3>
+<p>Pour les bureaux d'études audiovisuels, les intégrateurs, les chefs de projet, et toute personne qui doit produire un synoptique propre et lisible.</p>
+
+<!-- ═══════════════════════════════════════════════════════════
+     2. SE CONNECTER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>2. Premiers pas — Se connecter</h1>
+
+<p>Avant d'utiliser SynoX, il faut un compte. Les comptes sont validés par un administrateur.</p>
+
+<h3>Étapes</h3>
+<ol class="steps">
+  <li>Ouvrez l'adresse de l'application dans votre navigateur (Chrome ou Edge recommandé).</li>
+  <li>Cliquez sur <span class="btn-mock">Créer un compte</span> si c'est votre première visite.</li>
+  <li>Saisissez votre nom, votre email professionnel et un mot de passe.</li>
+  <li>Attendez la validation par un administrateur (vous recevrez un email).</li>
+  <li>Une fois validé, revenez sur la page et cliquez sur <span class="btn-mock primary">Se connecter</span>.</li>
+</ol>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Compte en attente</p>
+  <p>Si vous voyez un message « Compte en attente d'approbation », c'est normal : un administrateur doit valider votre inscription. Cela peut prendre quelques heures.</p>
+</div>
+
+<h3>Mot de passe oublié ?</h3>
+<p>Sur la page de connexion, cliquez sur <em>« Mot de passe oublié »</em>. Vous recevrez un lien par email pour le réinitialiser.</p>
+
+<!-- ═══════════════════════════════════════════════════════════
+     3. MES PROJETS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>3. Mes projets</h1>
+
+<p>Une fois connecté, vous arrivez sur la liste de vos projets. C'est votre point de départ.</p>
+
+<div class="figure">
+  <svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="300" fill="#fafbfd"/>
+    <rect x="20" y="20" width="560" height="40" fill="#2f6fed" rx="4"/>
+    <text x="40" y="46" fill="#fff" font-size="16" font-weight="700">SynoX — Mes projets</text>
+    <rect x="430" y="28" width="130" height="24" fill="#fff" rx="3"/>
+    <text x="495" y="44" fill="#2f6fed" font-size="11" font-weight="700" text-anchor="middle">+ Nouveau projet</text>
+
+    <rect x="20" y="80" width="270" height="100" fill="#fff" stroke="#d6dbe2" rx="6"/>
+    <text x="35" y="105" font-size="13" font-weight="700">Campus Renault</text>
+    <text x="35" y="125" fill="#5a6472" font-size="10">Salle de réunion R2.04</text>
+    <text x="35" y="145" fill="#5a6472" font-size="10">Modifié le 5 mai 2026 — V1.4</text>
+    <rect x="35" y="155" width="60" height="20" fill="#e8f0fe" rx="3"/>
+    <text x="65" y="169" fill="#2f6fed" font-size="10" text-anchor="middle" font-weight="700">Ouvrir</text>
+
+    <rect x="310" y="80" width="270" height="100" fill="#fff" stroke="#d6dbe2" rx="6"/>
+    <text x="325" y="105" font-size="13" font-weight="700">Auditorium SNCF</text>
+    <text x="325" y="125" fill="#5a6472" font-size="10">Lyon Part-Dieu</text>
+    <text x="325" y="145" fill="#5a6472" font-size="10">Modifié le 28 avril 2026 — V2.1</text>
+    <rect x="325" y="155" width="60" height="20" fill="#e8f0fe" rx="3"/>
+    <text x="355" y="169" fill="#2f6fed" font-size="10" text-anchor="middle" font-weight="700">Ouvrir</text>
+
+    <rect x="20" y="200" width="560" height="80" fill="#fff" stroke="#d6dbe2" stroke-dasharray="4,3" rx="6"/>
+    <text x="300" y="246" fill="#5a6472" font-size="11" text-anchor="middle" font-style="italic">+ Cliquer pour créer un nouveau projet</text>
+  </svg>
+  <span class="caption">Vue de la liste des projets</span>
+</div>
+
+<h3>Que faire ici ?</h3>
+<ul>
+  <li><strong>Ouvrir un projet existant</strong> : cliquez dessus.</li>
+  <li><strong>Créer un nouveau projet</strong> : bouton <span class="btn-mock primary">+ Nouveau projet</span>.</li>
+  <li><strong>Renommer / Dupliquer / Supprimer</strong> : menu sur chaque carte.</li>
+  <li><strong>Voir les versions archivées</strong> : un projet conserve les 3 dernières versions sauvegardées.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════
+     4. ÉCRAN PRINCIPAL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>4. L'écran principal</h1>
+
+<p>Quand vous ouvrez un projet, l'écran se divise en quatre zones :</p>
+
+<div class="figure">
+  <svg viewBox="0 0 600 360" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="360" fill="#fafbfd"/>
+    <!-- Header -->
+    <rect x="0" y="0" width="600" height="36" fill="#2f6fed"/>
+    <text x="14" y="23" fill="#fff" font-size="13" font-weight="800">SynoX</text>
+    <text x="80" y="23" fill="#fff" font-size="11">Mon Projet</text>
+    <rect x="380" y="6" width="60" height="22" fill="#fff" rx="3"/>
+    <text x="410" y="21" fill="#2f6fed" font-size="10" font-weight="700" text-anchor="middle">Sauver</text>
+    <rect x="450" y="6" width="60" height="22" fill="#fff" rx="3"/>
+    <text x="480" y="21" fill="#2f6fed" font-size="10" font-weight="700" text-anchor="middle">Exporter</text>
+    <rect x="520" y="6" width="70" height="22" fill="#fff" rx="3"/>
+    <text x="555" y="21" fill="#2f6fed" font-size="10" font-weight="700" text-anchor="middle">Imprimer</text>
+    <!-- Catalogue gauche -->
+    <rect x="0" y="36" width="120" height="324" fill="#eef2f7"/>
+    <text x="60" y="58" font-size="11" font-weight="700" text-anchor="middle">Catalogue</text>
+    <rect x="10" y="68" width="100" height="40" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <rect x="10" y="116" width="100" height="40" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <rect x="10" y="164" width="100" height="40" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <!-- Zone canvas -->
+    <rect x="120" y="36" width="360" height="324" fill="#fff"/>
+    <text x="300" y="58" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">Synoptique</text>
+    <rect x="180" y="120" width="100" height="80" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="180" y="120" width="100" height="20" fill="#fce5cd" rx="4"/>
+    <text x="230" y="134" font-size="9" font-weight="700" text-anchor="middle">Extron</text>
+    <rect x="320" y="180" width="100" height="80" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="320" y="180" width="100" height="20" fill="#cfe2f3" rx="4"/>
+    <text x="370" y="194" font-size="9" font-weight="700" text-anchor="middle">Crestron</text>
+    <line x1="280" y1="160" x2="320" y2="220" stroke="#2f6fed" stroke-width="2"/>
+    <!-- Outils droite -->
+    <rect x="480" y="36" width="120" height="324" fill="#eef2f7"/>
+    <text x="540" y="58" font-size="11" font-weight="700" text-anchor="middle">Outils</text>
+    <rect x="490" y="68" width="100" height="22" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="540" y="83" font-size="9" text-anchor="middle">Câbles</text>
+    <rect x="490" y="94" width="100" height="22" fill="#2f6fed" rx="3"/>
+    <text x="540" y="109" fill="#fff" font-size="9" text-anchor="middle">Étiquettes</text>
+    <rect x="490" y="120" width="100" height="22" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="540" y="135" font-size="9" text-anchor="middle">Label</text>
+    <rect x="490" y="146" width="100" height="22" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="540" y="161" font-size="9" text-anchor="middle">Zones</text>
+    <rect x="490" y="172" width="100" height="22" fill="#fff" stroke="#d6dbe2" rx="3"/>
+    <text x="540" y="187" font-size="9" text-anchor="middle">Légende</text>
+
+    <!-- Légendes flèches -->
+    <text x="60" y="340" font-size="9" text-anchor="middle" fill="#5a6472">① Catalogue</text>
+    <text x="300" y="340" font-size="9" text-anchor="middle" fill="#5a6472">② Synoptique</text>
+    <text x="540" y="340" font-size="9" text-anchor="middle" fill="#5a6472">③ Outils</text>
+    <text x="300" y="20" font-size="9" text-anchor="middle" fill="#fff">④ Barre d'actions</text>
+  </svg>
+  <span class="caption">Les quatre zones de l'interface</span>
+</div>
+
+<table>
+  <tr><th>Zone</th><th>Rôle</th></tr>
+  <tr><td>① <strong>Catalogue</strong></td><td>Tous les produits disponibles. Glissez-en un sur le synoptique pour l'ajouter.</td></tr>
+  <tr><td>② <strong>Synoptique</strong></td><td>Le plan de travail. Vous y placez les produits, tracez les câbles, organisez tout.</td></tr>
+  <tr><td>③ <strong>Outils</strong></td><td>5 onglets : <em>Câbles, Étiquettes, Label, Zones, Légende</em>. Listes triables et exportables.</td></tr>
+  <tr><td>④ <strong>Barre d'actions</strong></td><td>Sauvegarder, Réorganiser, Exporter, Imprimer, Tableau de bord, Mon compte.</td></tr>
+</table>
+
+<div class="box tip">
+  <p class="box-title">💡 Replier les panneaux</p>
+  <p>Le catalogue (à gauche) et le panneau Outils (à droite) se replient pour gagner de la place. Cliquez sur la flèche en haut du panneau.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     5. AJOUTER UN PRODUIT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>5. Ajouter un produit sur le synoptique</h1>
+
+<h3>Méthode rapide : glisser-déposer</h3>
+<ol class="steps">
+  <li>Dans le catalogue (à gauche), trouvez le produit voulu (vous pouvez filtrer par marque ou par catégorie).</li>
+  <li>Cliquez sur sa carte et glissez-le sur le synoptique.</li>
+  <li>Lâchez à l'endroit souhaité — le produit apparaît avec ses entrées (à gauche) et ses sorties (à droite).</li>
+</ol>
+
+<h3>Le bloc produit en détail</h3>
+
+<div class="figure">
+  <svg viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="480" height="280" fill="#fafbfd"/>
+    <!-- Bloc -->
+    <rect x="120" y="40" width="240" height="200" fill="#fff" stroke="#d6dbe2" stroke-width="1.5" rx="6"/>
+    <!-- Header -->
+    <rect x="120" y="40" width="240" height="60" fill="#fce5cd" rx="6"/>
+    <rect x="120" y="80" width="240" height="20" fill="#fce5cd"/>
+    <text x="135" y="62" font-size="13" font-weight="800">Extron</text>
+    <text x="345" y="62" fill="#cc0000" font-size="10" font-weight="700" text-anchor="end">EXT-04</text>
+    <text x="135" y="78" font-size="9" fill="#5a6472">DMP 64+ C AT</text>
+    <text x="135" y="93" font-size="9" font-style="italic" fill="#5a6472">DSP audio</text>
+    <text x="345" y="93" font-size="9" font-weight="700" text-anchor="end">Régie</text>
+    <!-- Ports -->
+    <circle cx="120" cy="120" r="4" fill="#f5c432"/>
+    <text x="130" y="124" font-size="9">IN 1</text>
+    <circle cx="120" cy="140" r="4" fill="#f5c432"/>
+    <text x="130" y="144" font-size="9">IN 2</text>
+    <circle cx="120" cy="160" r="4" fill="#f5c432"/>
+    <text x="130" y="164" font-size="9">IN 3</text>
+    <circle cx="120" cy="180" r="4" fill="#7fc97f"/>
+    <text x="130" y="184" font-size="9">DANTE</text>
+
+    <circle cx="360" cy="120" r="4" fill="#f5c432"/>
+    <text x="350" y="124" font-size="9" text-anchor="end">1 out</text>
+    <circle cx="360" cy="140" r="4" fill="#f5c432"/>
+    <text x="350" y="144" font-size="9" text-anchor="end">2 out</text>
+    <circle cx="360" cy="160" r="4" fill="#7fc97f"/>
+    <text x="350" y="164" font-size="9" text-anchor="end">LAN</text>
+    <circle cx="360" cy="180" r="4" fill="#000"/>
+    <text x="350" y="184" font-size="9" text-anchor="end">Power</text>
+
+    <!-- Annotations -->
+    <line x1="240" y1="40" x2="240" y2="20" stroke="#2f6fed" stroke-dasharray="3"/>
+    <text x="240" y="14" font-size="10" font-weight="700" text-anchor="middle" fill="#2f6fed">① Marque</text>
+    <line x1="345" y1="62" x2="430" y2="62" stroke="#cc0000" stroke-dasharray="3"/>
+    <text x="430" y="58" font-size="10" font-weight="700" fill="#cc0000">② Label (libre)</text>
+    <line x1="345" y1="93" x2="430" y2="115" stroke="#5a6472" stroke-dasharray="3"/>
+    <text x="430" y="120" font-size="10" font-weight="700" fill="#5a6472">③ Zone</text>
+    <line x1="80" y1="120" x2="115" y2="120" stroke="#2e8b57" stroke-dasharray="3"/>
+    <text x="78" y="124" font-size="10" font-weight="700" text-anchor="end" fill="#2e8b57">④ Entrées</text>
+    <line x1="365" y1="180" x2="430" y2="220" stroke="#2e8b57" stroke-dasharray="3"/>
+    <text x="430" y="225" font-size="10" font-weight="700" fill="#2e8b57">⑤ Sorties</text>
+  </svg>
+  <span class="caption">Anatomie d'un bloc produit</span>
+</div>
+
+<table>
+  <tr><th>Élément</th><th>Comment l'utiliser</th></tr>
+  <tr><td>① Marque</td><td>Affichage automatique. Pour changer, modifiez la fiche produit dans le catalogue.</td></tr>
+  <tr><td>② Label</td><td>Champ texte rouge à droite. Cliquez et tapez (ex. <code>EXT-04</code>, <code>Baie 1</code>).</td></tr>
+  <tr><td>③ Zone</td><td>Apparaît si une zone est assignée. Pour assigner : sélectionnez le bloc puis utilisez le menu déroulant.</td></tr>
+  <tr><td>④ Entrées</td><td>Cercles à gauche. La couleur indique le type de signal.</td></tr>
+  <tr><td>⑤ Sorties</td><td>Cercles à droite. Idem.</td></tr>
+</table>
+
+<h3>Déplacer, supprimer, dupliquer</h3>
+<ul>
+  <li><strong>Déplacer</strong> : cliquez et glissez le bloc.</li>
+  <li><strong>Sélectionner</strong> : un seul clic — le bloc passe en bordure bleue.</li>
+  <li><strong>Supprimer</strong> : <kbd>Suppr</kbd> ou <kbd>Backspace</kbd> sur un bloc sélectionné.</li>
+  <li><strong>Configurer les ports</strong> : double-cliquez sur le bloc.</li>
+</ul>
+
+<div class="box">
+  <p class="box-title">ℹ️ Réorganiser tout d'un coup</p>
+  <p>Le bouton <span class="btn-mock">Réorganiser</span> en haut place automatiquement les blocs pour minimiser les croisements de câbles. Pratique sur les gros synoptiques.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     6. CÂBLES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>6. Relier les produits avec des câbles</h1>
+
+<p>Un câble représente une liaison entre deux ports. SynoX choisit automatiquement le bon type de câble selon le signal (HDMI, RJ45, audio, etc.).</p>
+
+<h3>Tracer un câble</h3>
+<ol class="steps">
+  <li>Survolez la sortie d'un bloc (cercle de droite). Le curseur change.</li>
+  <li>Cliquez et maintenez, puis glissez vers l'entrée d'un autre bloc.</li>
+  <li>Lâchez sur le port cible — le câble est créé avec un numéro automatique (ex. <code>HDMI3</code>, <code>IP12</code>).</li>
+</ol>
+
+<div class="figure">
+  <svg viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="500" height="200" fill="#fafbfd"/>
+    <!-- Bloc 1 -->
+    <rect x="40" y="60" width="120" height="80" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="40" y="60" width="120" height="20" fill="#cfe2f3" rx="4"/>
+    <text x="100" y="74" font-size="9" font-weight="700" text-anchor="middle">Source</text>
+    <circle cx="160" cy="110" r="4" fill="#8b4fba"/>
+    <text x="155" y="114" font-size="8" text-anchor="end">HDMI</text>
+    <!-- Bloc 2 -->
+    <rect x="340" y="60" width="120" height="80" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="340" y="60" width="120" height="20" fill="#fce5cd" rx="4"/>
+    <text x="400" y="74" font-size="9" font-weight="700" text-anchor="middle">Écran</text>
+    <circle cx="340" cy="110" r="4" fill="#8b4fba"/>
+    <text x="346" y="114" font-size="8">HDMI</text>
+    <!-- Câble -->
+    <path d="M 160 110 L 250 110 L 250 110 L 340 110" stroke="#8b4fba" stroke-width="2.5" fill="none"/>
+    <rect x="220" y="92" width="60" height="22" fill="#fff" stroke="#8b4fba" rx="3"/>
+    <text x="250" y="107" font-size="9" font-weight="700" text-anchor="middle" fill="#8b4fba">HDMI 2.0 5m</text>
+    <text x="250" y="170" font-size="9" text-anchor="middle" fill="#5a6472" font-style="italic">Le câble est nommé HDMI1, HDMI2... automatiquement</text>
+  </svg>
+  <span class="caption">Un câble HDMI entre une source et un écran</span>
+</div>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Compatibilité des signaux</p>
+  <p>SynoX vérifie que le port source et le port cible utilisent un signal compatible. Si vous tentez de raccorder un port HDMI à un port RJ45, la liaison est refusée.</p>
+</div>
+
+<h3>Modifier ou supprimer un câble</h3>
+<ul>
+  <li><strong>Cliquer dessus</strong> pour le sélectionner (il s'épaissit).</li>
+  <li><strong>Inverser le sens de la flèche</strong> : bouton <span class="btn-mock">⇄</span> sur l'étiquette du câble.</li>
+  <li><strong>Supprimer</strong> : <kbd>Suppr</kbd> sur un câble sélectionné.</li>
+  <li><strong>Plier le tracé</strong> : sélectionnez le câble puis glissez les poignées qui apparaissent au milieu de chaque segment.</li>
+  <li><strong>Ajouter un coude</strong> : cliquez sur un des petits cercles blancs sur le tracé et glissez.</li>
+  <li><strong>Supprimer un coude</strong> : clic-droit dessus.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════
+     7. APPARENCE D'UN CABLE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>7. Modifier l'apparence d'un câble</h1>
+
+<p>Chaque câble affiche une étiquette comportant son <strong>type</strong>, sa <strong>longueur</strong>, et éventuellement un <strong>libellé personnalisé</strong>.</p>
+
+<div class="figure">
+  <svg viewBox="0 0 500 160" xmlns="http://www.w3.org/2000/svg">
+    <rect width="500" height="160" fill="#fafbfd"/>
+    <line x1="40" y1="80" x2="460" y2="80" stroke="#888" stroke-width="2.5"/>
+    <rect x="180" y="58" width="140" height="22" fill="#fff" stroke="#888" rx="3"/>
+    <text x="195" y="74" font-size="11" font-weight="700">Cordon secteur</text>
+    <text x="295" y="74" font-size="11" font-weight="700" fill="#00bfd8" text-anchor="end">5m</text>
+    <text x="250" y="100" font-size="10" font-weight="700" fill="#cc0000" text-anchor="middle">Onduleur principal</text>
+    <line x1="220" y1="80" x2="220" y2="40" stroke="#2f6fed" stroke-dasharray="3"/>
+    <text x="220" y="32" font-size="10" text-anchor="middle" fill="#2f6fed" font-weight="700">Type de câble</text>
+    <line x1="290" y1="80" x2="350" y2="40" stroke="#2f6fed" stroke-dasharray="3"/>
+    <text x="380" y="38" font-size="10" fill="#2f6fed" font-weight="700">Longueur</text>
+    <line x1="250" y1="100" x2="250" y2="135" stroke="#cc0000" stroke-dasharray="3"/>
+    <text x="250" y="148" font-size="10" text-anchor="middle" fill="#cc0000" font-weight="700">Libellé personnalisé</text>
+  </svg>
+  <span class="caption">Étiquette d'un câble — trois zones modifiables</span>
+</div>
+
+<h3>Modifier directement sur le câble</h3>
+<ol class="steps">
+  <li>Cliquez sur l'étiquette du câble (le rectangle blanc au milieu du tracé).</li>
+  <li>Tapez le nouveau type ou la nouvelle longueur.</li>
+  <li>Pressez <kbd>Tab</kbd> ou cliquez ailleurs pour valider.</li>
+</ol>
+
+<h3>Vue simple ou détaillée</h3>
+<p>Dans l'onglet <strong>Étiquettes</strong> du panneau de droite, le bouton <span class="btn-mock">Vue simple / Vue détaillée</span> bascule l'affichage :</p>
+<ul>
+  <li><strong>Vue simple</strong> : seul le numéro et le type de câble sont visibles.</li>
+  <li><strong>Vue détaillée</strong> : numéro, type, longueur et libellé.</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 Déplacer une étiquette de câble</p>
+  <p>Cliquez sur le rectangle blanc et glissez-le. Pratique quand l'étiquette chevauche un autre élément.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     8. ZONES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>8. Les zones — colorer des groupes de produits</h1>
+
+<p>Les zones permettent de regrouper visuellement plusieurs produits en attribuant la même couleur à leur entête. Très pratique pour distinguer la régie, la baie, la salle, le rack équipement, etc.</p>
+
+<h3>Créer une zone</h3>
+<ol class="steps">
+  <li>Ouvrez le panneau <strong>Outils</strong> à droite, onglet <span class="btn-mock">Zones</span>.</li>
+  <li>Cliquez sur <span class="btn-mock primary">+ Ajouter</span>.</li>
+  <li>Donnez-lui un nom (ex. <em>Baie 1</em>) et choisissez sa couleur.</li>
+</ol>
+
+<h3>Affecter une zone à un produit</h3>
+<ol class="steps">
+  <li>Cliquez sur le bloc produit pour le sélectionner.</li>
+  <li>Un menu déroulant apparaît dans son entête : choisissez la zone.</li>
+  <li>L'entête prend la couleur de la zone, et le nom de la zone s'affiche à droite de la catégorie.</li>
+</ol>
+
+<div class="figure">
+  <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="220" fill="#fafbfd"/>
+    <!-- Bloc régie (orange) -->
+    <rect x="30" y="40" width="160" height="120" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="30" y="40" width="160" height="40" fill="#fce5cd" rx="4"/>
+    <text x="44" y="58" font-size="11" font-weight="700">Extron</text>
+    <text x="178" y="58" font-size="9" font-weight="700" fill="#cc0000" text-anchor="end">EXT-04</text>
+    <text x="44" y="72" font-size="9" fill="#5a6472">DSP audio</text>
+    <text x="178" y="72" font-size="9" text-anchor="end">Régie</text>
+    <!-- Bloc rack (bleu) -->
+    <rect x="220" y="40" width="160" height="120" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="220" y="40" width="160" height="40" fill="#cfe2f3" rx="4"/>
+    <text x="234" y="58" font-size="11" font-weight="700">Crestron</text>
+    <text x="368" y="58" font-size="9" font-weight="700" fill="#cc0000" text-anchor="end">DM-04</text>
+    <text x="234" y="72" font-size="9" fill="#5a6472">Matrice</text>
+    <text x="368" y="72" font-size="9" text-anchor="end">Rack</text>
+    <!-- Bloc salle (vert) -->
+    <rect x="410" y="40" width="160" height="120" fill="#fff" stroke="#d6dbe2" rx="4"/>
+    <rect x="410" y="40" width="160" height="40" fill="#d4f5d4" rx="4"/>
+    <text x="424" y="58" font-size="11" font-weight="700">Sony</text>
+    <text x="558" y="58" font-size="9" font-weight="700" fill="#cc0000" text-anchor="end">TV-01</text>
+    <text x="424" y="72" font-size="9" fill="#5a6472">Écran 65"</text>
+    <text x="558" y="72" font-size="9" text-anchor="end">Salle</text>
+    <text x="300" y="195" font-size="10" font-style="italic" fill="#5a6472" text-anchor="middle">Une couleur par zone — repère visuel immédiat</text>
+  </svg>
+  <span class="caption">Trois produits dans trois zones différentes</span>
+</div>
+
+<div class="box">
+  <p class="box-title">ℹ️ Modifier une zone existante</p>
+  <p>Dans l'onglet Zones, cliquez sur la pastille de couleur pour la changer, ou sur le nom pour le renommer. Les changements sont propagés à tous les blocs qui utilisent la zone.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     9. LABELS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>9. Les labels — étiqueter chaque produit</h1>
+
+<p>Le label, c'est l'identifiant unique que vous donnez à un équipement (numéro d'inventaire, code interne, repère plan). Il s'affiche en rouge à droite de la marque sur le bloc.</p>
+
+<h3>Saisir un label depuis le bloc</h3>
+<ol class="steps">
+  <li>Sur le synoptique, cliquez dans la zone vide à droite de la marque (le placeholder <em>« Label »</em> apparaît en italique).</li>
+  <li>Tapez votre référence (ex. <code>EXT-04</code>).</li>
+  <li>Le label est sauvegardé automatiquement et apparaît dans l'onglet Label du panneau Outils.</li>
+</ol>
+
+<h3>Gérer tous les labels d'un coup — onglet « Label »</h3>
+<p>Dans le panneau Outils à droite, l'onglet <span class="btn-mock">Label</span> liste tous les produits du synoptique courant.</p>
+
+<div class="figure">
+  <svg viewBox="0 0 580 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="580" height="240" fill="#fafbfd"/>
+    <!-- Header table -->
+    <rect x="20" y="20" width="540" height="32" fill="#eef2f7"/>
+    <text x="50" y="40" font-size="11" font-weight="700" fill="#2f6fed">⋮⋮</text>
+    <text x="80" y="40" font-size="11" font-weight="700" fill="#2f6fed">Label ▲</text>
+    <text x="220" y="40" font-size="11" font-weight="700" fill="#2f6fed">Référence produit</text>
+    <text x="430" y="40" font-size="11" font-weight="700" fill="#2f6fed">Zone</text>
+    <!-- Rows -->
+    <rect x="20" y="52" width="540" height="32" fill="#fff" stroke="#d6dbe2" stroke-width="0.5"/>
+    <text x="50" y="72" font-size="14" fill="#5a6472">⋮⋮</text>
+    <text x="80" y="72" font-size="11" fill="#cc0000" font-weight="700">EXT-04</text>
+    <text x="220" y="72" font-size="11">Extron DMP 64+ C AT</text>
+    <text x="430" y="72" font-size="11">Régie</text>
+
+    <rect x="20" y="84" width="540" height="32" fill="#fafbfd" stroke="#d6dbe2" stroke-width="0.5"/>
+    <text x="50" y="104" font-size="14" fill="#5a6472">⋮⋮</text>
+    <text x="80" y="104" font-size="11" fill="#cc0000" font-weight="700">DM-04</text>
+    <text x="220" y="104" font-size="11">Crestron DM-MD8x8</text>
+    <text x="430" y="104" font-size="11">Rack</text>
+
+    <rect x="20" y="116" width="540" height="32" fill="#fff" stroke="#d6dbe2" stroke-width="0.5"/>
+    <text x="50" y="136" font-size="14" fill="#5a6472">⋮⋮</text>
+    <text x="80" y="136" font-size="11" fill="#cc0000" font-weight="700">TV-01</text>
+    <text x="220" y="136" font-size="11">Sony FW-65BZ40H</text>
+    <text x="430" y="136" font-size="11">Salle</text>
+
+    <text x="290" y="190" font-size="10" font-style="italic" fill="#5a6472" text-anchor="middle">Cliquer un en-tête trie. Glisser ⋮⋮ réordonne. Cliquer une cellule édite.</text>
+  </svg>
+  <span class="caption">L'onglet Label — vue centralisée</span>
+</div>
+
+<table>
+  <tr><th>Action</th><th>Comment faire</th></tr>
+  <tr><td><strong>Modifier un label</strong></td><td>Cliquez dans la cellule Label, tapez, validez avec <kbd>Entrée</kbd>.</td></tr>
+  <tr><td><strong>Changer la zone</strong></td><td>Cliquez sur le menu déroulant Zone — la couleur du bloc change instantanément.</td></tr>
+  <tr><td><strong>Trier</strong></td><td>Cliquez sur l'en-tête d'une colonne (Label, Référence ou Zone). Re-cliquez pour inverser.</td></tr>
+  <tr><td><strong>Réorganiser manuellement</strong></td><td>Glissez la poignée <span class="btn-mock">⋮⋮</span> à gauche d'une ligne.</td></tr>
+  <tr><td><strong>Exporter la liste</strong></td><td>Boutons <span class="btn-mock">CSV</span> ou <span class="btn-mock">XLS</span> en haut.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════
+     10. PANNEAU OUTILS
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>10. Le panneau « Outils » à droite</h1>
+
+<p>Cinq onglets, chacun avec un rôle précis :</p>
+
+<table>
+  <tr>
+    <th style="width:130px;">Onglet</th>
+    <th>À quoi il sert</th>
+  </tr>
+  <tr>
+    <td><strong>Câbles</strong></td>
+    <td>Liste détaillée de tous les câbles : numéro, signal, type, longueur, points de départ et d'arrivée. Pour vérifier qu'on n'a oublié aucune liaison.</td>
+  </tr>
+  <tr>
+    <td><strong>Étiquettes</strong></td>
+    <td>Tableau des étiquettes câbles à apposer sur les vrais cordons. Modifiez le libellé personnalisé en double-cliquant. Export CSV / XLS.</td>
+  </tr>
+  <tr>
+    <td><strong>Label</strong> <span class="pill green">nouveau</span></td>
+    <td>Tableau des produits placés avec leur label, leur référence, leur zone. Triable, drag & drop pour réordonner. Export CSV / XLS.</td>
+  </tr>
+  <tr>
+    <td><strong>Zones</strong></td>
+    <td>Création / édition des zones (nom + couleur). Voir page précédente.</td>
+  </tr>
+  <tr>
+    <td><strong>Légende</strong></td>
+    <td>Définition des signaux disponibles : couleur, libellé, type de câble par défaut, préfixe de numérotation.</td>
+  </tr>
+</table>
+
+<h3>La légende des signaux</h3>
+<p>Chaque type de signal a une couleur et un type de câble par défaut. Vous pouvez les personnaliser :</p>
+
+<table>
+  <tr><th>Signal</th><th>Couleur</th><th>Câble par défaut</th></tr>
+  <tr><td>HDMI / DP</td><td><span class="pill" style="background:#8b4fba;color:#fff;">violet</span></td><td>HDMI 2.0</td></tr>
+  <tr><td>RJ45 / IP</td><td><span class="pill green">vert</span></td><td>RJ45 Cat6</td></tr>
+  <tr><td>USB</td><td><span class="pill orange">marron</span></td><td>USB 2.0 A/A</td></tr>
+  <tr><td>Audio</td><td><span class="pill" style="background:#f5c432;color:#000;">jaune</span></td><td>Mini-Jack 3.5</td></tr>
+  <tr><td>HP</td><td><span class="pill red">rouge</span></td><td>HP 2x2.5mm²</td></tr>
+  <tr><td>Secteur</td><td><span class="pill" style="background:#000;color:#fff;">noir</span></td><td>Cordon secteur</td></tr>
+  <tr><td>Fibre</td><td><span class="pill" style="background:#ff6f00;color:#fff;">orange</span></td><td>Fibre OM4</td></tr>
+</table>
+
+<div class="box">
+  <p class="box-title">ℹ️ Replier le panneau</p>
+  <p>Cliquez sur la flèche en haut à droite du panneau Outils pour le replier et libérer de l'espace pour le synoptique.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     11. ONGLETS / SYNOPTIQUES MULTIPLES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>11. Plusieurs synoptiques dans un projet</h1>
+
+<p>Un projet peut contenir plusieurs synoptiques (= plusieurs onglets). C'est utile pour :</p>
+<ul>
+  <li>Séparer un projet en lots (lot Vidéo, lot Audio, lot Réseau...).</li>
+  <li>Faire un synoptique par salle.</li>
+  <li>Faire des variantes (proposition A vs proposition B).</li>
+</ul>
+
+<div class="figure">
+  <svg viewBox="0 0 600 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="80" fill="#fafbfd"/>
+    <rect x="20" y="20" width="120" height="40" fill="#2f6fed" rx="6 6 0 0"/>
+    <text x="80" y="44" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">Audio ⎘ ×</text>
+    <rect x="150" y="20" width="120" height="40" fill="#fff" stroke="#d6dbe2" rx="6 6 0 0"/>
+    <text x="210" y="44" font-size="11" font-weight="700" text-anchor="middle">Vidéo ⎘ ×</text>
+    <rect x="280" y="20" width="120" height="40" fill="#fff" stroke="#d6dbe2" rx="6 6 0 0"/>
+    <text x="340" y="44" font-size="11" font-weight="700" text-anchor="middle">Réseau ⎘ ×</text>
+    <rect x="410" y="28" width="30" height="24" fill="#e8f0fe" stroke="#2f6fed" rx="3"/>
+    <text x="425" y="45" fill="#2f6fed" font-size="14" font-weight="700" text-anchor="middle">+</text>
+  </svg>
+  <span class="caption">Barre d'onglets : un onglet par synoptique</span>
+</div>
+
+<table>
+  <tr><th>Action</th><th>Comment faire</th></tr>
+  <tr><td>Créer un onglet</td><td>Bouton <span class="btn-mock">+</span> à droite de la barre d'onglets.</td></tr>
+  <tr><td>Renommer</td><td>Double-cliquez sur le nom de l'onglet, tapez, <kbd>Entrée</kbd>.</td></tr>
+  <tr><td>Dupliquer</td><td>Bouton <span class="btn-mock">⎘</span> sur l'onglet — copie tous les blocs et câbles.</td></tr>
+  <tr><td>Fermer</td><td>Bouton <span class="btn-mock">×</span> sur l'onglet (visible si plus d'un onglet).</td></tr>
+  <tr><td>Lot dédié</td><td>Le « Lot » est propre à chaque onglet — modifiable depuis le cartouche.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════
+     12. CARTOUCHE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>12. Le cartouche du document</h1>
+
+<p>Le cartouche, c'est le bandeau d'identification en bas du synoptique. Il apparaît automatiquement dans tous les exports et impressions.</p>
+
+<div class="figure">
+  <svg viewBox="0 0 600 140" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="140" fill="#fafbfd"/>
+    <rect x="20" y="20" width="560" height="100" fill="#fff" stroke="#000" stroke-width="1"/>
+    <line x1="160" y1="20" x2="160" y2="120" stroke="#000"/>
+    <line x1="320" y1="20" x2="320" y2="120" stroke="#000"/>
+    <line x1="460" y1="20" x2="460" y2="120" stroke="#000"/>
+    <text x="90" y="42" font-size="10" font-weight="700" text-anchor="middle">CLIENT : Renault</text>
+    <line x1="20" y1="50" x2="320" y2="50" stroke="#000"/>
+    <text x="90" y="68" font-size="9" font-weight="700" text-anchor="middle">LIEU : Boulogne</text>
+    <line x1="20" y1="76" x2="160" y2="76" stroke="#000"/>
+    <text x="90" y="92" font-size="9" font-weight="700" text-anchor="middle">Campus Renault</text>
+    <line x1="20" y1="100" x2="160" y2="100" stroke="#000"/>
+    <text x="90" y="115" font-size="9" text-anchor="middle">5 mai 2026</text>
+
+    <text x="240" y="68" font-size="9" font-weight="700" text-anchor="middle">BUREAU D'ÉTUDE</text>
+    <line x1="160" y1="76" x2="320" y2="76" stroke="#000"/>
+    <text x="240" y="92" font-size="9" fill="#cc0000" font-weight="700" text-anchor="middle">Lot Audio</text>
+    <text x="240" y="115" font-size="9" text-anchor="middle">B. Barreau</text>
+
+    <text x="390" y="68" font-size="9" text-anchor="middle">V1.4</text>
+
+    <rect x="470" y="40" width="100" height="60" fill="#eef2f7" stroke="#d6dbe2"/>
+    <text x="520" y="74" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">LOGO</text>
+  </svg>
+  <span class="caption">Le cartouche tel qu'il apparaît dans les exports A3</span>
+</div>
+
+<h3>Modifier les champs du cartouche</h3>
+<p>Le cartouche est éditable directement à l'écran (à droite du synoptique). Cliquez dans n'importe quel champ et tapez.</p>
+
+<table>
+  <tr><th>Champ</th><th>Remarque</th></tr>
+  <tr><td>Client</td><td>Nom du client final.</td></tr>
+  <tr><td>Lieu</td><td>Adresse, ville.</td></tr>
+  <tr><td>Campus / Site</td><td>Pré-rempli avec le nom du projet.</td></tr>
+  <tr><td>Date</td><td>Mise à jour automatiquement à chaque sauvegarde.</td></tr>
+  <tr><td>Lot</td><td>Propre à l'onglet courant. Affiché en rouge.</td></tr>
+  <tr><td>Bureau d'étude</td><td>Votre société.</td></tr>
+  <tr><td>Auteur</td><td>Pré-rempli avec votre nom.</td></tr>
+  <tr><td>Version</td><td>Auto-incrémentée à chaque sauvegarde modifiant le projet (V1.0 → V1.1 → V1.2…).</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════
+     13. SAUVEGARDER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>13. Sauvegarder son travail</h1>
+
+<p>Tout passe par le bouton <span class="btn-mock primary">Sauvegarder</span> en haut à gauche.</p>
+
+<h3>Ce qui se passe à chaque sauvegarde</h3>
+<ol>
+  <li>L'état complet du projet est envoyé dans le cloud.</li>
+  <li>Si vous avez modifié quelque chose depuis la dernière sauvegarde :
+    <ul>
+      <li>l'ancienne version est <strong>archivée</strong> automatiquement,</li>
+      <li>le numéro de version est <strong>incrémenté</strong> (V1.4 → V1.5),</li>
+      <li>la <strong>date du jour</strong> remplace la date précédente dans le cartouche.</li>
+    </ul>
+  </li>
+  <li>Le bouton affiche <span class="btn-mock" style="background:#d4f5d4;color:#2e8b57;border-color:#2e8b57;">Sauvegardé ✓</span> pendant 2-3 secondes.</li>
+</ol>
+
+<div class="box tip">
+  <p class="box-title">💡 Sauvegardez régulièrement</p>
+  <p>Il n'y a pas de sauvegarde automatique. Un raccourci pratique : <kbd>Ctrl</kbd>+<kbd>S</kbd> dans le navigateur déclenche le bouton Sauvegarder (sur la plupart des navigateurs).</p>
+</div>
+
+<h3>Versions archivées</h3>
+<p>Les <strong>3 dernières versions</strong> archivées restent accessibles depuis la page « Mes projets ». Cliquez sur une version archivée pour l'ouvrir en lecture seule.</p>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Au-delà de 3 versions</p>
+  <p>Pour économiser de l'espace, les versions plus anciennes que les 3 dernières sont supprimées. Si une version vous est précieuse, exportez-la en PDF.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     14. EXPORTER / IMPRIMER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>14. Exporter et imprimer en A3</h1>
+
+<p>SynoX produit des documents professionnels au format <strong>A3 paysage</strong>, prêts à diffuser.</p>
+
+<h3>Bouton « Exporter »</h3>
+
+<table>
+  <tr><th>Format</th><th>Quand l'utiliser</th></tr>
+  <tr><td><strong>PNG</strong></td><td>Image haute résolution, idéale pour insertion dans un document Word ou PowerPoint.</td></tr>
+  <tr><td><strong>JPEG</strong></td><td>Plus léger que PNG. À privilégier pour un envoi par email.</td></tr>
+  <tr><td><strong>SVG</strong></td><td>Image vectorielle ouvrable dans Visio, AutoCAD, Illustrator. Modifiable à l'infini sans perte.</td></tr>
+  <tr><td><strong>PDF</strong></td><td>Document multi-pages prêt à archiver, à imprimer chez un imprimeur, à signer.</td></tr>
+  <tr><td><strong>JSON (projet complet)</strong></td><td>Sauvegarde locale du projet entier (catalogue + tabs). Utile pour partager un projet hors-ligne.</td></tr>
+</table>
+
+<h3>Bouton « Imprimer »</h3>
+<p>Ouvre un aperçu d'impression directement dans le navigateur. Vous pouvez ensuite imprimer ou enregistrer en PDF.</p>
+
+<h3>Exporter un seul onglet ou tout le projet</h3>
+<p>Si votre projet a plusieurs onglets, une fenêtre vous demande quoi exporter :</p>
+<ul>
+  <li><strong>Synoptique actuel</strong> : seul l'onglet visible est exporté.</li>
+  <li><strong>Tout le projet</strong> : tous les onglets sont exportés à la suite, avec un cartouche adapté à chacun et une numérotation de pages globale.</li>
+</ul>
+
+<div class="figure">
+  <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="200" fill="#fafbfd"/>
+    <!-- Page 1 -->
+    <rect x="40" y="30" width="160" height="120" fill="#fff" stroke="#d6dbe2"/>
+    <rect x="40" y="120" width="160" height="30" fill="#eef2f7"/>
+    <text x="120" y="80" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">Onglet "Audio"</text>
+    <text x="120" y="140" font-size="9" text-anchor="middle">Page 1 / 3</text>
+    <!-- Page 2 -->
+    <rect x="220" y="30" width="160" height="120" fill="#fff" stroke="#d6dbe2"/>
+    <rect x="220" y="120" width="160" height="30" fill="#eef2f7"/>
+    <text x="300" y="80" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">Onglet "Vidéo"</text>
+    <text x="300" y="140" font-size="9" text-anchor="middle">Page 2 / 3</text>
+    <!-- Page 3 -->
+    <rect x="400" y="30" width="160" height="120" fill="#fff" stroke="#d6dbe2"/>
+    <rect x="400" y="120" width="160" height="30" fill="#eef2f7"/>
+    <text x="480" y="80" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">Onglet "Réseau"</text>
+    <text x="480" y="140" font-size="9" text-anchor="middle">Page 3 / 3</text>
+    <text x="300" y="180" font-size="10" font-style="italic" fill="#5a6472" text-anchor="middle">Export PDF "Tout le projet" : un fichier, plusieurs pages numérotées</text>
+  </svg>
+  <span class="caption">Export multi-pages d'un projet à 3 onglets</span>
+</div>
+
+<div class="box">
+  <p class="box-title">ℹ️ Mention légale automatique</p>
+  <p>Tous les exports incluent automatiquement une mention de confidentialité en bas de page. Aucune action de votre part nécessaire.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     15. LECTURE SEULE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>15. Mode lecture seule (versions archivées)</h1>
+
+<p>Quand vous ouvrez une version archivée, l'application bascule en mode <strong>lecture seule</strong>. Une bannière jaune s'affiche en haut.</p>
+
+<div class="figure">
+  <svg viewBox="0 0 600 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="80" fill="#fafbfd"/>
+    <rect x="20" y="20" width="560" height="44" fill="#fff7e0" stroke="#f59e0b" rx="4"/>
+    <text x="40" y="46" font-size="12">🔒</text>
+    <text x="65" y="48" font-size="11" font-weight="700">Lecture seule — Version V1.3 — Cette version ne peut pas être modifiée</text>
+    <rect x="450" y="32" width="120" height="22" fill="#fff" stroke="#f59e0b" rx="3"/>
+    <text x="510" y="47" font-size="10" text-anchor="middle" font-weight="700">← Retour aux projets</text>
+  </svg>
+  <span class="caption">Bannière du mode lecture seule</span>
+</div>
+
+<h3>Ce que vous pouvez faire en lecture seule</h3>
+<ul>
+  <li>Visualiser tous les blocs, câbles, zones, étiquettes.</li>
+  <li>Naviguer entre les onglets.</li>
+  <li>Exporter en PNG, JPEG, SVG, PDF.</li>
+  <li>Imprimer.</li>
+</ul>
+
+<h3>Ce qui est désactivé</h3>
+<ul>
+  <li>Tout type de modification (déplacer un bloc, taper un label, ajouter un câble).</li>
+  <li>La sauvegarde.</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 Reprendre le travail à partir d'une version archivée</p>
+  <p>Pour repartir d'une ancienne version, exportez son JSON depuis la lecture seule, puis créez un nouveau projet et importez ce JSON. Vous repartez d'un état identique mais sans toucher à l'historique du projet courant.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     16. MON COMPTE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>16. Mon compte</h1>
+
+<p>Le bouton <span class="btn-mock primary">Mon compte</span> en haut à droite donne accès aux paramètres personnels.</p>
+
+<table>
+  <tr><th>Onglet</th><th>Contenu</th></tr>
+  <tr><td>Profil</td><td>Nom, email, mot de passe.</td></tr>
+  <tr><td>Catalogue personnel</td><td>Vos produits ajoutés au catalogue (synchronisés sur tous vos appareils).</td></tr>
+  <tr><td>Signaux</td><td>Vos couleurs et libellés de signaux personnalisés.</td></tr>
+  <tr><td>Zones</td><td>Vos zones personnelles (utilisables sur tous vos projets).</td></tr>
+</table>
+
+<h3>Bouton « Se déconnecter »</h3>
+<p>À gauche du bouton « Tableau de bord » (admins) ou « Mon compte » dans le header. Termine votre session.</p>
+
+<h3>Tableau de bord administrateur</h3>
+<p>Visible uniquement pour les comptes <span class="pill">admin</span>. Permet de :</p>
+<ul>
+  <li>Approuver / refuser les nouvelles inscriptions.</li>
+  <li>Voir tous les utilisateurs et leur statut.</li>
+  <li>Promouvoir un utilisateur en administrateur.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════
+     17. RACCOURCIS ET ASTUCES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>17. Raccourcis et astuces</h1>
+
+<h3>Raccourcis clavier</h3>
+<table>
+  <tr><th>Action</th><th>Raccourci</th></tr>
+  <tr><td>Supprimer un bloc ou un câble sélectionné</td><td><kbd>Suppr</kbd> ou <kbd>Backspace</kbd></td></tr>
+  <tr><td>Valider une saisie</td><td><kbd>Entrée</kbd></td></tr>
+  <tr><td>Annuler une saisie</td><td><kbd>Échap</kbd></td></tr>
+  <tr><td>Sauvegarder (selon navigateur)</td><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td></tr>
+  <tr><td>Zoomer / Dézoomer</td><td>Molette de la souris ou <kbd>Ctrl</kbd> + molette</td></tr>
+  <tr><td>Recadrer la vue</td><td>Bouton <span class="btn-mock">Réorganiser</span></td></tr>
+</table>
+
+<h3>Astuces de productivité</h3>
+
+<div class="box tip">
+  <p class="box-title">💡 Dupliquer rapidement un onglet</p>
+  <p>Quand vous voulez créer une variante (proposition A vs B, ou un projet similaire), <strong>dupliquez l'onglet</strong> avec le bouton <span class="btn-mock">⎘</span>. Vous gardez tous les blocs et câbles sans repartir de zéro.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Étiquettes câbles à imprimer</p>
+  <p>Dans l'onglet <strong>Étiquettes</strong>, exportez en CSV ou XLS pour imprimer des étiquettes adhésives à coller sur les vrais cordons.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Réutiliser une zone</p>
+  <p>Les zones que vous créez sont sauvegardées sur votre compte. Elles seront proposées automatiquement dans tous vos futurs projets.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Vérifier qu'aucun port n'est oublié</p>
+  <p>L'onglet <strong>Câbles</strong> liste exhaustivement toutes les liaisons. Triez par signal pour repérer rapidement un type qui manquerait.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Glisser une étiquette mal placée</p>
+  <p>Si une étiquette de câble chevauche un autre élément, cliquez-glissez-la pour la déplacer. L'étiquette mémorise son décalage.</p>
+</div>
+
+<div class="box danger">
+  <p class="box-title">⚠️ Les erreurs courantes</p>
+  <p><strong>« Je tape dans le label mais rien ne se passe »</strong> : assurez-vous que le bloc est bien rendu visible et que vous n'êtes pas en mode lecture seule.</p>
+  <p><strong>« Mon synoptique est trop grand pour une page »</strong> : dans l'export PDF, le projet est automatiquement découpé en plusieurs pages A3.</p>
+  <p><strong>« Je ne vois plus mon bloc »</strong> : utilisez la molette pour dézoomer, ou cliquez sur Réorganiser.</p>
+</div>
+
+<div class="footer-note">
+  Guide utilisateur SynoX — version Mai 2026 — Vidéo Synergie<br>
+  Pour toute question : <strong>contact@videosynergie.com</strong>
+</div>
+
+</div>
+
+<script>
+  // Petit confort : Ctrl+P déclenche bien l'impression sans la barre d'outils
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+      // laisse le navigateur gérer
+    }
+  });
+</script>
+
+</body>
+</html>
