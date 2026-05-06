@@ -728,10 +728,14 @@ export function CableEdge({
                   type="number"
                   min={0}
                   step={0.5}
-                  value={cable.lengthMeters}
-                  onChange={(e) =>
-                    updateCable(cable.id, { lengthMeters: Number(e.target.value) })
-                  }
+                  value={cable.lengthMeters ?? ""}
+                  placeholder="?"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateCable(cable.id, {
+                      lengthMeters: v === "" ? undefined : Number(v),
+                    });
+                  }}
                 />
                 <span className="cable-edge-unit">m</span>
               </>

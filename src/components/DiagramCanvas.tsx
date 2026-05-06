@@ -189,7 +189,6 @@ export function DiagramCanvas({
         toPortId: to.portId,
         toPortSide: to.side,
         signal,
-        lengthMeters: 5,
       });
     },
     [nodes, products, addCable],

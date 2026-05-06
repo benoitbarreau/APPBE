@@ -58,7 +58,7 @@ export function CableList() {
         cable.signal,
         from,
         to,
-        cable.lengthMeters,
+        cable.lengthMeters ?? "",
         cable.label ?? "",
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
@@ -167,8 +167,12 @@ function CableRow({
           min={0}
           step={0.5}
           className="cable-length"
-          value={cable.lengthMeters}
-          onChange={(e) => onChange({ lengthMeters: Number(e.target.value) })}
+          value={cable.lengthMeters ?? ""}
+          placeholder="—"
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange({ lengthMeters: v === "" ? undefined : Number(v) });
+          }}
         />
         <span className="muted">m</span>
         <button onClick={onRemove} title="Supprimer">

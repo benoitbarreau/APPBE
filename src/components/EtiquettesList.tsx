@@ -78,6 +78,75 @@ function LabelCell({ id, label, readOnly }: { id: string; label: string; readOnl
   );
 }
 
+/** Cellule longueur éditable en double-clic.
+ *
+ * Vide tant qu'aucune longueur n'a été saisie. Affiche les mètres en
+ * lecture, accepte décimales et chaîne vide en édition.
+ */
+function LengthCell({
+  id,
+  length,
+  readOnly,
+}: {
+  id: string;
+  length: number | undefined;
+  readOnly: boolean;
+}) {
+  const updateCable = useAppStore((s) => s.updateCable);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(length === undefined ? "" : String(length));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    if (readOnly) return;
+    setDraft(length === undefined ? "" : String(length));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim() === "" ? undefined : Number(draft.replace(",", "."));
+    if (next !== undefined && Number.isNaN(next)) return; // saisie invalide → on ignore
+    if (next !== length) updateCable(id, { lengthMeters: next });
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setDraft(length === undefined ? "" : String(length));
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="number"
+        min={0}
+        step={0.5}
+        className="etiquette-label-input etiquette-len-input"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") cancel();
+        }}
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`etiquette-label-cell${readOnly ? "" : " editable"}`}
+      onDoubleClick={startEdit}
+      title={readOnly ? undefined : "Double-clic pour modifier"}
+    >
+      {length === undefined ? <span className="muted">—</span> : length}
+    </span>
+  );
+}
+
 export function EtiquettesList() {
   const cables = useAppStore((s) => s.cables);
   const readOnly = useEditorState((s) => s.readOnly);
@@ -100,6 +169,12 @@ export function EtiquettesList() {
     list.sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
+      // Gestion des valeurs vides (undefined) : toujours en bas en asc
+      const aEmpty = av === undefined || av === "";
+      const bEmpty = bv === undefined || bv === "";
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
       let cmp: number;
       if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
       else cmp = String(av).localeCompare(String(bv), "fr", { numeric: true });
@@ -117,11 +192,16 @@ export function EtiquettesList() {
     }
   };
 
+  const cellValue = (r: (typeof rows)[number], key: SortKey): string => {
+    const v = r[key];
+    return v === undefined || v === null ? "" : String(v);
+  };
+
   const exportCsv = () => {
     const header = COLUMNS.map((c) => c.label).join(";");
     const lines = rows.map((r) =>
       COLUMNS.map((c) => {
-        const v = String(r[c.key as keyof typeof r]).replace(/"/g, '""');
+        const v = cellValue(r, c.key).replace(/"/g, '""');
         return `"${v}"`;
       }).join(";"),
     );
@@ -134,7 +214,7 @@ export function EtiquettesList() {
 
   const exportXls = () => {
     const escape = (v: unknown) =>
-      String(v)
+      String(v ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
@@ -143,7 +223,7 @@ export function EtiquettesList() {
       .map(
         (r) =>
           "<tr>" +
-          COLUMNS.map((c) => `<td>${escape(r[c.key as keyof typeof r])}</td>`).join("") +
+          COLUMNS.map((c) => `<td>${escape(cellValue(r, c.key))}</td>`).join("") +
           "</tr>",
       )
       .join("");
@@ -172,7 +252,7 @@ export function EtiquettesList() {
       </div>
       {!readOnly && detailed && (
         <p className="etiquettes-hint">
-          Double-clic sur une étiquette pour la modifier.
+          Double-clic sur une étiquette ou une longueur pour la modifier.
         </p>
       )}
       <div className="etiquettes-table-wrap">
@@ -205,7 +285,11 @@ export function EtiquettesList() {
                   </td>
                 )}
                 <td>{r.cableType}</td>
-                {detailed && <td className="right">{r.lengthMeters}</td>}
+                {detailed && (
+                  <td className="right etiquette-len-td">
+                    <LengthCell id={r.id} length={r.lengthMeters} readOnly={readOnly} />
+                  </td>
+                )}
               </tr>
             ))}
             {rows.length === 0 && (

@@ -64,7 +64,8 @@ export interface Cable {
   toPortSide?: PortSide;
   signal: SignalType;
   cableType: string;
-  lengthMeters: number;
+  /** Longueur en mètres. Vide (undefined) à la création, à renseigner par l'utilisateur. */
+  lengthMeters?: number;
   label?: string;
   labelOffset?: { x: number; y: number };
   reversed?: boolean;

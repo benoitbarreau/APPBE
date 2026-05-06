@@ -1113,6 +1113,23 @@ select {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
 }
+.etiquette-len-td {
+  min-width: 60px;
+}
+.etiquette-len-td .etiquette-label-cell {
+  text-align: right;
+}
+.etiquette-len-input {
+  text-align: right;
+  /* Masquer les flèches up/down du type=number pour rester compact */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.etiquette-len-input::-webkit-inner-spin-button,
+.etiquette-len-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 
 /* ── Liste des étiquettes produits ─────────────────────────────────────── */
 .product-labels-table th.sortable {
