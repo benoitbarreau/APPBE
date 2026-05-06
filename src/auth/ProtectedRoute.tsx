@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './useAuth'
 import { useAppStore, useCatalogMeta, useEditorState } from '../store'
 import { LoginPage } from '../pages/LoginPage'
@@ -68,6 +68,42 @@ function InitErrorScreen({
 
 type Page = 'projects' | 'editor'
 
+/** Persistance de la dernière vue active pour survivre à un F5 / fermeture
+ *  de navigateur. On stocke aussi le userId pour ne PAS restaurer l'éditeur
+ *  d'un autre compte si quelqu'un se connecte sur le même navigateur. */
+const SESSION_VIEW_KEY = 'synox.session.view'
+interface PersistedView {
+  userId: string
+  page: Page
+  readOnly: boolean
+  readOnlyVersion?: string
+}
+function loadPersistedView(): PersistedView | null {
+  try {
+    const raw = localStorage.getItem(SESSION_VIEW_KEY)
+    if (!raw) return null
+    const v = JSON.parse(raw) as PersistedView
+    if (!v || (v.page !== 'projects' && v.page !== 'editor')) return null
+    return v
+  } catch {
+    return null
+  }
+}
+function savePersistedView(v: PersistedView) {
+  try {
+    localStorage.setItem(SESSION_VIEW_KEY, JSON.stringify(v))
+  } catch {
+    // localStorage indisponible : la persistance échoue silencieusement
+  }
+}
+function clearPersistedView() {
+  try {
+    localStorage.removeItem(SESSION_VIEW_KEY)
+  } catch {
+    // ignoré
+  }
+}
+
 export function ProtectedRoute() {
   const { user, profile, loading, signOut, initError, retry } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
@@ -76,6 +112,8 @@ export function ProtectedRoute() {
   const [readOnlyVersion, setReadOnlyVersion] = useState<string | undefined>()
   const setReadOnly = useEditorState((s) => s.setReadOnly)
   const readOnly = useEditorState((s) => s.readOnly)
+  /** Évite de re-restaurer la vue à chaque changement de user (n'arme qu'une fois par session) */
+  const hasRestoredRef = useRef(false)
 
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
@@ -88,6 +126,54 @@ export function ProtectedRoute() {
   useEffect(() => {
     if (user) clearForUser(user.id)
   }, [user, clearForUser])
+
+  // ── Restauration de la vue après F5 / réouverture navigateur ─────────
+  // Si l'utilisateur était dans l'éditeur d'un projet et qu'il rafraîchit,
+  // on revient sur ce projet plutôt que sur la liste — sinon il perd
+  // son travail non sauvegardé (le store Zustand persiste déjà nodes,
+  // cables, tabs, etc. dans localStorage).
+  useEffect(() => {
+    // Réinitialiser le drapeau si on n'est pas (ou plus) éligible : permet
+    // à un autre utilisateur qui se connecte sur le même onglet de bénéficier
+    // de SA propre restauration.
+    if (!user || profile?.status !== 'approved') {
+      hasRestoredRef.current = false
+      return
+    }
+    if (hasRestoredRef.current) return
+    hasRestoredRef.current = true
+
+    const saved = loadPersistedView()
+    if (!saved || saved.userId !== user.id) {
+      // Vue d'un autre utilisateur ou aucune sauvegarde → page projets
+      clearPersistedView()
+      return
+    }
+    if (saved.page === 'editor') {
+      // On vérifie que le store contient bien un projet ouvert avant
+      // de basculer en mode éditeur — sinon on resterait sur un éditeur
+      // vide et le bouton "Retour aux projets" serait la seule issue.
+      const storeState = useAppStore.getState()
+      if (!storeState.currentProjectId || storeState.tabs.length === 0) {
+        clearPersistedView()
+        return
+      }
+      setPage('editor')
+      setReadOnly(saved.readOnly)
+      setReadOnlyVersion(saved.readOnlyVersion)
+    }
+  }, [user?.id, profile?.status, setReadOnly])
+
+  // ── Persistance continue de la vue active ────────────────────────────
+  useEffect(() => {
+    if (!user) return
+    savePersistedView({
+      userId: user.id,
+      page,
+      readOnly,
+      readOnlyVersion,
+    })
+  }, [user?.id, page, readOnly, readOnlyVersion])
 
   // Chargement depuis Supabase après connexion : produits, signaux, zones, catalogue.
   // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
