@@ -188,6 +188,8 @@ export function findNodesByInstanceIds(
 /**
  * Détecte les doublons d'IP à travers les colonnes IP / IP DANTE / IP DANTE SEC.
  * Retourne une Map row.id → Set<colonne> des cellules en doublon.
+ *
+ * Fonction PURE : ne modifie jamais `rows`, ne déclenche aucun side-effect.
  */
 export type IPColumn = 'ip' | 'ipDante' | 'ipDanteSec'
 
@@ -218,4 +220,66 @@ export function detectIPDuplicates(
     }
   }
   return dups
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers purs pour les vues dérivées du Tableau IP
+// (filtres + sort + duplicate-only + dédup défensive sur l'id)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Retire défensivement les lignes ayant un id déjà vu. Garantit que le
+ *  tableau visible ne contient JAMAIS deux fois la même clé React. */
+export function dedupeRowsById(rows: IPTableRow[]): IPTableRow[] {
+  const seen = new Set<string>()
+  const out: IPTableRow[] = []
+  for (const r of rows) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    out.push(r)
+  }
+  return out
+}
+
+/** Applique les filtres par colonne sur une copie. Ne mute jamais l'entrée. */
+export function applyRowFilters<C extends string>(
+  rows: IPTableRow[],
+  filters: Record<C, string>,
+  columnKeys: C[],
+): IPTableRow[] {
+  let list = rows
+  for (const key of columnKeys) {
+    const f = (filters[key] ?? '').trim().toLowerCase()
+    if (!f) continue
+    list = list.filter((r) =>
+      String((r as unknown as Record<string, unknown>)[key] ?? '')
+        .toLowerCase()
+        .includes(f),
+    )
+  }
+  return list
+}
+
+/** Garde uniquement les lignes en doublon IP. */
+export function filterDuplicateIpRows(
+  rows: IPTableRow[],
+  duplicates: Map<string, Set<IPColumn>>,
+): IPTableRow[] {
+  return rows.filter((r) => duplicates.has(r.id))
+}
+
+/** Retourne une COPIE triée — n'altère jamais `rows`. */
+export function applySort<C extends string>(
+  rows: IPTableRow[],
+  sortKey: C | null,
+  sortDir: 'asc' | 'desc',
+): IPTableRow[] {
+  if (!sortKey) return rows
+  const copy = [...rows]
+  copy.sort((a, b) => {
+    const av = (a as unknown as Record<string, unknown>)[sortKey] ?? ''
+    const bv = (b as unknown as Record<string, unknown>)[sortKey] ?? ''
+    const cmp = String(av).localeCompare(String(bv), 'fr', { numeric: true })
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+  return copy
 }

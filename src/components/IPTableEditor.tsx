@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
-import { detectIPDuplicates, type IPColumn } from "../lib/ipTableSync";
+import {
+  applyRowFilters,
+  applySort,
+  dedupeRowsById,
+  detectIPDuplicates,
+  filterDuplicateIpRows,
+  type IPColumn,
+} from "../lib/ipTableSync";
 import type { IPTableRow } from "../types";
 import { isIPTableTab } from "../types";
 import { IPTableExportModal } from "./IPTableExportModal";
@@ -91,7 +98,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     );
   }
 
-  const rows = tab.rows ?? [];
+  const rawRows = tab.rows ?? [];
   const network = tab.network ?? {
     plageIp: "",
     dhcp: "",
@@ -101,32 +108,29 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   };
   const documentTitle = tab.documentTitle ?? "";
 
-  // ── Calcul des doublons IP en temps réel ────────────────────────────
+  // ── Source unique : lignes du tableau, dédupliquées défensivement ───
+  // Si pour une raison quelconque deux lignes partagent le même id (bug
+  // d'import ou de migration), on n'en garde qu'une — sinon React
+  // afficherait des doublons visuels et le tri pourrait sembler fautif.
+  const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
+
+  // ── Détection des doublons IP — pure, sans side-effect ──────────────
   const duplicateMap = useMemo(() => detectIPDuplicates(rows), [rows]);
   const hasDuplicates = duplicateMap.size > 0;
 
-  // ── Filtrage + tri (display only — ne modifie pas tab.rows) ─────────
-  const visibleRows = useMemo(() => {
-    let list = rows;
-    // Filtres par colonne (substring insensitive)
-    for (const col of COLUMNS) {
-      const f = filters[col.key].trim().toLowerCase();
-      if (!f) continue;
-      list = list.filter((r) => (r[col.key] ?? "").toLowerCase().includes(f));
-    }
-    if (onlyDuplicates) {
-      list = list.filter((r) => duplicateMap.has(r.id));
-    }
-    if (sortKey) {
-      list = [...list].sort((a, b) => {
-        const av = a[sortKey] ?? "";
-        const bv = b[sortKey] ?? "";
-        const cmp = String(av).localeCompare(String(bv), "fr", { numeric: true });
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    }
+  // ── Vue dérivée : filtres → option doublons → tri ───────────────────
+  // Toutes les étapes sont des fonctions pures qui retournent une nouvelle
+  // référence ; `rows` (source) n'est JAMAIS muté. Cliquer sur un en-tête
+  // pour trier change uniquement `sortKey` / `sortDir`, recalcule cette
+  // useMemo, et n'invoque AUCUNE action du store.
+  const columnKeys = useMemo(() => COLUMNS.map((c) => c.key), []);
+  const visibleRows = useMemo<IPTableRow[]>(() => {
+    let list: IPTableRow[] = rows;
+    list = applyRowFilters(list, filters, columnKeys);
+    if (onlyDuplicates) list = filterDuplicateIpRows(list, duplicateMap);
+    list = applySort(list, sortKey, sortDir);
     return list;
-  }, [rows, filters, sortKey, sortDir, onlyDuplicates, duplicateMap]);
+  }, [rows, filters, columnKeys, onlyDuplicates, duplicateMap, sortKey, sortDir]);
 
   const onHeaderClick = (key: ColumnKey) => {
     if (sortKey === key) {
