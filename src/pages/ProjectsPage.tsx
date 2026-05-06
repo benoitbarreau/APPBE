@@ -21,7 +21,7 @@ const fmt = (iso: string) =>
   })
 
 export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion }: Props) {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -165,6 +165,13 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
           <span className="projects-page-title">SynoX</span>
         </div>
         <div className="projects-page-user">
+          <button
+            onClick={() => void signOut()}
+            title="Se déconnecter"
+            className="btn-signout"
+          >
+            Se déconnecter
+          </button>
           {profile?.role === 'admin' && onOpenAdminDashboard && (
             <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
               Tableau de bord
