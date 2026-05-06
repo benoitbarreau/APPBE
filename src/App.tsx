@@ -220,9 +220,19 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleExport = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     setExportMenuOpen(false);
     try {
-      const refLabel =
-        useAppStore.getState().projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
-      await exportDiagram(reactFlow, { format, filename: `${refLabel}.${format}` });
+      const state = useAppStore.getState();
+      const refLabel = state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
+      const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
+      await exportDiagram(reactFlow, {
+        format,
+        filename: `${refLabel}.${format}`,
+        legend: {
+          signals: state.signals,
+          zones: state.zones,
+          meta: state.projectMeta,
+          trade: activeTab?.trade ?? state.projectMeta.trade ?? "",
+        },
+      });
     } catch (e) {
       alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
     }
