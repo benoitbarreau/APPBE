@@ -528,7 +528,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 ← Projets
               </button>
             )}
-            <div className="brand">SynoX</div>
+            <div className="brand">
+              <strong>SynoX-AV</strong>
+              <em className="brand-author"> by Benoit BARREAU</em>
+            </div>
             <span className="header-sep">|</span>
             <input
               className="project-name-input"
