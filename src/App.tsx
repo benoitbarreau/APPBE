@@ -13,7 +13,17 @@ import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
-import { exportDiagram, printDiagram } from "./export";
+import {
+  exportDiagram,
+  printDiagram,
+  openPrintPreview,
+  captureAndComposePage,
+  buildAndSavePDF,
+  computePageRects,
+  downloadFile,
+  type CartoucheData,
+} from "./export";
+import { ExportScopeModal } from "./components/ExportScopeModal";
 import { useAuth } from "./auth/useAuth";
 import {
   saveProject,
@@ -203,21 +213,99 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   };
 
   const [printing, setPrinting] = useState(false);
+  const [scopeModal, setScopeModal] = useState<{
+    action: "export" | "print";
+    format?: "png" | "jpeg" | "svg" | "pdf";
+  } | null>(null);
 
-  const handlePrint = async () => {
+  // ── Helpers export ────────────────────────────────────────────────────
+
+  const buildCartoucheForTab = (tabId: string): CartoucheData => {
+    const s = useAppStore.getState();
+    const tab = s.tabs.find((t) => t.id === tabId);
+    const meta = s.projectMeta;
+    return {
+      client: meta.client,
+      lieu: meta.lieu,
+      campus: s.currentProjectName || meta.campus || "Sans titre",
+      tabName: tab?.trade || tab?.name || "",
+      date:
+        meta.date ||
+        new Date().toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      authorName: meta.authorName,
+      version: meta.version,
+    };
+  };
+
+  const switchTabAndWait = (tabId: string): Promise<void> =>
+    new Promise((resolve) => {
+      useAppStore.getState().setActiveTab(tabId);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setTimeout(resolve, 400)),
+      );
+    });
+
+  const handlePrintCurrentTab = async () => {
     try {
       setPrinting(true);
       const state = useAppStore.getState();
       await printDiagram(reactFlow, {
-        legend: {
-          signals: state.signals,
-          zones: state.zones,
-        },
+        cartouche: buildCartoucheForTab(state.activeTabId),
       });
     } catch (e) {
-      alert("Echec de l'impression : " + (e instanceof Error ? e.message : String(e)));
+      alert("Echec impression : " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const handlePrintAllTabs = async () => {
+    const state = useAppStore.getState();
+    const originalTabId = state.activeTabId;
+    const flushedTabs = getFlushedTabs();
+    let totalPages = 0;
+    for (const tab of flushedTabs) totalPages += computePageRects(tab.nodes).length;
+
+    try {
+      setPrinting(true);
+      const allPageUrls: string[] = [];
+      let pageNum = 1;
+      for (const tab of flushedTabs) {
+        await switchTabAndWait(tab.id);
+        const nodes = useAppStore.getState().nodes;
+        const pages = computePageRects(nodes);
+        const cartouche = buildCartoucheForTab(tab.id);
+        for (const page of pages) {
+          allPageUrls.push(
+            await captureAndComposePage(reactFlow, page, {
+              cartouche,
+              pageNum,
+              totalPages,
+            }),
+          );
+          pageNum++;
+        }
+      }
+      await openPrintPreview(allPageUrls, totalPages);
+    } catch (e) {
+      alert("Echec impression : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      await switchTabAndWait(originalTabId);
+      setPrinting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    const { tabs } = useAppStore.getState();
+    if (tabs.length > 1) {
+      setScopeModal({ action: "print" });
+    } else {
+      void handlePrintCurrentTab();
     }
   };
 
@@ -236,21 +324,96 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [exportMenuOpen]);
 
-  const handleExport = async (format: "png" | "jpeg" | "svg" | "pdf") => {
-    setExportMenuOpen(false);
+  const handleExportCurrentTab = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     try {
       const state = useAppStore.getState();
-      const refLabel = state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
+      const refLabel =
+        state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
       await exportDiagram(reactFlow, {
         format,
         filename: `${refLabel}.${format}`,
-        legend: {
-          signals: state.signals,
-          zones: state.zones,
-        },
+        cartouche: buildCartoucheForTab(state.activeTabId),
       });
     } catch (e) {
       alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
+    const state = useAppStore.getState();
+    const originalTabId = state.activeTabId;
+    const flushedTabs = getFlushedTabs();
+    const refLabel =
+      state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
+
+    // Calcul du nombre total de pages
+    let totalPages = 0;
+    for (const tab of flushedTabs) {
+      totalPages += computePageRects(tab.nodes).length;
+    }
+
+    try {
+      if (format === "pdf") {
+        const allPageUrls: string[] = [];
+        let pageNum = 1;
+        for (const tab of flushedTabs) {
+          await switchTabAndWait(tab.id);
+          const nodes = useAppStore.getState().nodes;
+          const pages = computePageRects(nodes);
+          const cartouche = buildCartoucheForTab(tab.id);
+          for (const page of pages) {
+            allPageUrls.push(
+              await captureAndComposePage(reactFlow, page, {
+                cartouche,
+                pageNum,
+                totalPages,
+              }),
+            );
+            pageNum++;
+          }
+        }
+        await buildAndSavePDF(allPageUrls, `${refLabel}.pdf`);
+      } else {
+        let pageNum = 1;
+        for (const tab of flushedTabs) {
+          await switchTabAndWait(tab.id);
+          const nodes = useAppStore.getState().nodes;
+          const pages = computePageRects(nodes);
+          const cartouche = buildCartoucheForTab(tab.id);
+          const tabSlug = (tab.trade || tab.name)
+            .replace(/[^a-z0-9]+/gi, "-")
+            .toLowerCase();
+          for (let i = 0; i < pages.length; i++) {
+            const suffix =
+              flushedTabs.length > 1 || pages.length > 1
+                ? `-${tabSlug}${pages.length > 1 ? `-p${i + 1}` : ""}`
+                : "";
+            const filename = `${refLabel}${suffix}.${format}`;
+            const url = await captureAndComposePage(reactFlow, pages[i], {
+              cartouche,
+              pageNum,
+              totalPages,
+              format: format as "png" | "jpeg" | "svg",
+            });
+            downloadFile(url, filename, format);
+            pageNum++;
+          }
+        }
+      }
+    } catch (e) {
+      alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      await switchTabAndWait(originalTabId);
+    }
+  };
+
+  const handleExport = (format: "png" | "jpeg" | "svg" | "pdf") => {
+    setExportMenuOpen(false);
+    const { tabs } = useAppStore.getState();
+    if (tabs.length > 1) {
+      setScopeModal({ action: "export", format });
+    } else {
+      void handleExportCurrentTab(format);
     }
   };
 
@@ -497,6 +660,30 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
       {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
+      {scopeModal && (
+        <ExportScopeModal
+          tabs={tabs}
+          activeTabName={tabs.find((t) => t.id === activeTabId)?.trade || tabs.find((t) => t.id === activeTabId)?.name || ""}
+          action={scopeModal.action}
+          onCurrentTab={() => {
+            setScopeModal(null);
+            if (scopeModal.action === "export" && scopeModal.format) {
+              void handleExportCurrentTab(scopeModal.format);
+            } else {
+              void handlePrintCurrentTab();
+            }
+          }}
+          onAllTabs={() => {
+            setScopeModal(null);
+            if (scopeModal.action === "export" && scopeModal.format) {
+              void handleExportAllTabs(scopeModal.format);
+            } else {
+              void handlePrintAllTabs();
+            }
+          }}
+          onCancel={() => setScopeModal(null)}
+        />
+      )}
     </div>
   );
 }
