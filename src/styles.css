@@ -1370,6 +1370,17 @@ select {
 .product-node-label:focus {
   background: rgba(255, 255, 255, 0.55);
 }
+/* Label auto-généré : italique non-gras et plus pâle, jusqu'à édition. */
+.product-node-label.is-auto {
+  font-weight: 400;
+  font-style: italic;
+  color: rgba(204, 0, 0, 0.65);
+}
+.product-node-label.is-auto:focus {
+  /* Au focus, on garde le style auto pour ne pas surprendre l'utilisateur ;
+     le passage en gras se fera au premier caractère tapé (labelIsAuto = false). */
+  background: rgba(255, 255, 255, 0.55);
+}
 .product-node-ref {
   font-size: 9px;
   color: var(--muted);

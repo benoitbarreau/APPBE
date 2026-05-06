@@ -69,7 +69,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         <div className="product-node-name-row">
           <div className="product-node-name">{product.manufacturer}</div>
           <input
-            className="product-node-label"
+            className={`product-node-label${node.labelIsAuto ? " is-auto" : ""}`}
             value={node.label ?? ""}
             placeholder="Label"
             readOnly={readOnly}
@@ -79,7 +79,11 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             onChange={(e) =>
               !readOnly && updateNode(node.id, { label: e.target.value })
             }
-            title="Label du produit (ex. numéro d'inventaire)"
+            title={
+              node.labelIsAuto
+                ? "Label auto-généré — modifiez pour le rendre permanent"
+                : "Label du produit (ex. numéro d'inventaire)"
+            }
           />
         </div>
         <div

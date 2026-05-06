@@ -39,6 +39,9 @@ export interface PlacedProduct {
   zoneId?: string;
   /** Étiquette libre affichée sur le bloc (ex. numéro d'inventaire, nom court). */
   label?: string;
+  /** True si le label a été auto-généré à partir de la catégorie produit
+   *  et n'a pas encore été modifié manuellement. Affiché en italique non-gras. */
+  labelIsAuto?: boolean;
   portOverrides?: Record<string, PortPlacement>;
   portLabelOverrides?: Record<string, string>;
   portOrder?: string[];

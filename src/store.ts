@@ -156,6 +156,47 @@ const uid = (): string =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
+/** Préfixe à 1-3 lettres dérivé de la catégorie produit (sans accents,
+ *  alphanumérique uniquement, majuscules). Fallback "EQP" si vide. */
+function categoryPrefix(category: string): string {
+  const clean = (category ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!clean) return "EQP";
+  return clean.slice(0, 3);
+}
+
+/** Calcule le prochain numéro disponible pour un préfixe donné en analysant
+ *  tous les labels existants à travers tous les onglets. Retourne par
+ *  exemple "DSP-01" puis "DSP-02" etc. */
+function nextAutoLabel(prefix: string, allLabels: string[]): string {
+  const re = new RegExp(`^${prefix}-(\\d+)$`, "i");
+  let max = 0;
+  for (const lbl of allLabels) {
+    const m = (lbl ?? "").trim().match(re);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  }
+  return `${prefix}-${(max + 1).toString().padStart(2, "0")}`;
+}
+
+/** Collecte tous les labels existants à travers tous les onglets synoptiques
+ *  + l'état de travail courant (s.nodes). */
+function collectAllLabels(s: Pick<State, "tabs" | "activeTabId" | "nodes">): string[] {
+  const labels: string[] = [];
+  for (const n of s.nodes) labels.push(n.label ?? "");
+  for (const t of s.tabs) {
+    if (t.id === s.activeTabId) continue;
+    if (isIPTableTab(t)) continue;
+    for (const n of t.nodes ?? []) labels.push(n.label ?? "");
+  }
+  return labels;
+}
+
 /** Crée un onglet synoptique vide avec des zones par défaut. */
 const makeDefaultTab = (name = "Synoptique 1"): Tab => ({
   id: uid(),
@@ -367,7 +408,7 @@ export const useAppStore = create<State>()(
               return {
                 ...t,
                 nodes: (t.nodes ?? []).map((n) =>
-                  refIds.has(n.id) ? { ...n, label: newLabel } : n,
+                  refIds.has(n.id) ? { ...n, label: newLabel, labelIsAuto: false } : n,
                 ),
               };
             });
@@ -389,7 +430,7 @@ export const useAppStore = create<State>()(
             return {
               tabs: tabsWithLabelSync,
               nodes: s.nodes.map((n) =>
-                refIdsActive.has(n.id) ? { ...n, label: newLabel } : n,
+                refIdsActive.has(n.id) ? { ...n, label: newLabel, labelIsAuto: false } : n,
               ),
             };
           }),
@@ -540,13 +581,32 @@ export const useAppStore = create<State>()(
             const baseName = product ? `${product.manufacturer} ${product.reference}` : "Produit";
             const count = s.nodes.filter((n) => n.productId === productId).length;
             const name = count === 0 ? baseName : `${baseName} #${count + 1}`;
-            return { nodes: [...s.nodes, { id, productId, name, position }] };
+            // Label auto basé sur la catégorie : "DSP-01" pour un DSP audio,
+            // "MAT-01" pour une matrice, etc. Numérotation continue à travers
+            // tous les onglets pour éviter les doublons.
+            const prefix = categoryPrefix(product?.category ?? "");
+            const label = nextAutoLabel(prefix, collectAllLabels(s));
+            return {
+              nodes: [
+                ...s.nodes,
+                { id, productId, name, position, label, labelIsAuto: true },
+              ],
+            };
           });
           return id;
         },
         updateNode: (id, patch) =>
           set((s) => ({
-            nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+            nodes: s.nodes.map((n) => {
+              if (n.id !== id) return n;
+              // Si label change sans précision explicite sur labelIsAuto,
+              // c'est une édition manuelle → on retire le flag auto.
+              const finalPatch =
+                "label" in patch && !("labelIsAuto" in patch)
+                  ? { ...patch, labelIsAuto: false }
+                  : patch;
+              return { ...n, ...finalPatch };
+            }),
           })),
         removeNode: (id) =>
           set((s) => ({
