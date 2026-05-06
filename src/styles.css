@@ -1345,7 +1345,7 @@ select {
 .product-node-zone-name {
   flex: 0 0 auto;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 400;
   color: #000;
   white-space: nowrap;
   max-width: 80px;
