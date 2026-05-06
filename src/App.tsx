@@ -56,7 +56,7 @@ export default function App({ onOpenAdminDashboard, onBackToProjects, readOnly, 
 
 function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVersion }: AppProps) {
   const reactFlow = useReactFlow();
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [editingInstance, setEditingInstance] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -531,6 +531,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           </div>
 
           <div className="header-actions">
+            <button
+              onClick={() => void signOut()}
+              title="Se déconnecter"
+              className="btn-signout"
+            >
+              Se déconnecter
+            </button>
             {profile?.role === "admin" && onOpenAdminDashboard && (
               <button onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
                 Tableau de bord
