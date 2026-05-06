@@ -121,21 +121,28 @@ function getViewportElement(): HTMLElement | null {
   return document.querySelector(".react-flow__viewport") as HTMLElement | null;
 }
 
+// Canvas réutilisé pour la mesure de largeur de texte
+let _measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (!_measureCanvas) _measureCanvas = document.createElement("canvas");
+  const ctx = _measureCanvas.getContext("2d");
+  if (!ctx) return 0;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
 /** Fixe les largeurs des inputs câble avant capture (field-sizing non supporté par html-to-image).
  *
- * Problème : `field-sizing: content` ignore la propriété `width` — régler inp.style.width
- * n'a aucun effet tant que field-sizing est actif. html-to-image clone le DOM sans ce support,
- * ce qui fait rétrécir les inputs et tronque la valeur affichée.
+ * Problèmes successifs rencontrés :
+ *  1. `field-sizing: content` ignore la propriété `width` — il faut le désactiver d'abord.
+ *  2. `setProperty("field-sizing", "normal")` est INVALIDE — les seules valeurs valides sont
+ *     `fixed` (défaut) et `content`. Une valeur invalide est ignorée donc la règle CSS reste.
+ *     → utiliser `"fixed"`.
+ *  3. `getBoundingClientRect()` retourne des px viewport (× zoom React Flow) → trop petit.
+ *  4. `offsetWidth` peut être imprécis si la mesure intervient avant le re-layout.
  *
- * ⚠️  getBoundingClientRect() est FAUX ici : il retourne des px viewport (multipliés par le
- *     zoom React Flow). Si le canvas est à 80%, tous les inputs seraient trop étroits.
- *     offsetWidth retourne des px CSS (layout), indépendant des CSS transforms parents.
- *
- * Solution :
- *  1. Mesurer offsetWidth (px CSS, zoom-agnostique) — field-sizing: content encore actif.
- *  2. Désactiver field-sizing via setProperty("field-sizing","normal").
- *  3. Appliquer la largeur mesurée + 2px de marge de sécurité.
- *  4. Restaurer les deux propriétés après la capture.
+ * Solution la plus fiable : mesurer la largeur du texte via Canvas 2D (font + value),
+ * ajouter padding + border + marge de sécurité, et appliquer cette largeur explicite.
  */
 function fixCableLabelWidths(): () => void {
   const inputs = document.querySelectorAll<HTMLInputElement>(".cable-edge-type, .cable-edge-len");
@@ -143,12 +150,20 @@ function fixCableLabelWidths(): () => void {
   inputs.forEach((inp) => {
     const prevWidth = inp.style.width;
     const prevFieldSizing = inp.style.getPropertyValue("field-sizing");
-    // offsetWidth = px CSS layout, non affecté par les transforms (zoom React Flow)
-    const w = inp.offsetWidth;
-    // Désactiver field-sizing (sinon il ignore width)
-    inp.style.setProperty("field-sizing", "normal");
-    // +2px de marge pour éviter toute troncature due aux arrondis
-    inp.style.width = `${Math.max(w + 2, 8)}px`;
+
+    // Mesure exacte du texte avec la police effective
+    const cs = window.getComputedStyle(inp);
+    const font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const textWidth = measureTextWidth(inp.value || inp.placeholder || "", font);
+    const padding = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    const border = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+    // +6px de marge pour absorber arrondis et caret éventuel
+    const target = Math.ceil(textWidth + padding + border + 6);
+
+    // Désactiver field-sizing avec valeur valide (sinon width est ignoré)
+    inp.style.setProperty("field-sizing", "fixed");
+    inp.style.width = `${Math.max(target, 8)}px`;
+
     restores.push(() => {
       inp.style.width = prevWidth;
       if (prevFieldSizing) {
