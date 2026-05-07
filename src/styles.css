@@ -557,7 +557,7 @@ select {
 /* Edge label inline-éditable type Synodz */
 .cable-edge-label {
   pointer-events: all;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.8);
   padding: 0 5px;
   /* Cadre pointillé reprenant la couleur du câble (passée en inline style) */
   border: 1px dashed currentColor;
