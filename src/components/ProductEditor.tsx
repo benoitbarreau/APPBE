@@ -118,6 +118,43 @@ export function ProductEditor({
     });
   };
 
+  /** Duplique un port en incrémentant le numéro en fin de label.
+   *  Exemples : "IN 1" -> "IN 2", "Audio 5" -> "Audio 6", "ABC" -> "ABC 2".
+   *  Cherche le prochain numéro libre dans la section pour éviter les
+   *  doublons immédiats. Le nouveau port est inséré juste après l'original. */
+  const duplicatePort = (side: PortListKey, idx: number) => {
+    setDraft((d) => {
+      const list = getList(d, side);
+      const port = list[idx];
+      if (!port) return d;
+      const existing = new Set(list.map((p) => p.label));
+      const m = port.label.match(/^(.*?)(\d+)\s*$/);
+      let prefix: string;
+      let n: number;
+      if (m) {
+        prefix = m[1];
+        n = parseInt(m[2], 10);
+      } else {
+        // Pas de numéro à incrémenter → on en ajoute un (séparé par un espace)
+        prefix = port.label.endsWith(" ") || port.label === "" ? port.label : port.label + " ";
+        n = 1;
+      }
+      let candidate: string;
+      do {
+        n++;
+        candidate = `${prefix}${n}`;
+      } while (existing.has(candidate));
+      const newPort: Port = {
+        ...port,
+        id: `${side}-dup-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: candidate,
+      };
+      const next = [...list];
+      next.splice(idx + 1, 0, newPort);
+      return { ...d, [side]: next };
+    });
+  };
+
   const save = () => {
     if (!draft.reference.trim() || !draft.manufacturer.trim()) {
       alert("Référence et marque obligatoires");
@@ -142,22 +179,6 @@ export function ProductEditor({
     onClose();
   };
 
-  const exportProduct = () => {
-    const data = JSON.stringify(draft, null, 2);
-    const slug = (s: string) =>
-      s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const filename = `${slug(draft.manufacturer || "produit")}-${slug(
-      draft.reference || "fiche",
-    )}.json`;
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || "fiche-produit.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const duplicate = () => {
     const newId = `dup-${Date.now()}`;
     const refTrim = draft.reference.trim();
@@ -168,29 +189,6 @@ export function ProductEditor({
     upsertUserProduct(copy).catch(() => { /* échec silencieux */ });
     if (onSwitchTo) onSwitchTo(newId);
     else onClose();
-  };
-
-  const importProduct = async (file: File) => {
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as Partial<Product>;
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        typeof parsed.reference !== "string" ||
-        !Array.isArray(parsed.inputs) ||
-        !Array.isArray(parsed.outputs)
-      ) {
-        alert("Fichier produit invalide");
-        return;
-      }
-      // Keep the id of the currently-edited product (or the freshly
-      // generated one for a new product) so we don't overwrite another
-      // catalog entry by accident.
-      setDraft({ ...(parsed as Product), id: draft.id });
-    } catch {
-      alert("Fichier JSON invalide");
-    }
   };
 
   return (
@@ -330,6 +328,7 @@ export function ProductEditor({
             onAdd={() => addPort("inputs")}
             onChange={(i, patch) => setPort("inputs", i, patch)}
             onRemove={(i) => removePort("inputs", i)}
+            onDuplicate={(i) => duplicatePort("inputs", i)}
             onMove={(i, to) => movePort("inputs", i, to)}
             onReorder={(from, to) => reorderPort("inputs", from, to)}
             defaultDirection="in"
@@ -341,6 +340,7 @@ export function ProductEditor({
             onAdd={() => addPort("outputs")}
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
+            onDuplicate={(i) => duplicatePort("outputs", i)}
             onMove={(i, to) => movePort("outputs", i, to)}
             onReorder={(from, to) => reorderPort("outputs", from, to)}
             defaultDirection="out"
@@ -352,6 +352,7 @@ export function ProductEditor({
             onAdd={() => addPort("middle")}
             onChange={(i, patch) => setPort("middle", i, patch)}
             onRemove={(i) => removePort("middle", i)}
+            onDuplicate={(i) => duplicatePort("middle", i)}
             onMove={(i, to) => movePort("middle", i, to)}
             onReorder={(from, to) => reorderPort("middle", from, to)}
             defaultDirection="bi"
@@ -430,20 +431,6 @@ export function ProductEditor({
               Dupliquer
             </button>
           )}
-          <button onClick={exportProduct}>Exporter</button>
-          <label className="button-as-label">
-            Importer
-            <input
-              type="file"
-              accept="application/json"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) importProduct(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
           <button onClick={onClose}>Annuler</button>
           <button className="primary" onClick={save}>
             Enregistrer
@@ -467,6 +454,7 @@ function PortsEditor({
   onAdd,
   onChange,
   onRemove,
+  onDuplicate,
   onMove,
   onReorder,
 }: {
@@ -476,6 +464,7 @@ function PortsEditor({
   onAdd: () => void;
   onChange: (i: number, patch: Partial<Port>) => void;
   onRemove: (i: number) => void;
+  onDuplicate: (i: number) => void;
   onMove: (i: number, to: PortListKey) => void;
   onReorder: (fromIdx: number, toIdx: number) => void;
   defaultDirection: PortDirection;
@@ -541,6 +530,13 @@ function PortsEditor({
               </option>
             ))}
           </select>
+          <button
+            onClick={() => onDuplicate(i)}
+            title="Dupliquer ce port (incrémente le numéro)"
+            className="port-dup-btn"
+          >
+            ⎘
+          </button>
           <button onClick={() => onRemove(i)} title="Supprimer">
             ✕
           </button>
