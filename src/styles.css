@@ -558,7 +558,7 @@ select {
 .cable-edge-label {
   pointer-events: all;
   background: rgba(255, 255, 255, 0.4);
-  padding: 2px 5px;
+  padding: 0 5px;
   /* Cadre pointillé reprenant la couleur du câble (passée en inline style) */
   border: 1px dashed currentColor;
   border-radius: 3px;
@@ -645,7 +645,7 @@ select {
 .cable-edge-label-text {
   color: #E63946;
   font-weight: 700;
-  font-size: 9px;
+  font-size: 8px;
   margin-top: -1px;
   padding: 0 !important;
   min-width: 1ch;
