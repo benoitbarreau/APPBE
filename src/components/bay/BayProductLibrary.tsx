@@ -174,7 +174,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
               {search ? "Aucun résultat." : "Aucun produit dans les synoptiques."}
             </div>
           ) : (
-            filteredSynoptic.map(({ productId, nodeId, label, synopticName, product }) => {
+            filteredSynoptic.map(({ productId, nodeId, label, product }) => {
               const alreadyAdded = alreadyInRack.has(nodeId);
               const alreadyBayName = alreadyInRack.get(nodeId);
               const item: Omit<RackItem, "id" | "uStart"> = {
@@ -207,7 +207,6 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   </span>
                   <span className="bay-lib-item-sub">
                     {product!.manufacturer} · {product!.reference} · {product!.rackHeightU ?? 1}U
-                    <span className="bay-lib-item-synoptic"> — {synopticName}</span>
                   </span>
                 </div>
               );

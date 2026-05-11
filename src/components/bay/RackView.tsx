@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { RackItem, Tab } from "../../types";
-import { isSynopticTab } from "../../types";
 import { useAppStore } from "../../store";
 import { getDragItem, clearDragItem } from "./BayProductLibrary";
 
@@ -291,15 +290,6 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
     item.annotations &&
     Object.values(item.annotations).some((v) => v && v.trim() !== "");
 
-  // Nom de l'onglet synoptique source (pour items de type "synoptic")
-  const tabs = useAppStore((s) => s.tabs);
-  const synopticName = useMemo(() => {
-    if (item.sourceType !== "synoptic" || !item.nodeId) return null;
-    for (const t of tabs) {
-      if (isSynopticTab(t) && t.nodes?.some((n) => n.id === item.nodeId)) return t.name;
-    }
-    return null;
-  }, [tabs, item.sourceType, item.nodeId]);
 
   return (
     <div
@@ -326,9 +316,6 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
         </div>
         <div className="rack-item-sub">
           {[item.manufacturer, item.reference].filter(Boolean).join(" ")}
-          {synopticName && (
-            <span className="rack-item-sub-syno"> — {synopticName}</span>
-          )}
         </div>
         <div className="rack-item-badges">
           {item.locked && <span className="rack-badge" title="Verrouillé">🔒</span>}
