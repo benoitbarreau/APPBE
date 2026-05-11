@@ -4398,6 +4398,11 @@ select {
   margin-top: 1px;
 }
 
+.rack-item-sub-syno {
+  font-style: italic;
+  opacity: 0.7;
+}
+
 .rack-item-badges {
   display: flex;
   gap: 3px;
