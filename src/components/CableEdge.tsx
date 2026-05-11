@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -279,6 +279,8 @@ export function CableEdge({
   const cableView = useEditorState((s) => s.cableView);
   const zoom = useStore((s) => s.transform[2]);
   const nodeLookup = useStore((s) => s.nodeLookup);
+
+  const [hovered, setHovered] = useState(false);
 
   const dragRef = useRef<{
     startX: number;
@@ -577,7 +579,54 @@ export function CableEdge({
         interactionWidth={20}
       />
 
-      {/* Handles only when selected */}
+      {/* Hover detection + grip pills dans un même <g> pour éviter le flickering */}
+      <g
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {/* Chemin transparent épais pour capturer le survol */}
+        <path
+          d={path}
+          stroke="transparent"
+          strokeWidth={24}
+          fill="none"
+          style={{ pointerEvents: "stroke" }}
+        />
+
+        {/* Pilules de déplacement — visibles au survol (50 %) ou sélectionné (100 %) */}
+        {(hovered || selected) && segments.map((seg, i) => {
+          const dx = seg.b.x - seg.a.x;
+          const dy = seg.b.y - seg.a.y;
+          const isH = Math.abs(dy) < 1;
+          const isV = Math.abs(dx) < 1;
+          const len = Math.hypot(dx, dy);
+          if (len < 30) return null;
+          const midX = (seg.a.x + seg.b.x) / 2;
+          const midY = (seg.a.y + seg.b.y) / 2;
+          const w = isV ? 22 : isH ? 8 : 18;
+          const h = isV ? 8 : isH ? 22 : 8;
+          const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
+          return (
+            <rect
+              key={`grip-${i}`}
+              x={midX - w / 2}
+              y={midY - h / 2}
+              width={w}
+              height={h}
+              rx={3}
+              ry={3}
+              fill={color}
+              stroke="#fff"
+              strokeWidth={2}
+              opacity={selected ? 1 : 0.55}
+              style={{ cursor, pointerEvents: "all" }}
+              onMouseDown={(e) => onSegmentMouseDown(seg, e)}
+            />
+          );
+        })}
+      </g>
+
+      {/* Contrôles avancés uniquement quand sélectionné */}
       {selected && (
         <>
           {/* Invisible thick hit areas - any drag on a segment slides it */}
@@ -597,37 +646,6 @@ export function CableEdge({
                 stroke="transparent"
                 strokeWidth={22}
                 style={{ cursor, pointerEvents: "stroke" }}
-                onMouseDown={(e) => onSegmentMouseDown(seg, e)}
-              />
-            );
-          })}
-
-          {/* Mid-segment grip pills - visual handle */}
-          {segments.map((seg, i) => {
-            const dx = seg.b.x - seg.a.x;
-            const dy = seg.b.y - seg.a.y;
-            const isH = Math.abs(dy) < 1;
-            const isV = Math.abs(dx) < 1;
-            const len = Math.hypot(dx, dy);
-            if (len < 30) return null;
-            const midX = (seg.a.x + seg.b.x) / 2;
-            const midY = (seg.a.y + seg.b.y) / 2;
-            const w = isV ? 22 : isH ? 8 : 18;
-            const h = isV ? 8 : isH ? 22 : 8;
-            const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
-            return (
-              <rect
-                key={`grip-${i}`}
-                x={midX - w / 2}
-                y={midY - h / 2}
-                width={w}
-                height={h}
-                rx={3}
-                ry={3}
-                fill={color}
-                stroke="#fff"
-                strokeWidth={2}
-                style={{ cursor, pointerEvents: "all" }}
                 onMouseDown={(e) => onSegmentMouseDown(seg, e)}
               />
             );
