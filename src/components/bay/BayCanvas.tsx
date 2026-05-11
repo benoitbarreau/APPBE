@@ -57,13 +57,14 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
             onSelectItem={setSelectedItemId}
           />
         </div>
-
-        <BayItemProperties
-          tab={tab}
-          selectedItemId={selectedItemId}
-          onDeselect={() => setSelectedItemId(null)}
-        />
       </div>
+
+      {/* Modal propriétés (portail vers document.body) */}
+      <BayItemProperties
+        tab={tab}
+        selectedItemId={selectedItemId}
+        onDeselect={() => setSelectedItemId(null)}
+      />
     </div>
   );
 }

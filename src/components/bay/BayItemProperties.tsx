@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "../../store";
 import type { RackAnnotations, RackItem, Tab } from "../../types";
 import { isIPTableTab } from "../../types";
@@ -54,23 +55,24 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
     });
   };
 
-  // Rien de sélectionné → panneau vide
-  if (!item) {
-    return (
-      <div className="bay-properties">
-        <div className="bay-props-hint">
-          Cliquez sur un équipement dans la baie pour éditer ses propriétés.
-        </div>
-      </div>
-    );
-  }
+  // Fermeture par touche Escape
+  useEffect(() => {
+    if (!item) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onDeselect(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [item, onDeselect]);
 
-  // ── Propriétés de l'élément sélectionné ────────────────────────────────
-  return (
-    <div className="bay-properties">
+  // Rien de sélectionné → pas de modal
+  if (!item) return null;
+
+  // ── Modal propriétés de l'élément sélectionné ──────────────────────────
+  return createPortal(
+    <div className="bay-prop-overlay" onMouseDown={onDeselect}>
+    <div className="bay-properties" onMouseDown={(e) => e.stopPropagation()}>
       <div className="bay-props-header">
         <h3 className="bay-props-title">Propriétés</h3>
-        <button className="bay-props-close" onClick={onDeselect} title="Fermer">✕</button>
+        <button className="bay-props-close" onClick={onDeselect} title="Fermer (Echap)">✕</button>
       </div>
 
       <div className="bay-prop-group">
@@ -212,5 +214,7 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
         </button>
       </div>
     </div>
+    </div>,
+    document.body,
   );
 }
