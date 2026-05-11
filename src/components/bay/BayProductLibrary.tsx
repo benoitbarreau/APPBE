@@ -57,7 +57,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
     return Array.from(seen.values()).map(({ productId, nodeId, label }) => {
       const product = products.find((p) => p.id === productId);
       return { productId, nodeId, label, product };
-    }).filter((x) => x.product);
+    }).filter((x) => x.product && (x.product.rackHeightU ?? 0) > 0);
   }, [tabs, tabId, products]);
 
   // ── Produits du catalogue avec rackHeightU ───────────────────────────────
