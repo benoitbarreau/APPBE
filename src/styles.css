@@ -4081,7 +4081,7 @@ select {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: #1a1c20;
+  background: #fff;
   color: #e0e3e8;
 }
 
@@ -4258,7 +4258,7 @@ select {
   display: flex;
   justify-content: center;
   padding: 24px;
-  background: #1a1c20;
+  background: #fff;
 }
 
 /* ── RackView ────────────────────────────────────────────────────────────── */
