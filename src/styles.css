@@ -560,7 +560,7 @@ select {
   background: rgba(255, 255, 255, 0.8);
   padding: 0 5px;
   /* Cadre pointillé reprenant la couleur du câble (passée en inline style) */
-  border: 1px dashed currentColor;
+  border: 0.5px dashed currentColor;
   border-radius: 3px;
   display: flex;
   flex-direction: column;
