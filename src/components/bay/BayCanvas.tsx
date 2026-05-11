@@ -11,10 +11,18 @@ interface BayCanvasProps {
 
 export function BayCanvas({ tabId }: BayCanvasProps) {
   const tabs = useAppStore((s) => s.tabs);
+  const syncBayItems = useAppStore((s) => s.syncBayItems);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [synced, setSynced] = useState(false);
 
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab || !isBayTab(tab)) return null;
+
+  const handleSync = () => {
+    syncBayItems(tabId);
+    setSynced(true);
+    setTimeout(() => setSynced(false), 2000);
+  };
 
   return (
     <div className="bay-canvas">
@@ -29,6 +37,13 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
         <span className="bay-infobar-count">
           {(tab.bayItems ?? []).length} équipement{(tab.bayItems ?? []).length > 1 ? "s" : ""}
         </span>
+        <button
+          className={`bay-sync-btn${synced ? " synced" : ""}`}
+          onClick={handleSync}
+          title="Resynchroniser les labels et références depuis les synoptiques"
+        >
+          {synced ? "✓ Synchronisé" : "⟳ Synchroniser"}
+        </button>
       </div>
 
       {/* ── Main layout ──────────────────────────────────────────────────── */}

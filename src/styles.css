@@ -4090,25 +4090,48 @@ select {
   align-items: center;
   gap: 16px;
   padding: 6px 14px;
-  background: #22252b;
-  border-bottom: 1px solid #333840;
+  background: #f8f9fb;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .bay-infobar-label {
   font-weight: 600;
-  color: #a0c4ff;
+  color: var(--primary);
 }
 
 .bay-infobar-hint {
-  color: #6c7480;
+  color: var(--muted);
   flex: 1;
 }
 
 .bay-infobar-count {
-  color: #6c7480;
+  color: var(--muted);
   font-size: 11px;
+}
+
+.bay-sync-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.bay-sync-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.bay-sync-btn.synced {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
 }
 
 .bay-layout {

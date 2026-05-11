@@ -70,6 +70,9 @@ interface State {
   addBayTab: (opts?: { name?: string; widthInch?: 10 | 19; heightU?: number }) => string;
   /** Met à jour la configuration de la baie (dimensions, numérotation). */
   updateBayConfig: (tabId: string, patch: { bayWidthInch?: 10 | 19; bayHeightU?: number; bayNumberingFromBottom?: boolean }) => void;
+  /** Synchronise les métadonnées (label, fabricant, référence) des items de type
+   *  "synoptic" en relisant leurs nœuds sources dans les onglets synoptiques. */
+  syncBayItems: (tabId: string) => void;
   /** Ajoute un équipement dans la baie. Retourne l'ID créé. */
   addRackItem: (tabId: string, item: Omit<RackItem, 'id'>) => string;
   /** Met à jour un équipement de la baie. */
@@ -355,6 +358,37 @@ export const useAppStore = create<State>()(
               t.id === tabId && isBayTab(t) ? { ...t, ...patch } : t,
             ),
           })),
+
+        syncBayItems: (tabId) =>
+          set((s) => {
+            const flushed = flushActive(s);
+            const target = flushed.find((t) => t.id === tabId);
+            if (!target || !isBayTab(target)) return {};
+            const updatedItems = (target.bayItems ?? []).map((item) => {
+              if (item.sourceType !== "synoptic" || !item.nodeId) return item;
+              for (const t of flushed) {
+                if (!isSynopticTab(t)) continue;
+                const node = t.nodes?.find((n) => n.id === item.nodeId);
+                if (node) {
+                  const product = s.products.find((p) => p.id === node.productId);
+                  return {
+                    ...item,
+                    label: node.label ?? item.label,
+                    manufacturer: product?.manufacturer ?? item.manufacturer,
+                    reference: product?.reference ?? item.reference,
+                    category: product?.category ?? item.category,
+                    heightU: product?.rackHeightU ?? item.heightU,
+                  };
+                }
+              }
+              return item;
+            });
+            return {
+              tabs: flushed.map((t) =>
+                t.id === tabId ? { ...t, bayItems: updatedItems } : t,
+              ),
+            };
+          }),
 
         addRackItem: (tabId, item) => {
           const newId = uid();
