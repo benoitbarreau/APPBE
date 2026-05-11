@@ -53,10 +53,13 @@ function buildPathWithBumps(
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.x - last.x) >= 2 * r) deduped.push(bump);
       }
-      const sweep = dirX > 0 ? 0 : 1; // bump UP
+      // sweep=0 (CCW) → arc vers le HAUT, cohérent quel que soit dirX
+      // Vérification géométrique :
+      //   droite : (bump.x-r,y)→(bump.x+r,y) CCW = 9h→12h→3h = haut ✓
+      //   gauche : (bump.x+r,y)→(bump.x-r,y) CCW = 3h→12h→9h = haut ✓
       for (const bump of deduped) {
         d += ` L ${bump.x - dirX * r} ${y}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${y}`;
+        d += ` A ${r} ${r} 0 0 0 ${bump.x + dirX * r} ${y}`;
       }
       d += ` L ${b.x} ${b.y}`;
     } else {
@@ -72,10 +75,13 @@ function buildPathWithBumps(
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.y - last.y) >= 2 * r) deduped.push(bump);
       }
-      const sweep = dirY > 0 ? 1 : 0; // bump RIGHT (cohérent quelle que soit la direction)
+      // sweep=1 (CW) → arc vers la DROITE, cohérent quel que soit dirY
+      // Vérification géométrique :
+      //   bas  : (x,bump.y-r)→(x,bump.y+r) CW = 12h→3h→6h = droite ✓
+      //   haut : (x,bump.y+r)→(x,bump.y-r) CW =  6h→3h→12h = droite ✓
       for (const bump of deduped) {
         d += ` L ${x} ${bump.y - dirY * r}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${x} ${bump.y + dirY * r}`;
+        d += ` A ${r} ${r} 0 0 1 ${x} ${bump.y + dirY * r}`;
       }
       d += ` L ${b.x} ${b.y}`;
     }
