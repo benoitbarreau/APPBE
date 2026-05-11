@@ -459,14 +459,36 @@ const allNodes = useAppStore((s) => s.nodes);
   const onWaypointMouseDown = (i: number, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const orig = { ...waypoints[i] };
     const baseEffective = waypoints.map((p) => ({ ...p }));
     const start = { x: e.clientX, y: e.clientY };
+
+    // Détecter la contrainte du coin en regardant le segment entrant réel.
+    // Segment H-entrant → y partagé avec prev → glisser en y nécessite
+    //   aussi de déplacer prev.y pour garder le segment horizontal.
+    // Segment V-entrant → x partagé avec prev → idem pour prev.x.
+    const prevPt = i === 0 ? source : waypoints[i - 1];
+    const enteringIsH = Math.abs(waypoints[i].y - prevPt.y) < 1;
+
     const onMove = (ev: MouseEvent) => {
       const dx = (ev.clientX - start.x) / zoom;
       const dy = (ev.clientY - start.y) / zoom;
-      const next = [...baseEffective];
-      next[i] = { x: orig.x + dx, y: orig.y + dy };
+      const next = baseEffective.map((p) => ({ ...p }));
+
+      // Déplacer le coin librement sur les deux axes
+      next[i] = { x: baseEffective[i].x + dx, y: baseEffective[i].y + dy };
+
+      // Propager dans la direction contrainte au waypoint précédent afin
+      // qu'orthogonalize puisse maintenir le segment entrant sans le bloquer.
+      if (i > 0) {
+        if (enteringIsH) {
+          // y partagé avec prev → propager dy
+          next[i - 1] = { ...next[i - 1], y: baseEffective[i - 1].y + dy };
+        } else {
+          // x partagé avec prev → propager dx
+          next[i - 1] = { ...next[i - 1], x: baseEffective[i - 1].x + dx };
+        }
+      }
+
       updateCable(cable.id, { waypoints: next });
     };
     const onUp = () => {
