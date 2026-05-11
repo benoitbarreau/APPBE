@@ -678,7 +678,7 @@ const allNodes = useAppStore((s) => s.nodes);
                   key={`add-${i}-${k}`}
                   cx={x}
                   cy={y}
-                  r={4}
+                  r={2}
                   fill="#fff"
                   stroke={color}
                   strokeWidth={1.5}
@@ -717,7 +717,7 @@ const allNodes = useAppStore((s) => s.nodes);
               key={`wp-${i}`}
               cx={wp.x}
               cy={wp.y}
-              r={6}
+              r={3}
               fill="#fff"
               stroke={color}
               strokeWidth={3}
