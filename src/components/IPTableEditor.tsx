@@ -70,7 +70,16 @@ type SortDir = "asc" | "desc";
 export function IPTableEditor({ tabId }: { tabId: string }) {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const allTabs = useAppStore((s) => s.tabs);
-  const allZones = useAppStore((s) => s.zones);
+  // Ne pas lire s.zones (vide quand l'onglet actif est IP ou Baie) :
+  // reconstruire depuis les zones stockées dans chaque onglet synoptique.
+  const allZones = useMemo(() => {
+    const m = new Map<string, { id: string; label: string; color: string }>();
+    for (const t of allTabs) {
+      if (isIPTableTab(t)) continue;
+      for (const z of t.zones ?? []) m.set(z.id, z);
+    }
+    return Array.from(m.values());
+  }, [allTabs]);
   const syncIPTable = useAppStore((s) => s.syncIPTable);
   const updateIPRow = useAppStore((s) => s.updateIPRow);
   const addIPRow = useAppStore((s) => s.addIPRow);

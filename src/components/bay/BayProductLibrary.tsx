@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAppStore } from "../../store";
 import type { RackItem } from "../../types";
-import { isSynopticTab } from "../../types";
+import { isBayTab, isSynopticTab } from "../../types";
 import { BAY_ACCESSORIES } from "./bay-accessories";
 
 interface BayProductLibraryProps {
@@ -36,9 +36,20 @@ declare global {
 export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   const [libTab, setLibTab] = useState<LibTab>("synoptic");
   const [search, setSearch] = useState("");
+  const [warnMsg, setWarnMsg] = useState<string | null>(null);
   const products = useAppStore((s) => s.products);
   const tabs = useAppStore((s) => s.tabs);
   const addRackItem = useAppStore((s) => s.addRackItem);
+
+  // nodeIds déjà présents dans cette baie (sourceType=synoptic)
+  const alreadyInRack = useMemo(() => {
+    const bayTab = tabs.find((t) => t.id === tabId && isBayTab(t));
+    const set = new Set<string>();
+    for (const it of bayTab?.bayItems ?? []) {
+      if (it.sourceType === "synoptic" && it.nodeId) set.add(it.nodeId);
+    }
+    return set;
+  }, [tabs, tabId]);
 
   // ── Produits placés dans les onglets synoptiques ─────────────────────────
   const synopticItems = useMemo(() => {
@@ -52,8 +63,6 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
         }
       }
     }
-    // Inclure aussi les nœuds de l'onglet actif si c'est un synoptique
-    // (l'onglet actif est une Baie, donc on ignore)
     return Array.from(seen.values()).map(({ productId, nodeId, label }) => {
       const product = products.find((p) => p.id === productId);
       return { productId, nodeId, label, product };
@@ -91,18 +100,37 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
     a.reference.toLowerCase().includes(q),
   );
 
+  // ── Avertissement doublon ────────────────────────────────────────────────
+  const showWarn = (name: string) => {
+    setWarnMsg(`« ${name} » est déjà présent dans cette baie.`);
+    setTimeout(() => setWarnMsg(null), 3000);
+  };
+
   // ── Ajout rapide au click ────────────────────────────────────────────────
-  const quickAdd = (item: Omit<RackItem, "id" | "uStart">) => {
+  const quickAdd = (item: Omit<RackItem, "id" | "uStart">, nodeId?: string) => {
+    if (nodeId && alreadyInRack.has(nodeId)) {
+      showWarn(item.label ?? item.reference ?? "Ce produit");
+      return;
+    }
     addRackItem(tabId, { ...item, uStart: 1, colStart: 0 });
   };
 
-  // ── Drag start ──────────────────────────────────────────────────────────
-  const handleDragStart = (item: Omit<RackItem, "id" | "uStart">) => {
+  // ── Drag start (bloqué si déjà présent) ─────────────────────────────────
+  const handleDragStart = (item: Omit<RackItem, "id" | "uStart">, nodeId?: string) => {
+    if (nodeId && alreadyInRack.has(nodeId)) {
+      showWarn(item.label ?? item.reference ?? "Ce produit");
+      return;
+    }
     setDragItem(item);
   };
 
   return (
     <div className="bay-library">
+      {/* Avertissement doublon */}
+      {warnMsg && (
+        <div className="bay-lib-warn">{warnMsg}</div>
+      )}
+
       {/* Tabs */}
       <div className="bay-lib-tabs">
         <button className={libTab === "synoptic" ? "active" : ""} onClick={() => setLibTab("synoptic")}>Synoptique</button>
@@ -127,6 +155,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
             </div>
           ) : (
             filteredSynoptic.map(({ productId, nodeId, label, product }) => {
+              const alreadyAdded = alreadyInRack.has(nodeId);
               const item: Omit<RackItem, "id" | "uStart"> = {
                 sourceType: "synoptic",
                 productId,
@@ -142,13 +171,18 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
               return (
                 <div
                   key={`${productId}:${nodeId}`}
-                  className="bay-lib-item"
-                  draggable
-                  onDragStart={() => handleDragStart(item)}
-                  onClick={() => quickAdd(item)}
-                  title={`${product!.manufacturer} ${product!.reference} — ${product!.rackHeightU ?? 1}U — Cliquer pour ajouter`}
+                  className={`bay-lib-item${alreadyAdded ? " already-added" : ""}`}
+                  draggable={!alreadyAdded}
+                  onDragStart={() => handleDragStart(item, nodeId)}
+                  onClick={() => quickAdd(item, nodeId)}
+                  title={alreadyAdded
+                    ? `${product!.manufacturer} ${product!.reference} — Déjà dans la baie`
+                    : `${product!.manufacturer} ${product!.reference} — ${product!.rackHeightU ?? 1}U — Cliquer pour ajouter`}
                 >
-                  <span className="bay-lib-item-label">{label || product!.reference}</span>
+                  <span className="bay-lib-item-label">
+                    {alreadyAdded && <span className="bay-lib-in-rack">✓ </span>}
+                    {label || product!.reference}
+                  </span>
                   <span className="bay-lib-item-sub">{product!.manufacturer} · {product!.rackHeightU ?? 1}U</span>
                 </div>
               );

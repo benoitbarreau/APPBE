@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useAppStore } from "../../store";
 import type { RackAnnotations, RackItem, Tab } from "../../types";
+import { isIPTableTab } from "../../types";
 
 interface BayItemPropertiesProps {
   tab: Tab;
@@ -23,8 +25,23 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
   const updateBayConfig = useAppStore((s) => s.updateBayConfig);
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const removeRackItem = useAppStore((s) => s.removeRackItem);
+  const allTabs = useAppStore((s) => s.tabs);
 
   const item = (tab.bayItems ?? []).find((it) => it.id === selectedItemId);
+
+  // ── IP depuis le Tableau IP (pour les produits synoptique liés) ─────────
+  const ipFromIPTable = useMemo(() => {
+    if (!item || item.sourceType !== "synoptic" || !item.nodeId) return null;
+    for (const t of allTabs) {
+      if (!isIPTableTab(t)) continue;
+      for (const row of t.rows ?? []) {
+        if (row.productInstanceIds.includes(item.nodeId) && row.ip?.trim()) {
+          return row.ip.trim();
+        }
+      }
+    }
+    return null;
+  }, [allTabs, item]);
 
   const patchItem = (patch: Partial<RackItem>) => {
     if (!item) return;
@@ -207,14 +224,30 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
 
       {/* ── Annotations ────────────────────────────────────────────────── */}
       <div className="bay-prop-section-title">Annotations</div>
+
       {ANNOTATION_FIELDS.map(({ key, label }) => (
         <div key={key} className="bay-prop-group bay-prop-annotation">
           <label>{label}</label>
+          {/* Champ IP : afficher l'IP du Tableau IP si disponible */}
+          {key === "ip" && ipFromIPTable && (
+            <div className="bay-prop-ip-hint">
+              <span className="bay-prop-ip-source" title="IP issue du Tableau IP">📋 {ipFromIPTable}</span>
+              {!item.annotations?.ip && (
+                <button
+                  className="bay-prop-ip-copy"
+                  onClick={() => patchAnnotation("ip", ipFromIPTable)}
+                  title="Copier depuis le Tableau IP"
+                >
+                  ↓ Copier
+                </button>
+              )}
+            </div>
+          )}
           <input
             type="text"
             value={item.annotations?.[key] ?? ""}
             onChange={(e) => patchAnnotation(key, e.target.value)}
-            placeholder="—"
+            placeholder={key === "ip" && ipFromIPTable ? ipFromIPTable : "—"}
           />
         </div>
       ))}

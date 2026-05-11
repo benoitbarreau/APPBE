@@ -4105,6 +4105,7 @@ select {
   border-right: 1px solid #333840;
   background: #22252b;
   overflow: hidden;
+  position: relative;
 }
 
 .bay-lib-tabs {
@@ -4692,6 +4693,74 @@ select {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 18px;
+}
+
+/* ── Avertissement doublon bibliothèque ─────────────────────────────────── */
+
+.bay-lib-warn {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #7a3a00;
+  color: #ffd280;
+  font-size: 11px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #b85e00;
+  animation: bay-warn-fade 3s forwards;
+}
+
+@keyframes bay-warn-fade {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Produit déjà dans la baie */
+.bay-lib-item.already-added {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bay-lib-item.already-added:hover {
+  background: transparent;
+}
+
+.bay-lib-in-rack {
+  color: #5fbf5f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── IP depuis Tableau IP ───────────────────────────────────────────────── */
+
+.bay-prop-ip-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.bay-prop-ip-source {
+  font-size: 10px;
+  color: #7fc97f;
+  font-weight: 500;
+}
+
+.bay-prop-ip-copy {
+  font-size: 10px;
+  padding: 2px 7px;
+  border: 1px solid #4a7a4a;
+  background: #1a2e1a;
+  color: #7fc97f;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bay-prop-ip-copy:hover {
+  background: #4a7a4a;
+  color: #fff;
 }
 
 /* ── Bay tab styling ─────────────────────────────────────────────────────── */
