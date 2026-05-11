@@ -243,7 +243,7 @@ export function DiagramCanvas({
       onReconnect={readOnly ? undefined : onReconnect}
       onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
       onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
-      reconnectRadius={20}
+      reconnectRadius={10}
       connectionMode={ConnectionMode.Loose}
       nodesDraggable={!readOnly}
       nodesConnectable={!readOnly}
