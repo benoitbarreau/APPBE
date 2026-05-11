@@ -170,7 +170,6 @@ function PortRow({
     width: 9,
     height: 9,
     border: "2px solid #fff",
-    boxShadow: `0 0 0 1px ${color}`,
     top: "50%",
     ...(side === "in"
       ? { left: 0, transform: "translate(-50%, -50%)" }
@@ -216,7 +215,6 @@ function MiddlePortRow({
   const leftStyle: React.CSSProperties = {
     ...baseStyle,
     background: leftConnectable ? color : dim,
-    boxShadow: `0 0 0 1px ${leftConnectable ? color : dim}`,
     left: 0,
     transform: "translate(-50%, -50%)",
     cursor: leftConnectable ? "crosshair" : "not-allowed",
@@ -224,7 +222,6 @@ function MiddlePortRow({
   const rightStyle: React.CSSProperties = {
     ...baseStyle,
     background: rightConnectable ? color : dim,
-    boxShadow: `0 0 0 1px ${rightConnectable ? color : dim}`,
     left: "auto",
     right: 0,
     transform: "translate(50%, -50%)",
