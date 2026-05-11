@@ -33,7 +33,7 @@ function buildPolyline(points: Point[]): string {
 function buildPathWithBumps(
   points: Point[],
   bumpsPerSeg: Map<number, Point[]>,
-  r = 9,
+  r = 4,
 ): string {
   if (points.length < 2) return "";
   let d = `M ${points[0].x} ${points[0].y}`;
