@@ -22,7 +22,6 @@ const ANNOTATION_FIELDS: { key: keyof RackAnnotations; label: string }[] = [
 ];
 
 export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPropertiesProps) {
-  const updateBayConfig = useAppStore((s) => s.updateBayConfig);
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const removeRackItem = useAppStore((s) => s.removeRackItem);
   const allTabs = useAppStore((s) => s.tabs);
@@ -55,62 +54,10 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
     });
   };
 
-  // ── Panneau de config de la baie (rien de sélectionné) ─────────────────
+  // Rien de sélectionné → panneau vide
   if (!item) {
     return (
       <div className="bay-properties">
-        <h3 className="bay-props-title">Paramètres</h3>
-
-        <div className="bay-prop-group">
-          <label>Largeur</label>
-          <div className="bay-create-width-group">
-            <button
-              className={`bay-create-width-btn${tab.bayWidthInch === 19 ? " active" : ""}`}
-              onClick={() => updateBayConfig(tab.id, { bayWidthInch: 19 })}
-            >
-              19"
-            </button>
-            <button
-              className={`bay-create-width-btn${tab.bayWidthInch === 10 ? " active" : ""}`}
-              onClick={() => updateBayConfig(tab.id, { bayWidthInch: 10 })}
-            >
-              10"
-            </button>
-          </div>
-        </div>
-
-        <div className="bay-prop-group">
-          <label>Hauteur (U)</label>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={tab.bayHeightU ?? 42}
-            onChange={(e) => {
-              const v = parseInt(e.target.value);
-              if (v > 0 && v <= 100) updateBayConfig(tab.id, { bayHeightU: v });
-            }}
-          />
-        </div>
-
-        <div className="bay-prop-group">
-          <label>Numérotation</label>
-          <div className="bay-create-width-group">
-            <button
-              className={`bay-create-width-btn${tab.bayNumberingFromBottom !== false ? " active" : ""}`}
-              onClick={() => updateBayConfig(tab.id, { bayNumberingFromBottom: true })}
-            >
-              Bas → Haut
-            </button>
-            <button
-              className={`bay-create-width-btn${tab.bayNumberingFromBottom === false ? " active" : ""}`}
-              onClick={() => updateBayConfig(tab.id, { bayNumberingFromBottom: false })}
-            >
-              Haut → Bas
-            </button>
-          </div>
-        </div>
-
         <div className="bay-props-hint">
           Cliquez sur un équipement dans la baie pour éditer ses propriétés.
         </div>
