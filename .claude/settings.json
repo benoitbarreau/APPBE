@@ -1,15 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd * && git add *)",
-      "Bash(cd * && git commit *)",
-      "Bash(cd * && git push origin *)",
-      "Bash(cd * && git add * && git commit *)",
-      "Bash(cd * && git add * && git commit * && git push *)",
-      "Bash(cp * *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git clone *)",
+      "Bash(git --version)",
+      "Bash(npm run *)",
+      "Bash(cp -r *)",
+      "Bash(cp *)",
       "Bash(mkdir -p *)",
-      "Bash(PATH=* node * --noEmit *)",
-      "Bash(gh api repos/*)"
+      "Bash(node ./node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(node node_modules/typescript/bin/tsc -b --noEmit)",
+      "Bash(gh api repos/*)",
+      "Bash(gh api *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

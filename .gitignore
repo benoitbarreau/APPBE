@@ -6,3 +6,6 @@ dist
 .env
 .env.local
 tsconfig.tsbuildinfo
+*.zip
+*.pdf
+.claude/settings.local.json
