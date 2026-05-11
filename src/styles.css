@@ -150,6 +150,17 @@ select {
   border-color: var(--border);
 }
 
+/* ── Drag-and-drop des onglets ── */
+.tab-item { cursor: grab; }
+.tab-item.tab-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.tab-item.tab-drag-over {
+  border-left: 2px solid var(--primary);
+  background: rgba(var(--primary-rgb, 59,130,246), 0.08);
+}
+
 .tab-name {
   background: transparent;
   border: none;
@@ -4192,6 +4203,10 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.bay-lib-item-synoptic {
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .bay-lib-empty {

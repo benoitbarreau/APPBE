@@ -79,6 +79,7 @@ interface State {
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
   duplicateTab: (tabId: string) => void;
+  reorderTabs: (fromId: string, toId: string) => void;
   setActiveTab: (tabId: string) => void;
   setActiveTabTrade: (trade: string) => void;
 
@@ -437,6 +438,17 @@ export const useAppStore = create<State>()(
           set((s) => ({
             tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, name } : t)),
           })),
+
+        reorderTabs: (fromId, toId) =>
+          set((s) => {
+            const arr = [...s.tabs];
+            const from = arr.findIndex((t) => t.id === fromId);
+            const to   = arr.findIndex((t) => t.id === toId);
+            if (from === -1 || to === -1 || from === to) return {};
+            const [moved] = arr.splice(from, 1);
+            arr.splice(to, 0, moved);
+            return { tabs: arr };
+          }),
 
         setActiveTabTrade: (trade) =>
           set((s) => ({

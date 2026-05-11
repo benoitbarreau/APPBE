@@ -51,23 +51,35 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
     return set;
   }, [tabs, tabId]);
 
-  // ── Produits placés dans les onglets synoptiques ─────────────────────────
+  // ── Produits placés dans TOUS les onglets synoptiques ────────────────────
+  // Chaque entrée porte aussi le nom du synoptique source pour l'affichage.
   const synopticItems = useMemo(() => {
-    const seen = new Map<string, { productId: string; nodeId: string; label?: string }>();
+    const items: {
+      productId: string;
+      nodeId: string;
+      label?: string;
+      synopticName: string;
+      product: typeof products[number] | undefined;
+    }[] = [];
+    const seenNodeIds = new Set<string>();
     for (const t of tabs) {
-      if (!isSynopticTab(t) || t.id === tabId) continue;
+      if (!isSynopticTab(t)) continue; // exclut IP et Baie
       for (const node of t.nodes ?? []) {
-        const key = `${node.productId}:${node.id}`;
-        if (!seen.has(key)) {
-          seen.set(key, { productId: node.productId, nodeId: node.id, label: node.label });
-        }
+        if (seenNodeIds.has(node.id)) continue; // même nœud présent 2x (ne devrait pas arriver)
+        seenNodeIds.add(node.id);
+        const product = products.find((p) => p.id === node.productId);
+        if (!product || (product.rackHeightU ?? 0) <= 0) continue;
+        items.push({
+          productId: node.productId,
+          nodeId: node.id,
+          label: node.label,
+          synopticName: t.name,
+          product,
+        });
       }
     }
-    return Array.from(seen.values()).map(({ productId, nodeId, label }) => {
-      const product = products.find((p) => p.id === productId);
-      return { productId, nodeId, label, product };
-    }).filter((x) => x.product && (x.product.rackHeightU ?? 0) > 0);
-  }, [tabs, tabId, products]);
+    return items;
+  }, [tabs, products]);
 
   // ── Produits du catalogue avec rackHeightU ───────────────────────────────
   const catalogItems = useMemo(
@@ -78,12 +90,13 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   // ── Filtrage par recherche ───────────────────────────────────────────────
   const q = search.toLowerCase();
 
-  const filteredSynoptic = synopticItems.filter(({ product, label }) =>
+  const filteredSynoptic = synopticItems.filter(({ product, label, synopticName }) =>
     !q ||
     (product?.manufacturer ?? "").toLowerCase().includes(q) ||
     (product?.reference ?? "").toLowerCase().includes(q) ||
     (product?.category ?? "").toLowerCase().includes(q) ||
-    (label ?? "").toLowerCase().includes(q),
+    (label ?? "").toLowerCase().includes(q) ||
+    synopticName.toLowerCase().includes(q),
   );
 
   const filteredCatalog = catalogItems.filter((p) =>
@@ -154,7 +167,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
               {search ? "Aucun résultat." : "Aucun produit dans les synoptiques."}
             </div>
           ) : (
-            filteredSynoptic.map(({ productId, nodeId, label, product }) => {
+            filteredSynoptic.map(({ productId, nodeId, label, synopticName, product }) => {
               const alreadyAdded = alreadyInRack.has(nodeId);
               const item: Omit<RackItem, "id" | "uStart"> = {
                 sourceType: "synoptic",
@@ -183,7 +196,10 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                     {alreadyAdded && <span className="bay-lib-in-rack">✓ </span>}
                     {label || product!.reference}
                   </span>
-                  <span className="bay-lib-item-sub">{product!.manufacturer} · {product!.rackHeightU ?? 1}U</span>
+                  <span className="bay-lib-item-sub">
+                    {product!.manufacturer} · {product!.rackHeightU ?? 1}U
+                    <span className="bay-lib-item-synoptic"> — {synopticName}</span>
+                  </span>
                 </div>
               );
             })

@@ -78,6 +78,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const addIPTableTab = useAppStore((s) => s.addIPTableTab);
   const addBayTab = useAppStore((s) => s.addBayTab);
   const removeTab = useAppStore((s) => s.removeTab);
+  const reorderTabs = useAppStore((s) => s.reorderTabs);
+  const [dragTabId, setDragTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
   const renameTab = useAppStore((s) => s.renameTab);
   const duplicateTab = useAppStore((s) => s.duplicateTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
@@ -622,7 +625,24 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           {tabs.map((tab) => (
             <div
               key={tab.id}
-              className={`tab-item${activeTabId === tab.id ? " active" : ""}`}
+              className={`tab-item${activeTabId === tab.id ? " active" : ""}${dragTabId === tab.id ? " tab-dragging" : ""}${dragOverTabId === tab.id && dragOverTabId !== dragTabId ? " tab-drag-over" : ""}`}
+              draggable
+              onDragStart={(e) => {
+                setDragTabId(tab.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (tab.id !== dragTabId) setDragOverTabId(tab.id);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragTabId && dragTabId !== tab.id) reorderTabs(dragTabId, tab.id);
+                setDragTabId(null);
+                setDragOverTabId(null);
+              }}
+              onDragEnd={() => { setDragTabId(null); setDragOverTabId(null); }}
             >
               {editingTabId === tab.id ? (
                 <input
