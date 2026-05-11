@@ -324,14 +324,12 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
         <div className="rack-item-name">
           {item.label || item.reference || "—"}
         </div>
-        {height >= U_PX * 2 && (
-          <div className="rack-item-sub">
-            {[item.manufacturer, item.reference].filter(Boolean).join(" ")}
-            {synopticName && (
-              <span className="rack-item-sub-syno"> — {synopticName}</span>
-            )}
-          </div>
-        )}
+        <div className="rack-item-sub">
+          {[item.manufacturer, item.reference].filter(Boolean).join(" ")}
+          {synopticName && (
+            <span className="rack-item-sub-syno"> — {synopticName}</span>
+          )}
+        </div>
         <div className="rack-item-badges">
           {item.locked && <span className="rack-badge" title="Verrouillé">🔒</span>}
           {hasAnnotation && <span className="rack-badge" title="Annoté">📋</span>}
