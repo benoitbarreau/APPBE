@@ -41,15 +41,17 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   const tabs = useAppStore((s) => s.tabs);
   const addRackItem = useAppStore((s) => s.addRackItem);
 
-  // nodeIds déjà présents dans cette baie (sourceType=synoptic)
+  // nodeIds déjà présents dans N'IMPORTE QUELLE baie → Map<nodeId, nomDeLaBaie>
   const alreadyInRack = useMemo(() => {
-    const bayTab = tabs.find((t) => t.id === tabId && isBayTab(t));
-    const set = new Set<string>();
-    for (const it of bayTab?.bayItems ?? []) {
-      if (it.sourceType === "synoptic" && it.nodeId) set.add(it.nodeId);
+    const map = new Map<string, string>();
+    for (const t of tabs) {
+      if (!isBayTab(t)) continue;
+      for (const it of t.bayItems ?? []) {
+        if (it.sourceType === "synoptic" && it.nodeId) map.set(it.nodeId, t.name);
+      }
     }
-    return set;
-  }, [tabs, tabId]);
+    return map;
+  }, [tabs]);
 
   // ── Produits placés dans TOUS les onglets synoptiques ────────────────────
   // Chaque entrée porte aussi le nom du synoptique source pour l'affichage.
@@ -114,15 +116,16 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   );
 
   // ── Avertissement doublon ────────────────────────────────────────────────
-  const showWarn = (name: string) => {
-    setWarnMsg(`« ${name} » est déjà présent dans cette baie.`);
+  const showWarn = (name: string, bayName?: string) => {
+    const where = bayName ? ` dans la baie « ${bayName} »` : "";
+    setWarnMsg(`« ${name} » est déjà présent${where}.`);
     setTimeout(() => setWarnMsg(null), 3000);
   };
 
   // ── Ajout rapide au click ────────────────────────────────────────────────
   const quickAdd = (item: Omit<RackItem, "id" | "uStart">, nodeId?: string) => {
     if (nodeId && alreadyInRack.has(nodeId)) {
-      showWarn(item.label ?? item.reference ?? "Ce produit");
+      showWarn(item.label ?? item.reference ?? "Ce produit", alreadyInRack.get(nodeId));
       return;
     }
     // Placer à la suite du dernier item (pas d'empilement)
@@ -132,10 +135,10 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
     addRackItem(tabId, { ...item, uStart: maxU + 1, colStart: 0 });
   };
 
-  // ── Drag start (bloqué si déjà présent) ─────────────────────────────────
+  // ── Drag start (bloqué si déjà présent dans n'importe quelle baie) ──────
   const handleDragStart = (item: Omit<RackItem, "id" | "uStart">, nodeId?: string) => {
     if (nodeId && alreadyInRack.has(nodeId)) {
-      showWarn(item.label ?? item.reference ?? "Ce produit");
+      showWarn(item.label ?? item.reference ?? "Ce produit", alreadyInRack.get(nodeId));
       return;
     }
     setDragItem(item);
@@ -173,6 +176,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
           ) : (
             filteredSynoptic.map(({ productId, nodeId, label, synopticName, product }) => {
               const alreadyAdded = alreadyInRack.has(nodeId);
+              const alreadyBayName = alreadyInRack.get(nodeId);
               const item: Omit<RackItem, "id" | "uStart"> = {
                 sourceType: "synoptic",
                 productId,
@@ -194,7 +198,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   onDragEnd={clearDragItem}
                   onClick={() => quickAdd(item, nodeId)}
                   title={alreadyAdded
-                    ? `${product!.manufacturer} ${product!.reference} — Déjà dans la baie`
+                    ? `${product!.manufacturer} ${product!.reference} — Déjà dans la baie « ${alreadyBayName} »`
                     : `${product!.manufacturer} ${product!.reference} — ${product!.rackHeightU ?? 1}U — Cliquer pour ajouter`}
                 >
                   <span className="bay-lib-item-label">

@@ -4261,6 +4261,16 @@ select {
   background: #fff;
 }
 
+/* Titre de la baie au-dessus du rack */
+.bay-rack-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 14px;
+  letter-spacing: 0.01em;
+}
+
 /* ── RackView ────────────────────────────────────────────────────────────── */
 
 .bay-rack-wrapper {

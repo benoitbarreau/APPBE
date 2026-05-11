@@ -51,6 +51,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
         <BayProductLibrary tabId={tabId} />
 
         <div className="bay-center">
+          <div className="bay-rack-title">{tab.name}</div>
           <RackView
             tab={tab}
             selectedItemId={selectedItemId}
