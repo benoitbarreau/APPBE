@@ -40,34 +40,42 @@ function buildPathWithBumps(
       continue;
     }
     if (isH) {
-      // Coordonnée y stable = moyenne des deux extrémités (robustesse flottante)
-      const segY = (a.y + b.y) / 2;
+      const y = a.y; // coordonnée stable du segment H
       const dirX = a.x < b.x ? 1 : -1;
+      // Trier dans le sens de parcours, filtrer trop proche des bords
       const sorted = [...list].sort((p, q) => (p.x - q.x) * dirX);
-      // Seuil minimal = r (arc géométriquement contenu dans le segment)
       const valid = sorted.filter(
-        (bump) =>
-          Math.abs(bump.x - a.x) > r && Math.abs(bump.x - b.x) > r,
+        (bump) => Math.abs(bump.x - a.x) > r && Math.abs(bump.x - b.x) > r,
       );
-      const sweep = dirX > 0 ? 0 : 1; // bump UP
+      // Dédoublonner : supprimer les bumps trop proches du précédent (min 2r)
+      const deduped: Point[] = [];
       for (const bump of valid) {
-        d += ` L ${bump.x - dirX * r} ${segY}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${segY}`;
+        const last = deduped[deduped.length - 1];
+        if (!last || Math.abs(bump.x - last.x) >= 2 * r) deduped.push(bump);
+      }
+      const sweep = dirX > 0 ? 0 : 1; // bump UP
+      for (const bump of deduped) {
+        d += ` L ${bump.x - dirX * r} ${y}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${y}`;
       }
       d += ` L ${b.x} ${b.y}`;
     } else {
-      // Coordonnée x stable = moyenne des deux extrémités
-      const segX = (a.x + b.x) / 2;
+      const x = a.x; // coordonnée stable du segment V
       const dirY = a.y < b.y ? 1 : -1;
       const sorted = [...list].sort((p, q) => (p.y - q.y) * dirY);
       const valid = sorted.filter(
-        (bump) =>
-          Math.abs(bump.y - a.y) > r && Math.abs(bump.y - b.y) > r,
+        (bump) => Math.abs(bump.y - a.y) > r && Math.abs(bump.y - b.y) > r,
       );
-      const sweep = dirY > 0 ? 0 : 1; // bump RIGHT
+      // Dédoublonner
+      const deduped: Point[] = [];
       for (const bump of valid) {
-        d += ` L ${segX} ${bump.y - dirY * r}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${segX} ${bump.y + dirY * r}`;
+        const last = deduped[deduped.length - 1];
+        if (!last || Math.abs(bump.y - last.y) >= 2 * r) deduped.push(bump);
+      }
+      const sweep = dirY > 0 ? 1 : 0; // bump RIGHT (cohérent quelle que soit la direction)
+      for (const bump of deduped) {
+        d += ` L ${x} ${bump.y - dirY * r}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${x} ${bump.y + dirY * r}`;
       }
       d += ` L ${b.x} ${b.y}`;
     }
