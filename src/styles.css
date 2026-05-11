@@ -1317,7 +1317,7 @@ select {
 /* Product node - fixed width, compact */
 .product-node {
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid #000;
   border-radius: 5px;
   font-size: 10px;
   width: 150px;
@@ -1329,7 +1329,7 @@ select {
 }
 .product-node-header {
   padding: 4px 6px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #000;
   background: #f0f3f8;
   border-radius: 5px 5px 0 0;
 }
