@@ -272,8 +272,7 @@ export function CableEdge({
   const cable = useAppStore((s) => s.cables.find((c) => c.id === id));
   const allCables = useAppStore((s) => s.cables);
   const updateCable = useAppStore((s) => s.updateCable);
-  const reverseCable = useAppStore((s) => s.reverseCable);
-  const allNodes = useAppStore((s) => s.nodes);
+const allNodes = useAppStore((s) => s.nodes);
   const allProducts = useAppStore((s) => s.products);
   const readOnly = useEditorState((s) => s.readOnly);
   const cableView = useEditorState((s) => s.cableView);
@@ -565,12 +564,25 @@ export function CableEdge({
 
   return (
     <>
+      {/* Halo de survol — rendu derrière le trait principal */}
+      {hovered && !selected && (
+        <path
+          d={path}
+          stroke={color}
+          strokeWidth={8}
+          fill="none"
+          opacity={0.18}
+          strokeLinecap="round"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
       <BaseEdge
         id={id}
         path={path}
         style={{
           ...style,
-          strokeWidth: selected ? 2.5 : 2,
+          strokeWidth: selected ? 2.5 : hovered ? 2.5 : 2,
           strokeLinecap: "round",
           strokeLinejoin: "round",
         }}
@@ -603,8 +615,8 @@ export function CableEdge({
           if (len < 30) return null;
           const midX = (seg.a.x + seg.b.x) / 2;
           const midY = (seg.a.y + seg.b.y) / 2;
-          const w = isV ? 22 : isH ? 8 : 18;
-          const h = isV ? 8 : isH ? 22 : 8;
+          const w = isV ? 15 : isH ? 8 : 18;
+          const h = isV ? 8 : isH ? 15 : 8;
           const cursor = isH ? "ns-resize" : isV ? "ew-resize" : "move";
           return (
             <rect
@@ -757,19 +769,6 @@ export function CableEdge({
                 />
                 <span className="cable-edge-unit">m</span>
               </>
-            )}
-            {selected && (
-              <button
-                type="button"
-                className="cable-edge-reverse"
-                title="Inverser le sens de la flèche"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  reverseCable(cable.id);
-                }}
-              >
-                ⇄
-              </button>
             )}
           </div>
           {cableView === "detailed" && (
