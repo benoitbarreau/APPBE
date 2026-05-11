@@ -291,7 +291,7 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
         </div>
         {height >= U_PX * 2 && (
           <div className="rack-item-sub">
-            {item.manufacturer && <span>{item.manufacturer}</span>}
+            {[item.manufacturer, item.reference].filter(Boolean).join(" ")}
           </div>
         )}
         <div className="rack-item-badges">
