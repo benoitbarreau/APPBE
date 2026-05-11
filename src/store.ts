@@ -404,7 +404,7 @@ export const useAppStore = create<State>()(
                 activeTabId: newActive.id,
                 nodes: [],
                 cables: [],
-                zones: [],
+                // Conserver zones (même logique que bay)
                 selectedNodeId: null,
                 selectedCableId: null,
               };
@@ -663,14 +663,15 @@ export const useAppStore = create<State>()(
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target) return {};
-            // Pour un onglet IP ou Baie, nodes/cables de travail sont vidés
+            // Onglet IP : vider nodes/cables mais CONSERVER zones — même
+            // raison que pour les baies : zones: [] persiste en localStorage
+            // et efface les définitions de zones de l'utilisateur.
             if (isIPTableTab(target)) {
               return {
                 tabs: flushed,
                 activeTabId: tabId,
                 nodes: [],
                 cables: [],
-                zones: [],
                 selectedNodeId: null,
                 selectedCableId: null,
               };

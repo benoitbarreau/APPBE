@@ -70,16 +70,22 @@ type SortDir = "asc" | "desc";
 export function IPTableEditor({ tabId }: { tabId: string }) {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const allTabs = useAppStore((s) => s.tabs);
-  // Ne pas lire s.zones (vide quand l'onglet actif est IP ou Baie) :
-  // reconstruire depuis les zones stockées dans chaque onglet synoptique.
+  // Source principale : s.zones (état global, conservé même sur onglet IP/Baie
+  // depuis le correctif store). Source de secours : t.zones de chaque onglet
+  // synoptique (flushé lors du changement d'onglet). On prend l'union en
+  // donnant la priorité aux zones de travail (les plus récentes).
+  const currentZones = useAppStore((s) => s.zones);
   const allZones = useMemo(() => {
     const m = new Map<string, { id: string; label: string; color: string }>();
+    // 1. Zones stockées par onglet synoptique (secours si s.zones vide)
     for (const t of allTabs) {
       if (isIPTableTab(t)) continue;
       for (const z of t.zones ?? []) m.set(z.id, z);
     }
+    // 2. Zones de travail courantes — priorité max (les plus fraîches)
+    for (const z of currentZones) m.set(z.id, z);
     return Array.from(m.values());
-  }, [allTabs]);
+  }, [allTabs, currentZones]);
   const syncIPTable = useAppStore((s) => s.syncIPTable);
   const updateIPRow = useAppStore((s) => s.updateIPRow);
   const addIPRow = useAppStore((s) => s.addIPRow);
@@ -458,8 +464,8 @@ function IPRow({
   const trStyle: React.CSSProperties | undefined = zoneColor
     ? ({
         "--row-zone-color": zoneColor,
-        "--zone-bg": hexToRgba(zoneColor, 0.35),
-        "--zone-bg-hover": hexToRgba(zoneColor, 0.55),
+        "--zone-bg": hexToRgba(zoneColor, 0.22),
+        "--zone-bg-hover": hexToRgba(zoneColor, 0.40),
       } as React.CSSProperties)
     : undefined;
   const className =
