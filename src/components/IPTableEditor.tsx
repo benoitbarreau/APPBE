@@ -425,6 +425,16 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   );
 }
 
+/** Convertit un code hex (#rrggbb) en rgba(r,g,b,alpha). */
+function hexToRgba(hex: string, alpha: number): string {
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return "transparent";
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** Une ligne du tableau IP — extrait pour limiter les re-renders. */
 function IPRow({
   row,
@@ -446,7 +456,11 @@ function IPRow({
   // On utilise une variable CSS pour permettre au :hover de garder l'effet
   // tout en assombrissant légèrement la teinte.
   const trStyle: React.CSSProperties | undefined = zoneColor
-    ? ({ "--row-zone-color": zoneColor } as React.CSSProperties)
+    ? ({
+        "--row-zone-color": zoneColor,
+        "--zone-bg": hexToRgba(zoneColor, 0.35),
+        "--zone-bg-hover": hexToRgba(zoneColor, 0.55),
+      } as React.CSSProperties)
     : undefined;
   const className =
     (row.manual ? "ip-row-manual" : "ip-row-auto") +

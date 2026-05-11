@@ -3925,14 +3925,14 @@ select {
 .ip-table tbody tr.ip-row-manual:hover td {
   background: #fff5cc;
 }
-/* Teinte de fond selon la zone du produit lié — variable injectée via
-   inline style. color-mix maintient une bonne lisibilité en mélangeant
-   la couleur de zone avec du blanc à 88%. */
+/* Teinte de fond selon la zone du produit lié — variables --zone-bg et
+   --zone-bg-hover calculées en JS via hexToRgba pour une compatibilité
+   maximale et un rendu fidèle à la couleur de zone (alpha 35 / 55%). */
 .ip-table tbody tr.ip-row-zone td {
-  background: color-mix(in srgb, var(--row-zone-color) 18%, #fff);
+  background: var(--zone-bg, transparent);
 }
 .ip-table tbody tr.ip-row-zone:hover td {
-  background: color-mix(in srgb, var(--row-zone-color) 30%, #fff);
+  background: var(--zone-bg-hover, transparent);
 }
 /* Une cellule en doublon IP doit rester rouge même quand la ligne a une
    couleur de zone — le doublon est plus prioritaire visuellement. */
