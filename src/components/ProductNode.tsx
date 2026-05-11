@@ -169,7 +169,7 @@ function PortRow({
     background: color,
     width: 9,
     height: 9,
-    border: "2px solid #fff",
+    border: "none",
     top: "50%",
     ...(side === "in"
       ? { left: 0, transform: "translate(-50%, -50%)" }
@@ -209,7 +209,7 @@ function MiddlePortRow({
   const baseStyle: React.CSSProperties = {
     width: 9,
     height: 9,
-    border: "2px solid #fff",
+    border: "none",
     top: "50%",
   };
   const leftStyle: React.CSSProperties = {
