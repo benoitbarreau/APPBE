@@ -252,11 +252,13 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
  * Pour un onglet de type "iptable" l'état de travail (nodes/cables/zones) n'est
  * PAS pertinent — on conserve l'onglet tel quel.
  */
-const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "zones">): Tab[] =>
+// Les zones sont globales au projet (s.zones) — on ne les stocke PAS
+// dans chaque onglet. flushActive ne persiste que nodes/cables.
+const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones };
+    return { ...t, nodes: s.nodes, cables: s.cables };
   });
 
 export const useAppStore = create<State>()(
@@ -425,7 +427,7 @@ export const useAppStore = create<State>()(
               activeTabId: newActive.id,
               nodes: newActive.nodes ?? [],
               cables: newActive.cables ?? [],
-              zones: newActive.zones ?? [],
+              // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -630,12 +632,13 @@ export const useAppStore = create<State>()(
               toNodeId: nodeIdMap.get(c.toNodeId) ?? c.toNodeId,
             }));
 
+            // Zones globales : pas besoin de les copier par onglet.
             const newTab: Tab = {
               id: uid(),
               name: `Copie de ${source.name}`,
               nodes: newNodes,
               cables: newCables,
-              zones: source.zones.map((z) => ({ ...z })),
+              zones: [],
             };
 
             // Insérer juste après l'onglet source
@@ -651,7 +654,7 @@ export const useAppStore = create<State>()(
               activeTabId: newTab.id,
               nodes: newNodes,
               cables: newCables,
-              zones: newTab.zones,
+              // s.zones inchangé (zones globales)
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -688,12 +691,13 @@ export const useAppStore = create<State>()(
                 selectedCableId: null,
               };
             }
+            // Zones globales : on ne restaure PAS depuis t.zones (obsolète).
+            // s.zones reste inchangé — il est la source unique de vérité.
             return {
               tabs: flushed,
               activeTabId: tabId,
               nodes: target.nodes ?? [],
               cables: target.cables ?? [],
-              zones: target.zones ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };

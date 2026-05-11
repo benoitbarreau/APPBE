@@ -104,6 +104,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeIsIPTab = activeTab ? isIPTableTab(activeTab) : false;
   const activeIsBayTab = activeTab ? isBayTab(activeTab) : false;
+
+  // Quand on bascule vers un onglet IP ou Baie, si le panneau droit est
+  // positionné sur un onglet synoptique-only (câbles/étiquettes/labels),
+  // passer automatiquement sur "zones" pour ne pas afficher un panneau vide.
+  useEffect(() => {
+    if ((activeIsIPTab || activeIsBayTab) &&
+        (rightTab === "cables" || rightTab === "etiquettes" || rightTab === "labels")) {
+      setRightTab("zones");
+    }
+  }, [activeIsIPTab, activeIsBayTab, rightTab]);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
   const tabInputRef = useRef<HTMLInputElement>(null);
@@ -727,20 +737,29 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             )}
           </main>
 
-          <aside className={`sidebar right${rightPanelOpen && !activeIsBayTab ? "" : " collapsed"}`}>
+          {/* Sidebar droite — visible pour tous les types d'onglet.
+              Pour IP et Baie seuls les onglets Zones et Légende sont affichés
+              (Câbles / Étiquettes / Labels n'ont pas de sens hors synoptique). */}
+          <aside className={`sidebar right${rightPanelOpen ? "" : " collapsed"}`}>
             {rightPanelOpen ? (
               <>
                 <div className="right-panel-topbar">
                   <div className="tabs">
-                    <button className={rightTab === "cables" ? "active" : ""} onClick={() => setRightTab("cables")}>
-                      Câbles
-                    </button>
-                    <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
-                      Etiquettes
-                    </button>
-                    <button className={rightTab === "labels" ? "active" : ""} onClick={() => setRightTab("labels")}>
-                      Label
-                    </button>
+                    {/* Onglets synoptique uniquement */}
+                    {!activeIsIPTab && !activeIsBayTab && (
+                      <>
+                        <button className={rightTab === "cables" ? "active" : ""} onClick={() => setRightTab("cables")}>
+                          Câbles
+                        </button>
+                        <button className={rightTab === "etiquettes" ? "active" : ""} onClick={() => setRightTab("etiquettes")}>
+                          Etiquettes
+                        </button>
+                        <button className={rightTab === "labels" ? "active" : ""} onClick={() => setRightTab("labels")}>
+                          Label
+                        </button>
+                      </>
+                    )}
+                    {/* Zones et Légende : communs à tous les types */}
                     <button className={rightTab === "zones" ? "active" : ""} onClick={() => setRightTab("zones")}>
                       Zones
                     </button>
@@ -756,9 +775,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                     ▶
                   </button>
                 </div>
-                {rightTab === "cables" && <CableList />}
-                {rightTab === "etiquettes" && <EtiquettesList />}
-                {rightTab === "labels" && <ProductLabelsList />}
+                {rightTab === "cables" && !activeIsIPTab && !activeIsBayTab && <CableList />}
+                {rightTab === "etiquettes" && !activeIsIPTab && !activeIsBayTab && <EtiquettesList />}
+                {rightTab === "labels" && !activeIsIPTab && !activeIsBayTab && <ProductLabelsList />}
                 {rightTab === "zones" && <ZonesList />}
                 {rightTab === "legend" && <Legend />}
               </>

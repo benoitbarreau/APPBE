@@ -70,22 +70,9 @@ type SortDir = "asc" | "desc";
 export function IPTableEditor({ tabId }: { tabId: string }) {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const allTabs = useAppStore((s) => s.tabs);
-  // Source principale : s.zones (état global, conservé même sur onglet IP/Baie
-  // depuis le correctif store). Source de secours : t.zones de chaque onglet
-  // synoptique (flushé lors du changement d'onglet). On prend l'union en
-  // donnant la priorité aux zones de travail (les plus récentes).
-  const currentZones = useAppStore((s) => s.zones);
-  const allZones = useMemo(() => {
-    const m = new Map<string, { id: string; label: string; color: string }>();
-    // 1. Zones stockées par onglet synoptique (secours si s.zones vide)
-    for (const t of allTabs) {
-      if (isIPTableTab(t)) continue;
-      for (const z of t.zones ?? []) m.set(z.id, z);
-    }
-    // 2. Zones de travail courantes — priorité max (les plus fraîches)
-    for (const z of currentZones) m.set(z.id, z);
-    return Array.from(m.values());
-  }, [allTabs, currentZones]);
+  // Zones globales au projet : source unique = s.zones.
+  // Les zones ne sont plus stockées par onglet (t.zones est vestigiel).
+  const allZones = useAppStore((s) => s.zones);
   const syncIPTable = useAppStore((s) => s.syncIPTable);
   const updateIPRow = useAppStore((s) => s.updateIPRow);
   const addIPRow = useAppStore((s) => s.addIPRow);

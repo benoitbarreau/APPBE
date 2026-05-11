@@ -84,40 +84,43 @@ export function syncIPRowsFromSynoptics(
 ): IPTableRow[] {
   const flat = flattenSynopticNodes(tabs, products)
 
-  // 1. Regrouper les nœuds par LABEL (uniquement ceux qui en ont un)
-  const byLabel = new Map<string, FlatNode[]>()
+  // 1. Regrouper les nœuds par clé "productId:label"
+  //    → les vrais doublons (même équipement, même label, plusieurs synoptiques)
+  //      sont fusionnés en une seule ligne.
+  //    → deux équipements DIFFÉRENTS avec le même label → deux lignes distinctes.
+  const byKey = new Map<string, FlatNode[]>()
   for (const f of flat) {
     const lbl = (f.node.label ?? '').trim()
     if (!lbl) continue
-    const key = lbl.toLowerCase()
-    const arr = byLabel.get(key) ?? []
+    const key = `${f.node.productId ?? ''}:${lbl.toLowerCase()}`
+    const arr = byKey.get(key) ?? []
     arr.push(f)
-    byLabel.set(key, arr)
+    byKey.set(key, arr)
   }
 
-  // 2. Map des lignes existantes par "clé d'instance" et par label
-  //    Une ligne existante peut être retrouvée par :
-  //    - n'importe quel productInstanceId qu'elle contient
-  //    - à défaut, son label normalisé
+  // 2. Map des lignes existantes par "clé d'instance" et par productId:label
   const existingByInstanceId = new Map<string, IPTableRow>()
-  const existingByLabelLc = new Map<string, IPTableRow>()
+  const existingByProductLabel = new Map<string, IPTableRow>()
   for (const row of existing) {
     for (const iid of row.productInstanceIds) {
       existingByInstanceId.set(iid, row)
     }
+    // La colonne "product" n'est pas stockée avec productId, on ne peut pas
+    // reconstruire la clé → on garde un fallback par label seul pour la
+    // migration des lignes créées avant ce correctif.
     if (row.label.trim()) {
-      existingByLabelLc.set(row.label.trim().toLowerCase(), row)
+      existingByProductLabel.set(row.label.trim().toLowerCase(), row)
     }
   }
 
   // 3. Conserver toutes les lignes manuelles intactes
   const manualRows = existing.filter((r) => r.manual)
 
-  // 4. Pour chaque groupe LABEL → produire une ligne (mise à jour ou créée)
+  // 4. Pour chaque groupe (productId:label) → produire une ligne
   const autoRows: IPTableRow[] = []
   const consumedRowIds = new Set<string>()
 
-  for (const [labelLc, group] of byLabel.entries()) {
+  for (const [, group] of byKey.entries()) {
     const label = group[0].node.label!.trim()
     const instanceIds = group.map((g) => g.node.id)
 
@@ -130,9 +133,9 @@ export function syncIPRowsFromSynoptics(
         break
       }
     }
-    // Sinon, fallback par label
+    // Fallback par label seul (compatibilité lignes pre-correctif)
     if (!existingRow) {
-      const byLbl = existingByLabelLc.get(labelLc)
+      const byLbl = existingByProductLabel.get(label.toLowerCase())
       if (byLbl && !byLbl.manual) existingRow = byLbl
     }
 
