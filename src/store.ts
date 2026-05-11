@@ -337,7 +337,8 @@ export const useAppStore = create<State>()(
               activeTabId: newTab.id,
               nodes: [],
               cables: [],
-              zones: [],
+              // Ne pas vider zones : elles seraient persistées vides en localStorage
+              // et effaceraient les zones de l'utilisateur au rechargement.
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -397,13 +398,24 @@ export const useAppStore = create<State>()(
             }
             const idx = flushed.findIndex((t) => t.id === tabId);
             const newActive = newTabs[Math.min(idx, newTabs.length - 1)];
-            if (isIPTableTab(newActive) || isBayTab(newActive)) {
+            if (isIPTableTab(newActive)) {
               return {
                 tabs: newTabs,
                 activeTabId: newActive.id,
                 nodes: [],
                 cables: [],
                 zones: [],
+                selectedNodeId: null,
+                selectedCableId: null,
+              };
+            }
+            if (isBayTab(newActive)) {
+              return {
+                tabs: newTabs,
+                activeTabId: newActive.id,
+                nodes: [],
+                cables: [],
+                // Conserver zones — cf. commentaire addBayTab
                 selectedNodeId: null,
                 selectedCableId: null,
               };
@@ -651,14 +663,26 @@ export const useAppStore = create<State>()(
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target) return {};
-            // Pour un onglet IP ou Baie, l'état de travail synoptique est vidé
-            if (isIPTableTab(target) || isBayTab(target)) {
+            // Pour un onglet IP ou Baie, nodes/cables de travail sont vidés
+            if (isIPTableTab(target)) {
               return {
                 tabs: flushed,
                 activeTabId: tabId,
                 nodes: [],
                 cables: [],
                 zones: [],
+                selectedNodeId: null,
+                selectedCableId: null,
+              };
+            }
+            // Baie : vider nodes/cables mais CONSERVER zones pour ne pas
+            // les persister vides en localStorage et effacer les zones utilisateur.
+            if (isBayTab(target)) {
+              return {
+                tabs: flushed,
+                activeTabId: tabId,
+                nodes: [],
+                cables: [],
                 selectedNodeId: null,
                 selectedCableId: null,
               };
