@@ -197,7 +197,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                     {label || product!.reference}
                   </span>
                   <span className="bay-lib-item-sub">
-                    {product!.manufacturer} · {product!.rackHeightU ?? 1}U
+                    {product!.manufacturer} · {product!.reference} · {product!.rackHeightU ?? 1}U
                     <span className="bay-lib-item-synoptic"> — {synopticName}</span>
                   </span>
                 </div>
