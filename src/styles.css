@@ -151,14 +151,25 @@ select {
 }
 
 /* ── Drag-and-drop des onglets ── */
-.tab-item { cursor: grab; }
+.tab-drag-handle {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 8px;
+  color: #b0b8c8;
+  font-size: 13px;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.tab-item:hover .tab-drag-handle { color: #6b7280; }
 .tab-item.tab-dragging {
   opacity: 0.45;
-  cursor: grabbing;
 }
+.tab-item.tab-dragging .tab-drag-handle { cursor: grabbing; }
 .tab-item.tab-drag-over {
-  border-left: 2px solid var(--primary);
-  background: rgba(var(--primary-rgb, 59,130,246), 0.08);
+  border-left: 3px solid var(--primary);
+  background: rgba(59,130,246, 0.10);
 }
 
 .tab-name {

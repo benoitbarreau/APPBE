@@ -626,11 +626,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             <div
               key={tab.id}
               className={`tab-item${activeTabId === tab.id ? " active" : ""}${dragTabId === tab.id ? " tab-dragging" : ""}${dragOverTabId === tab.id && dragOverTabId !== dragTabId ? " tab-drag-over" : ""}`}
-              draggable
-              onDragStart={(e) => {
-                setDragTabId(tab.id);
-                e.dataTransfer.effectAllowed = "move";
-              }}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
@@ -644,6 +639,20 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               }}
               onDragEnd={() => { setDragTabId(null); setDragOverTabId(null); }}
             >
+              {/* Poignée de glissement dédiée */}
+              <span
+                className="tab-drag-handle"
+                draggable
+                onDragStart={(e) => {
+                  setDragTabId(tab.id);
+                  e.dataTransfer.setData("text/plain", tab.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragEnd={() => { setDragTabId(null); setDragOverTabId(null); }}
+                title="Glisser pour réorganiser"
+              >
+                ⠿
+              </span>
               {editingTabId === tab.id ? (
                 <input
                   ref={tabInputRef}
@@ -660,6 +669,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               ) : (
                 <button
                   className="tab-name"
+                  draggable={false}
                   onClick={() => setActiveTab(tab.id)}
                   onDoubleClick={() => startTabEdit(tab.id, tab.name)}
                   title="Double-clic pour renommer"
@@ -670,6 +680,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               {!isIPTableTab(tab) && (
                 <button
                   className="tab-dup"
+                  draggable={false}
                   onClick={() => duplicateTab(tab.id)}
                   title={isBayTab(tab) ? "Dupliquer cette baie" : "Dupliquer ce synoptique"}
                 >
@@ -679,6 +690,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               {tabs.length > 1 && (
                 <button
                   className="tab-close"
+                  draggable={false}
                   onClick={() => removeTab(tab.id)}
                   title="Fermer ce synoptique"
                 >
