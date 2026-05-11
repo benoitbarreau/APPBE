@@ -167,8 +167,8 @@ function PortRow({
   const handleId = `${side}:${port.id}`;
   const handleStyle: React.CSSProperties = {
     background: color,
-    width: 9,
-    height: 9,
+    width: 5,
+    height: 5,
     border: "none",
     top: "50%",
     ...(side === "in"
@@ -207,8 +207,8 @@ function MiddlePortRow({
   const leftConnectable = !rightUsed;
   const rightConnectable = !leftUsed;
   const baseStyle: React.CSSProperties = {
-    width: 9,
-    height: 9,
+    width: 5,
+    height: 5,
     border: "none",
     top: "50%",
   };
