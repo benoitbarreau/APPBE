@@ -566,7 +566,7 @@ select {
   flex-direction: column;
   align-items: center;
   line-height: 1;
-  font-size: 9px;
+  font-size: 8px;
   white-space: nowrap;
   cursor: move;
   user-select: none;
@@ -645,8 +645,8 @@ select {
 .cable-edge-label-text {
   color: #E63946;
   font-weight: 700;
-  font-size: 8px;
-  margin-top: -1px;
+  font-size: 7px;
+  margin-top: -2px;
   padding: 0 !important;
   min-width: 1ch;
 }
