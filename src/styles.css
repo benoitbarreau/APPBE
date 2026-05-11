@@ -4147,15 +4147,15 @@ select {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #333840;
-  background: #22252b;
+  border-right: 1px solid var(--border);
+  background: #f8f9fb;
   overflow: hidden;
   position: relative;
 }
 
 .bay-lib-tabs {
   display: flex;
-  border-bottom: 1px solid #333840;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -4166,36 +4166,36 @@ select {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #8a9099;
+  color: var(--muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
 
 .bay-lib-tabs button:hover {
-  background: #2c3038;
-  color: #e0e3e8;
+  background: rgba(0,0,0,0.05);
+  color: var(--text);
 }
 
 .bay-lib-tabs button.active {
-  color: #a0c4ff;
-  border-bottom-color: #4da6ff;
+  color: var(--primary);
+  border-bottom-color: var(--primary);
   background: transparent;
 }
 
 .bay-lib-search {
   margin: 8px;
   padding: 5px 8px;
-  border: 1px solid #444b55;
+  border: 1px solid var(--border);
   border-radius: 5px;
-  background: #1a1c20;
-  color: #e0e3e8;
+  background: #fff;
+  color: var(--text);
   font-size: 12px;
   outline: none;
   flex-shrink: 0;
 }
 
 .bay-lib-search:focus {
-  border-color: #4da6ff;
+  border-color: var(--primary);
 }
 
 .bay-lib-list {
@@ -4209,12 +4209,12 @@ select {
   flex-direction: column;
   padding: 7px 10px;
   cursor: pointer;
-  border-bottom: 1px solid #2c3038;
+  border-bottom: 1px solid var(--border);
   user-select: none;
 }
 
 .bay-lib-item:hover {
-  background: #2c3038;
+  background: rgba(0,0,0,0.04);
 }
 
 .bay-lib-item[draggable="true"] {
@@ -4224,7 +4224,7 @@ select {
 .bay-lib-item-label {
   font-size: 12px;
   font-weight: 500;
-  color: #e0e3e8;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4232,7 +4232,7 @@ select {
 
 .bay-lib-item-sub {
   font-size: 10px;
-  color: #6c7480;
+  color: var(--muted);
   margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -4245,7 +4245,7 @@ select {
 
 .bay-lib-empty {
   padding: 20px 12px;
-  color: #6c7480;
+  color: var(--muted);
   font-size: 12px;
   text-align: center;
 }
@@ -4279,8 +4279,8 @@ select {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  border-right: 1px solid #444b55;
-  background: #22252b;
+  border-right: 1px solid #c0c8d4;
+  background: #eef0f4;
 }
 
 .rack-u-label {
@@ -4289,8 +4289,8 @@ select {
   justify-content: flex-end;
   padding-right: 5px;
   font-size: 9px;
-  color: #555e6c;
-  border-bottom: 1px solid #2c3038;
+  color: #6b7280;
+  border-bottom: 1px solid #d8dde4;
   flex-shrink: 0;
 }
 
@@ -4298,33 +4298,33 @@ select {
 .rack-frame {
   display: flex;
   flex-shrink: 0;
-  background: #141618;
-  border: 2px solid #555e6c;
+  background: #8a93a0;
+  border: 2px solid #6b7280;
   border-radius: 3px;
 }
 
 /* Ear (vertical side panels with holes) */
 .rack-ear {
   flex-shrink: 0;
-  background: #1e2126;
+  background: #9ca3af;
   border: none;
   display: flex;
   flex-direction: column;
 }
 
 .rack-ear-left {
-  border-right: 1px solid #555e6c;
+  border-right: 1px solid #6b7280;
 }
 
 .rack-ear-right {
-  border-left: 1px solid #555e6c;
+  border-left: 1px solid #6b7280;
 }
 
 .rack-ear-hole {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #2c3038;
+  border-bottom: 1px solid #b0b8c4;
 }
 
 .rack-ear-hole::before {
@@ -4332,14 +4332,14 @@ select {
   width: 6px;
   height: 10px;
   border-radius: 2px;
-  background: #141618;
-  border: 1px solid #444b55;
+  background: #c8cdd6;
+  border: 1px solid #8a93a0;
 }
 
 /* Inner rack (drop target) */
 .rack-inner {
   position: relative;
-  background: #1a1c20;
+  background: #f8f9fb;
   cursor: default;
 }
 
@@ -4347,7 +4347,7 @@ select {
 .rack-slot-line {
   position: absolute;
   left: 0;
-  border-bottom: 1px solid #252930;
+  border-bottom: 1px solid #e4e8ee;
   pointer-events: none;
 }
 

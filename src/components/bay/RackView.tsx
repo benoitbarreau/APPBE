@@ -39,7 +39,13 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
   // ── Drag state (for moving items already in rack) ────────────────────────
   const [dragOverU, setDragOverU] = useState<number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<number>(0);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Ref synchrone + state pour draggingId (évite les stales closures dans dragover)
+  const draggingIdRef = useRef<string | null>(null);
+  const [draggingId, _setDraggingId] = useState<string | null>(null);
+  const setDraggingId = (id: string | null) => {
+    draggingIdRef.current = id;
+    _setDraggingId(id);
+  };
   const rackRef = useRef<HTMLDivElement>(null);
 
   /** Calcule uStart et colStart depuis les coordonnées souris relatives au rack. */
@@ -113,8 +119,9 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
 
   const handleRackDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggingId) { handleDragOver(e); return; }
-    const item = items.find((it) => it.id === draggingId);
+    const currentDragging = draggingIdRef.current;
+    if (!currentDragging) { handleDragOver(e); return; }
+    const item = items.find((it) => it.id === currentDragging);
     if (!item) return;
     const { uStart, colStart } = posFromEvent(e, item.heightU, item.widthCols);
     setDragOverU(uStart);
@@ -123,15 +130,16 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
 
   const handleRackDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggingId) { handleDrop(e); return; }
-    const item = items.find((it) => it.id === draggingId);
+    const currentDragging = draggingIdRef.current;
+    if (!currentDragging) { handleDrop(e); return; }
+    const item = items.find((it) => it.id === currentDragging);
     if (!item) { setDraggingId(null); return; }
     const { uStart, colStart } = posFromEvent(e, item.heightU, item.widthCols);
 
     const candidate: RackItem = { ...item, uStart, colStart };
-    const hasCollision = items.some((it) => it.id !== draggingId && collides(candidate, it));
+    const hasCollision = items.some((it) => it.id !== currentDragging && collides(candidate, it));
     if (!hasCollision) {
-      updateRackItem(tab.id, draggingId, { uStart, colStart });
+      updateRackItem(tab.id, currentDragging, { uStart, colStart });
     }
     setDraggingId(null);
     setDragOverU(null);
@@ -197,19 +205,27 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
             ))}
 
             {/* Drop preview highlight */}
-            {dragOverU !== null && (
-              <div
-                className="rack-drop-preview"
-                style={{
-                  top: fromBottom
-                    ? (heightU - dragOverU - (getDragItem()?.heightU ?? 1) + 1) * U_PX
-                    : (dragOverU - 1) * U_PX,
-                  left: dragOverCol * colWidth,
-                  height: (getDragItem()?.heightU ?? draggingId ? items.find(it => it.id === draggingId)?.heightU ?? 1 : 1) * U_PX,
-                  width: (getDragItem()?.widthCols ?? draggingId ? items.find(it => it.id === draggingId)?.widthCols ?? 4 : 4) * colWidth,
-                }}
-              />
-            )}
+            {dragOverU !== null && (() => {
+              const libItem = getDragItem();
+              const rackItem = draggingIdRef.current
+                ? items.find((it) => it.id === draggingIdRef.current)
+                : null;
+              const previewH = libItem?.heightU ?? rackItem?.heightU ?? 1;
+              const previewW = libItem?.widthCols ?? rackItem?.widthCols ?? 4;
+              return (
+                <div
+                  className="rack-drop-preview"
+                  style={{
+                    top: fromBottom
+                      ? (heightU - dragOverU - previewH + 1) * U_PX
+                      : (dragOverU - 1) * U_PX,
+                    left: dragOverCol * colWidth,
+                    height: previewH * U_PX,
+                    width: previewW * colWidth,
+                  }}
+                />
+              );
+            })()}
 
             {/* Items */}
             {items.map((item) => (

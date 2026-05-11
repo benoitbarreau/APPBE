@@ -125,7 +125,11 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
       showWarn(item.label ?? item.reference ?? "Ce produit");
       return;
     }
-    addRackItem(tabId, { ...item, uStart: 1, colStart: 0 });
+    // Placer à la suite du dernier item (pas d'empilement)
+    const bayTab = tabs.find((t) => t.id === tabId && isBayTab(t));
+    const existing = bayTab?.bayItems ?? [];
+    const maxU = existing.reduce((m, it) => Math.max(m, it.uStart + it.heightU - 1), 0);
+    addRackItem(tabId, { ...item, uStart: maxU + 1, colStart: 0 });
   };
 
   // ── Drag start (bloqué si déjà présent) ─────────────────────────────────
@@ -187,6 +191,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   className={`bay-lib-item${alreadyAdded ? " already-added" : ""}`}
                   draggable={!alreadyAdded}
                   onDragStart={() => handleDragStart(item, nodeId)}
+                  onDragEnd={clearDragItem}
                   onClick={() => quickAdd(item, nodeId)}
                   title={alreadyAdded
                     ? `${product!.manufacturer} ${product!.reference} — Déjà dans la baie`
@@ -230,6 +235,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   className="bay-lib-item"
                   draggable
                   onDragStart={() => handleDragStart(item)}
+                  onDragEnd={clearDragItem}
                   onClick={() => quickAdd(item)}
                   title={`${p.manufacturer} ${p.reference} — ${p.rackHeightU}U — Cliquer pour ajouter`}
                 >
@@ -265,6 +271,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   className="bay-lib-item"
                   draggable
                   onDragStart={() => handleDragStart(item)}
+                  onDragEnd={clearDragItem}
                   onClick={() => quickAdd(item)}
                   title={`${acc.label} — ${acc.heightU}U — Cliquer pour ajouter`}
                 >
