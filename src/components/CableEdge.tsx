@@ -18,15 +18,6 @@ export type CableEdgeType = Edge<CableEdgeData, "cable">;
 type Point = { x: number; y: number };
 type Seg = { a: Point; b: Point; isH: boolean; isV: boolean };
 
-function buildPolyline(points: Point[]): string {
-  if (points.length < 2) return "";
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    d += ` L ${points[i].x} ${points[i].y}`;
-  }
-  return d;
-}
-
 // Insert small SVG arc bumps where the path crosses other cables (=
 // segments perpendicular to the current one). Bumps are drawn over the
 // other cable so the current cable visually goes over it.
@@ -49,29 +40,34 @@ function buildPathWithBumps(
       continue;
     }
     if (isH) {
+      // Coordonnée y stable = moyenne des deux extrémités (robustesse flottante)
+      const segY = (a.y + b.y) / 2;
       const dirX = a.x < b.x ? 1 : -1;
       const sorted = [...list].sort((p, q) => (p.x - q.x) * dirX);
+      // Seuil minimal = r (arc géométriquement contenu dans le segment)
       const valid = sorted.filter(
         (bump) =>
-          Math.abs(bump.x - a.x) > r + 2 && Math.abs(bump.x - b.x) > r + 2,
+          Math.abs(bump.x - a.x) > r && Math.abs(bump.x - b.x) > r,
       );
       const sweep = dirX > 0 ? 0 : 1; // bump UP
       for (const bump of valid) {
-        d += ` L ${bump.x - dirX * r} ${a.y}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${a.y}`;
+        d += ` L ${bump.x - dirX * r} ${segY}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${segY}`;
       }
       d += ` L ${b.x} ${b.y}`;
     } else {
+      // Coordonnée x stable = moyenne des deux extrémités
+      const segX = (a.x + b.x) / 2;
       const dirY = a.y < b.y ? 1 : -1;
       const sorted = [...list].sort((p, q) => (p.y - q.y) * dirY);
       const valid = sorted.filter(
         (bump) =>
-          Math.abs(bump.y - a.y) > r + 2 && Math.abs(bump.y - b.y) > r + 2,
+          Math.abs(bump.y - a.y) > r && Math.abs(bump.y - b.y) > r,
       );
       const sweep = dirY > 0 ? 0 : 1; // bump RIGHT
       for (const bump of valid) {
-        d += ` L ${a.x} ${bump.y - dirY * r}`;
-        d += ` A ${r} ${r} 0 0 ${sweep} ${a.x} ${bump.y + dirY * r}`;
+        d += ` L ${segX} ${bump.y - dirY * r}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${segX} ${bump.y + dirY * r}`;
       }
       d += ` L ${b.x} ${b.y}`;
     }
@@ -81,8 +77,9 @@ function buildPathWithBumps(
 
 function intersect(s1: Seg, s2: Seg): Point | null {
   if (s1.isH && s2.isV) {
-    const x = s2.a.x;
-    const y = s1.a.y;
+    // Coordonnées moyennes pour neutraliser les imprécisions flottantes
+    const x = (s2.a.x + s2.b.x) / 2;
+    const y = (s1.a.y + s1.b.y) / 2;
     if (
       x > Math.min(s1.a.x, s1.b.x) &&
       x < Math.max(s1.a.x, s1.b.x) &&
@@ -92,8 +89,8 @@ function intersect(s1: Seg, s2: Seg): Point | null {
       return { x, y };
   }
   if (s1.isV && s2.isH) {
-    const x = s1.a.x;
-    const y = s2.a.y;
+    const x = (s1.a.x + s1.b.x) / 2;
+    const y = (s2.a.y + s2.b.y) / 2;
     if (
       x > Math.min(s2.a.x, s2.b.x) &&
       x < Math.max(s2.a.x, s2.b.x) &&
@@ -393,10 +390,8 @@ const allNodes = useAppStore((s) => s.nodes);
     }
   }
 
-  const path =
-    bumpsPerSeg.size > 0
-      ? buildPathWithBumps(allPoints, bumpsPerSeg)
-      : buildPolyline(allPoints);
+  // buildPathWithBumps se comporte comme buildPolyline quand bumpsPerSeg est vide
+  const path = buildPathWithBumps(allPoints, bumpsPerSeg);
   const mid = Math.floor(allPoints.length / 2);
   const a = allPoints[mid - 1] ?? allPoints[0];
   const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
