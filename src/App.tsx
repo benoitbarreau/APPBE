@@ -11,7 +11,9 @@ import { ProductLabelsList } from "./components/ProductLabelsList";
 import { Legend } from "./components/Legend";
 import { ZonesList } from "./components/ZonesList";
 import { IPTableEditor } from "./components/IPTableEditor";
-import { isIPTableTab } from "./types";
+import { BayCanvas } from "./components/bay/BayCanvas";
+import { BayCreateModal } from "./components/bay/BayCreateModal";
+import { isBayTab, isIPTableTab } from "./types";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
@@ -74,12 +76,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const activeTabId = useAppStore((s) => s.activeTabId);
   const addTab = useAppStore((s) => s.addTab);
   const addIPTableTab = useAppStore((s) => s.addIPTableTab);
+  const addBayTab = useAppStore((s) => s.addBayTab);
   const removeTab = useAppStore((s) => s.removeTab);
   const renameTab = useAppStore((s) => s.renameTab);
   const duplicateTab = useAppStore((s) => s.duplicateTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const [addTabMenuOpen, setAddTabMenuOpen] = useState(false);
   const [addTabMenuPos, setAddTabMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [bayCreateOpen, setBayCreateOpen] = useState(false);
   const addTabBtnRef = useRef<HTMLButtonElement>(null);
   const addTabMenuRef = useRef<HTMLDivElement>(null);
 
@@ -96,9 +100,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     setAddTabMenuOpen(true);
   };
 
-  // Onglet actif (utilisé pour basculer entre DiagramCanvas et IPTableEditor)
+  // Onglet actif (utilisé pour basculer entre DiagramCanvas, IPTableEditor et BayCanvas)
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeIsIPTab = activeTab ? isIPTableTab(activeTab) : false;
+  const activeIsBayTab = activeTab ? isBayTab(activeTab) : false;
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
   const tabInputRef = useRef<HTMLInputElement>(null);
@@ -302,8 +307,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handlePrintAllTabs = async () => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
-    // Filtrer les onglets Tableau IP — ils ont leur propre export depuis l'éditeur
-    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t));
+    // Filtrer les onglets Tableau IP et Baie — ils ont leur propre export
+    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t) && !isBayTab(t));
     let totalPages = 0;
     for (const tab of flushedTabs) totalPages += computePageRects(tab.nodes).length;
 
@@ -391,8 +396,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
-    // Filtrer les onglets Tableau IP — ils ont leur propre export depuis l'éditeur
-    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t));
+    // Filtrer les onglets Tableau IP et Baie — ils ont leur propre export
+    const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t) && !isBayTab(t));
     const refLabel =
       state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
 
@@ -636,7 +641,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 <button
                   className="tab-dup"
                   onClick={() => duplicateTab(tab.id)}
-                  title="Dupliquer ce synoptique"
+                  title={isBayTab(tab) ? "Dupliquer cette baie" : "Dupliquer ce synoptique"}
                 >
                   ⎘
                 </button>
@@ -693,16 +698,27 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 <strong>+ Tableau IP</strong>
                 <small>Tableur des équipements réseau (IP, MAC, login…)</small>
               </button>
+              <button
+                onClick={() => {
+                  setAddTabMenuOpen(false);
+                  setBayCreateOpen(true);
+                }}
+              >
+                <strong>+ Baie</strong>
+                <small>Plan de câblage en rack (19"/10", 6U à 48U)</small>
+              </button>
             </div>,
             document.body,
           )}
 
         {/* ── Canvas + panneau droit ─────────────────────────────────────── */}
         <div className={`app-body${rightPanelOpen ? "" : " right-collapsed"}`}>
-          {/* key=activeTabId force le remontage de React Flow lors du changement d'onglet */}
+          {/* key=activeTabId force le remontage lors du changement d'onglet */}
           <main className="canvas" key={activeTabId}>
             {activeIsIPTab ? (
               <IPTableEditor tabId={activeTabId} />
+            ) : activeIsBayTab ? (
+              <BayCanvas tabId={activeTabId} />
             ) : (
               <>
                 <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />
@@ -711,7 +727,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             )}
           </main>
 
-          <aside className={`sidebar right${rightPanelOpen ? "" : " collapsed"}`}>
+          <aside className={`sidebar right${rightPanelOpen && !activeIsBayTab ? "" : " collapsed"}`}>
             {rightPanelOpen ? (
               <>
                 <div className="right-panel-topbar">
@@ -760,6 +776,15 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         </div>
       </div>
 
+      {bayCreateOpen && (
+        <BayCreateModal
+          onConfirm={({ name, widthInch, heightU }) => {
+            setBayCreateOpen(false);
+            addBayTab({ name, widthInch, heightU });
+          }}
+          onCancel={() => setBayCreateOpen(false)}
+        />
+      )}
       {editing !== null && (
         <ProductEditor productId={editing} onClose={() => setEditing(null)} onSwitchTo={(id) => setEditing(id)} />
       )}

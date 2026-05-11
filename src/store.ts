@@ -10,13 +10,14 @@ import type {
   PortSide,
   Product,
   ProjectMeta,
+  RackItem,
   SignalDef,
   SignalType,
   Tab,
   Zone,
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
-import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, isIPTableTab, isSynopticTab } from "./types";
+import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
 const DEFAULT_ZONES: Zone[] = [
@@ -65,6 +66,16 @@ interface State {
   addTab: (name?: string) => void;
   /** Crée un onglet Tableau IP, optionnellement pré-rempli depuis les synoptiques. */
   addIPTableTab: (name?: string, autoSync?: boolean) => string;
+  /** Crée un onglet Baie (rack planner). */
+  addBayTab: (opts?: { name?: string; widthInch?: 10 | 19; heightU?: number }) => string;
+  /** Met à jour la configuration de la baie (dimensions, numérotation). */
+  updateBayConfig: (tabId: string, patch: { bayWidthInch?: 10 | 19; bayHeightU?: number; bayNumberingFromBottom?: boolean }) => void;
+  /** Ajoute un équipement dans la baie. Retourne l'ID créé. */
+  addRackItem: (tabId: string, item: Omit<RackItem, 'id'>) => string;
+  /** Met à jour un équipement de la baie. */
+  updateRackItem: (tabId: string, itemId: string, patch: Partial<RackItem>) => void;
+  /** Supprime un équipement de la baie. */
+  removeRackItem: (tabId: string, itemId: string) => void;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
   duplicateTab: (tabId: string) => void;
@@ -191,7 +202,7 @@ function collectAllLabels(s: Pick<State, "tabs" | "activeTabId" | "nodes">): str
   for (const n of s.nodes) labels.push(n.label ?? "");
   for (const t of s.tabs) {
     if (t.id === s.activeTabId) continue;
-    if (isIPTableTab(t)) continue;
+    if (isIPTableTab(t) || isBayTab(t)) continue;
     for (const n of t.nodes ?? []) labels.push(n.label ?? "");
   }
   return labels;
@@ -220,6 +231,20 @@ const makeIPTab = (name = "Tableau IP"): Tab => ({
   documentTitle: "",
 });
 
+/** Crée un onglet Baie vierge. */
+const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab => ({
+  id: uid(),
+  name,
+  kind: "bay",
+  nodes: [],
+  cables: [],
+  zones: [],
+  bayWidthInch: widthInch,
+  bayHeightU: heightU,
+  bayNumberingFromBottom: true,
+  bayItems: [],
+});
+
 /**
  * Retourne le tableau tabs avec l'état de travail courant flushé dans l'onglet actif.
  * À appeler avant un switch d'onglet ou avant la sauvegarde.
@@ -230,7 +255,7 @@ const makeIPTab = (name = "Tableau IP"): Tab => ({
 const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "zones">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
-    if (isIPTableTab(t)) return t;
+    if (isIPTableTab(t) || isBayTab(t)) return t;
     return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones };
   });
 
@@ -299,6 +324,69 @@ export const useAppStore = create<State>()(
           return newId;
         },
 
+        addBayTab: (opts) => {
+          const newId = uid();
+          set((s) => {
+            const flushed = flushActive(s);
+            const bayCount = flushed.filter((t) => isBayTab(t)).length;
+            const tabName = opts?.name ?? (bayCount === 0 ? "Baie 1" : `Baie ${bayCount + 1}`);
+            const newTab: Tab = makeBayTab(tabName, opts?.widthInch ?? 19, opts?.heightU ?? 42);
+            newTab.id = newId;
+            return {
+              tabs: [...flushed, newTab],
+              activeTabId: newTab.id,
+              nodes: [],
+              cables: [],
+              zones: [],
+              selectedNodeId: null,
+              selectedCableId: null,
+            };
+          });
+          return newId;
+        },
+
+        updateBayConfig: (tabId, patch) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t) ? { ...t, ...patch } : t,
+            ),
+          })),
+
+        addRackItem: (tabId, item) => {
+          const newId = uid();
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t)
+                ? { ...t, bayItems: [...(t.bayItems ?? []), { ...item, id: newId }] }
+                : t,
+            ),
+          }));
+          return newId;
+        },
+
+        updateRackItem: (tabId, itemId, patch) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t)
+                ? {
+                    ...t,
+                    bayItems: (t.bayItems ?? []).map((it) =>
+                      it.id === itemId ? { ...it, ...patch } : it,
+                    ),
+                  }
+                : t,
+            ),
+          })),
+
+        removeRackItem: (tabId, itemId) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t)
+                ? { ...t, bayItems: (t.bayItems ?? []).filter((it) => it.id !== itemId) }
+                : t,
+            ),
+          })),
+
         removeTab: (tabId) =>
           set((s) => {
             if (s.tabs.length <= 1) return {};
@@ -309,7 +397,7 @@ export const useAppStore = create<State>()(
             }
             const idx = flushed.findIndex((t) => t.id === tabId);
             const newActive = newTabs[Math.min(idx, newTabs.length - 1)];
-            if (isIPTableTab(newActive)) {
+            if (isIPTableTab(newActive) || isBayTab(newActive)) {
               return {
                 tabs: newTabs,
                 activeTabId: newActive.id,
@@ -490,6 +578,31 @@ export const useAppStore = create<State>()(
             const source = flushed.find((t) => t.id === tabId);
             if (!source) return {};
 
+            // Duplication d'une Baie
+            if (isBayTab(source)) {
+              const newTab: Tab = {
+                ...source,
+                id: uid(),
+                name: `Copie de ${source.name}`,
+                bayItems: (source.bayItems ?? []).map((it) => ({ ...it, id: uid() })),
+              };
+              const idx = flushed.findIndex((t) => t.id === tabId);
+              const newTabs = [
+                ...flushed.slice(0, idx + 1),
+                newTab,
+                ...flushed.slice(idx + 1),
+              ];
+              return {
+                tabs: newTabs,
+                activeTabId: newTab.id,
+                nodes: [],
+                cables: [],
+                zones: [],
+                selectedNodeId: null,
+                selectedCableId: null,
+              };
+            }
+
             // Remappage des IDs de nœuds (les câbles référencent les IDs de nœuds)
             const nodeIdMap = new Map<string, string>();
             const newNodes = source.nodes.map((n) => {
@@ -538,8 +651,8 @@ export const useAppStore = create<State>()(
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target) return {};
-            // Pour un onglet IP, l'état de travail synoptique est vidé
-            if (isIPTableTab(target)) {
+            // Pour un onglet IP ou Baie, l'état de travail synoptique est vidé
+            if (isIPTableTab(target) || isBayTab(target)) {
               return {
                 tabs: flushed,
                 activeTabId: tabId,
@@ -1033,11 +1146,11 @@ export const defaultCableFor = (signal: SignalType): string =>
  */
 export function getFlushedTabs(): Tab[] {
   const s = useAppStore.getState();
-  return s.tabs.map((t) =>
-    t.id === s.activeTabId
-      ? { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones }
-      : t,
-  );
+  return s.tabs.map((t) => {
+    if (t.id !== s.activeTabId) return t;
+    if (isIPTableTab(t) || isBayTab(t)) return t;
+    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones };
+  });
 }
 
 // ── Store catalogue méta (non persisté) ──────────────────────────────────

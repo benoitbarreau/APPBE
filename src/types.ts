@@ -118,14 +118,54 @@ export interface IPNetworkInfo {
   ntp: string
 }
 
+// ── Baie (rack planner) ──────────────────────────────────────────────────────
+
+export interface RackAnnotations {
+  comment?: string
+  powerA?: string
+  powerB?: string
+  outlet?: string
+  switchPort?: string
+  vlan?: string
+  ip?: string
+  location?: string
+  note?: string
+}
+
+export interface RackItem {
+  id: string
+  /** Provenance : produit d'un synoptique, produit du catalogue, ou accessoire intégré. */
+  sourceType: 'synoptic' | 'catalog' | 'accessory'
+  /** ID du produit dans le catalogue (si sourceType !== 'accessory'). */
+  productId?: string
+  /** ID du PlacedProduct dans un synoptique (si sourceType === 'synoptic'). */
+  nodeId?: string
+  label?: string
+  manufacturer?: string
+  reference?: string
+  category?: string
+  /** Position en U depuis le bas (1-indexé). */
+  uStart: number
+  /** Hauteur en U. */
+  heightU: number
+  /** Largeur en colonnes : 1=quarter, 2=half, 4=full. */
+  widthCols: 1 | 2 | 4
+  /** Colonne de départ (0–3). */
+  colStart: 0 | 1 | 2 | 3
+  color?: string
+  locked?: boolean
+  annotations?: RackAnnotations
+}
+
 /** Un onglet au sein d'un projet. Type discriminé par `kind`.
  *  - `kind` absent ou 'synoptic' → onglet synoptique graphique (rétrocompat).
- *  - `kind === 'iptable'` → onglet Tableau IP. */
+ *  - `kind === 'iptable'` → onglet Tableau IP.
+ *  - `kind === 'bay'` → onglet Baie (rack planner). */
 export interface Tab {
   id: string
   name: string
-  kind?: 'synoptic' | 'iptable'
-  // ── Champs synoptique (toujours présents, vides pour onglets IP) ─────
+  kind?: 'synoptic' | 'iptable' | 'bay'
+  // ── Champs synoptique (toujours présents, vides pour onglets IP/Baie) ─
   trade?: string
   nodes: PlacedProduct[]
   cables: Cable[]
@@ -134,12 +174,19 @@ export interface Tab {
   rows?: IPTableRow[]
   network?: IPNetworkInfo
   documentTitle?: string
+  // ── Champs Baie (présents pour onglets Baie uniquement) ──────────────
+  bayWidthInch?: 10 | 19
+  bayHeightU?: number
+  bayNumberingFromBottom?: boolean
+  bayItems?: RackItem[]
 }
 
 /** Helper : true si l'onglet est un Tableau IP. */
 export const isIPTableTab = (t: Tab): boolean => t.kind === 'iptable'
+/** Helper : true si l'onglet est une Baie. */
+export const isBayTab = (t: Tab): boolean => t.kind === 'bay'
 /** Helper : true si l'onglet est un synoptique (compat ascendant si kind absent). */
-export const isSynopticTab = (t: Tab): boolean => t.kind !== 'iptable'
+export const isSynopticTab = (t: Tab): boolean => t.kind !== 'iptable' && t.kind !== 'bay'
 
 /** Cartouche réseau par défaut à la création d'un Tableau IP. */
 export const DEFAULT_IP_NETWORK: IPNetworkInfo = {
