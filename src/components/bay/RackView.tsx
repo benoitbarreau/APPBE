@@ -163,6 +163,14 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
 
   return (
     <div className="bay-rack-wrapper">
+      {/* Titre encadré aligné avec le cadre de la baie */}
+      <div
+        className="bay-rack-tab-name"
+        style={{ marginLeft: U_LABEL_WIDTH, width: innerWidth + EAR_WIDTH * 2 }}
+      >
+        {tab.name}
+      </div>
+
       <div
         className="bay-rack-view"
         style={{ width: innerWidth + EAR_WIDTH * 2 + U_LABEL_WIDTH }}

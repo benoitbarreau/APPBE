@@ -4261,21 +4261,27 @@ select {
   background: #fff;
 }
 
-/* Titre de la baie au-dessus du rack */
-.bay-rack-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  text-align: center;
-  margin-bottom: 14px;
-  letter-spacing: 0.01em;
-}
-
 /* ── RackView ────────────────────────────────────────────────────────────── */
 
 .bay-rack-wrapper {
   display: inline-flex;
+  flex-direction: column;
   align-items: flex-start;
+}
+
+/* Titre encadré au-dessus du rack (aligné avec le cadre, pas les numéros U) */
+.bay-rack-tab-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  padding: 5px 12px;
+  border: 2px solid var(--primary);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #eef3ff;
+  box-sizing: border-box;
+  letter-spacing: 0.01em;
 }
 
 .bay-rack-view {
@@ -4310,7 +4316,8 @@ select {
   flex-shrink: 0;
   background: #8a93a0;
   border: 2px solid #6b7280;
-  border-radius: 3px;
+  border-top: 2px solid var(--primary);
+  border-radius: 0 0 3px 3px;
 }
 
 /* Ear (vertical side panels with holes) */
