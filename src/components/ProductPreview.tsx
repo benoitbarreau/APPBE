@@ -88,6 +88,16 @@ export function ProductPreview({
       {middle.length > 0 && (
         <div className="middle-rows">
           {middle.map((p) => {
+            if (p.kind === "spacer") {
+              return <div key={p.id} className="middle-row port-spacer" />;
+            }
+            if (p.kind === "separator") {
+              return (
+                <div key={p.id} className="middle-row port-separator-row">
+                  <hr className="port-separator" />
+                </div>
+              );
+            }
             const color = signals[p.signal]?.color ?? "#888";
             return (
               <div key={p.id} className="middle-row">
@@ -114,6 +124,10 @@ function PreviewRow({
   dotStyle: (color: string, side: "in" | "out") => React.CSSProperties;
   signals: Record<string, { color: string }>;
 }) {
+  // Espace : ligne vide sans pastille ni label
+  if (port.kind === "spacer") {
+    return <div className={"port-row port-spacer " + side} />;
+  }
   const color = signals[port.signal]?.color ?? "#888";
   return (
     <div className={"port-row " + side}>

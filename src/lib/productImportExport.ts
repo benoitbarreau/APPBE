@@ -293,7 +293,12 @@ function sanitizePort(p: unknown, defaultDir: PortDirection): Port | null {
     typeof o.direction === "string" && (VALID_DIRECTIONS as string[]).includes(o.direction)
       ? (o.direction as PortDirection)
       : defaultDir;
-  return { id, label: o.label, signal, direction };
+  // Préserve l'éventuel `kind` pour les éléments décoratifs (espace / séparateur)
+  const kind =
+    o.kind === "spacer" || o.kind === "separator"
+      ? (o.kind as "spacer" | "separator")
+      : undefined;
+  return kind ? { id, label: o.label, signal, direction, kind } : { id, label: o.label, signal, direction };
 }
 
 export function parseProductsCsv(text: string): ImportResult {

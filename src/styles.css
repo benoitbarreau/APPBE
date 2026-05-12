@@ -1590,6 +1590,48 @@ select {
   flex-shrink: 0;
   display: inline-block;
 }
+
+/* ── Espaces et séparateurs (éléments décoratifs dans les ports) ────────── */
+
+/* Espace : ligne vide qui conserve la hauteur d'un port normal */
+.port-row.port-spacer,
+.middle-row.port-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Séparateur milieu : ligne pointillée gris foncé pleine largeur du bloc */
+.middle-row.port-separator-row {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 18px;
+}
+.port-separator {
+  flex: 1;
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 1.5px dashed #4a5060;
+}
+
+/* Côté éditeur de produit : rendu spécifique des lignes décoratives */
+.port-edit-row.port-edit-row-decorative {
+  background: #f7f8fa;
+  font-style: italic;
+}
+.port-edit-row.port-edit-row-decorative .port-decorative-label {
+  flex: 1;
+  color: var(--muted);
+  font-size: 11px;
+  user-select: none;
+}
+
+/* Groupe des boutons d'ajout dans l'en-tête de la section ports */
+.ports-editor-add-group {
+  display: inline-flex;
+  gap: 4px;
+}
 .port-row.in {
   justify-content: flex-start;
 }

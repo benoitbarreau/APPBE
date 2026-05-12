@@ -163,6 +163,11 @@ function PortRow({
   side: "in" | "out";
   nodeId: string;
 }) {
+  // Espace : ligne vide sans pastille de connexion et sans label (juste de la
+  // hauteur pour aérer la liste). Aucun Handle React Flow → non connectable.
+  if (port.kind === "spacer") {
+    return <div className={"port-row port-spacer " + side} />;
+  }
   const color = useAppStore((s) => s.signals[port.signal]?.color) ?? "#888";
   const handleId = `${side}:${port.id}`;
   const handleStyle: React.CSSProperties = {
@@ -201,6 +206,19 @@ function MiddlePortRow({
   leftUsed: boolean;
   rightUsed: boolean;
 }) {
+  // Espace milieu : ligne vide sans label ni Handle, mais conserve la hauteur.
+  if (port.kind === "spacer") {
+    return <div className="middle-row port-spacer" />;
+  }
+  // Séparateur milieu : ligne en pointillés gris foncé pleine largeur,
+  // pas de label ni de Handle.
+  if (port.kind === "separator") {
+    return (
+      <div className="middle-row port-separator-row">
+        <hr className="port-separator" />
+      </div>
+    );
+  }
   const color = useAppStore((s) => s.signals[port.signal]?.color) ?? "#888";
   const dim = "#cfd4dc";
   // If left is used, right is blocked. If right is used, left is blocked.

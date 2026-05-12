@@ -7,7 +7,21 @@ export interface Port {
   label: string;
   signal: SignalType;
   direction: PortDirection;
+  /**
+   * Élément décoratif inséré dans la liste des ports.
+   * - undefined : port normal (avec pastille de connexion sur le bloc)
+   * - 'spacer'  : ligne vide servant de saut de ligne — pas de label visible,
+   *               pas de pastille de connexion. Disponible dans toutes les
+   *               sections (entrées / sorties / milieu).
+   * - 'separator' : ligne en pointillés gris foncé sur toute la largeur du
+   *               bloc. Disponible UNIQUEMENT dans la section milieu.
+   */
+  kind?: 'spacer' | 'separator';
 }
+
+/** True si le « port » est un élément décoratif (espace ou séparateur). */
+export const isDecorativePort = (p: Port): boolean =>
+  p.kind === 'spacer' || p.kind === 'separator';
 
 export type RackSize = "19" | "10";
 export type RackWidth = "full" | "half" | "quarter";

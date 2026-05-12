@@ -125,6 +125,37 @@ export function InstancePortsConfig({
                   <div className="muted instance-section-empty">Aucun port.</div>
                 )}
                 {ports.map((p) => {
+                  // Éléments décoratifs (espaces / séparateurs) : non
+                  // configurables par instance, simple affichage avec une
+                  // poignée pour les réordonner si besoin.
+                  if (p.kind === "spacer" || p.kind === "separator") {
+                    return (
+                      <div
+                        key={p.id}
+                        className={"instance-port-row port-edit-row-decorative"
+                          + (dragId === p.id ? " dragging" : "")}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragId(p.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          onDrop(p.id, sec.key);
+                        }}
+                        onDragEnd={() => setDragId(null)}
+                      >
+                        <span className="instance-drag-handle" title="Glisser pour réordonner">≡</span>
+                        <span className="port-decorative-label">
+                          {p.kind === "spacer" ? "— Espace —" : "— Séparateur —"}
+                        </span>
+                      </div>
+                    );
+                  }
                   const def = signals[p.signal];
                   const placement = getEffectivePlacement(product, node, p.id);
                   const isOverridden =

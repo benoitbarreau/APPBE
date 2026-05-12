@@ -91,6 +91,38 @@ export function ProductEditor({
     });
   };
 
+  /** Ajoute un espace (ligne vide sans pastille de connexion). */
+  const addSpacer = (side: PortListKey) => {
+    setDraft((d) => {
+      const list = getList(d, side);
+      const direction: PortDirection =
+        side === "inputs" ? "in" : side === "outputs" ? "out" : "bi";
+      const spacer: Port = {
+        id: `spacer-${side}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: "",
+        signal: "",
+        direction,
+        kind: "spacer",
+      };
+      return { ...d, [side]: [...list, spacer] };
+    });
+  };
+
+  /** Ajoute un séparateur (ligne pointillée pleine largeur). Milieu uniquement. */
+  const addSeparator = () => {
+    setDraft((d) => {
+      const list = getList(d, "middle");
+      const separator: Port = {
+        id: `separator-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: "",
+        signal: "",
+        direction: "bi",
+        kind: "separator",
+      };
+      return { ...d, middle: [...list, separator] };
+    });
+  };
+
   const removePort = (side: PortListKey, idx: number) => {
     setDraft((d) => ({
       ...d,
@@ -104,6 +136,9 @@ export function ProductEditor({
       const fromList = getList(d, from);
       const port = fromList[idx];
       if (!port) return d;
+      // Séparateurs : réservés au milieu, on ignore tout déplacement vers
+      // entrées/sorties.
+      if (port.kind === "separator" && to !== "middle") return d;
       const newDirection: PortDirection =
         to === "inputs" ? "in" : to === "outputs" ? "out" : "bi";
       const moved: Port = { ...port, direction: newDirection };
@@ -394,6 +429,7 @@ export function ProductEditor({
             ports={draft.inputs}
             section="inputs"
             onAdd={() => addPort("inputs")}
+            onAddSpacer={() => addSpacer("inputs")}
             onChange={(i, patch) => setPort("inputs", i, patch)}
             onRemove={(i) => removePort("inputs", i)}
             onDuplicate={(i) => duplicatePort("inputs", i)}
@@ -406,6 +442,7 @@ export function ProductEditor({
             ports={draft.outputs}
             section="outputs"
             onAdd={() => addPort("outputs")}
+            onAddSpacer={() => addSpacer("outputs")}
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
             onDuplicate={(i) => duplicatePort("outputs", i)}
@@ -418,6 +455,8 @@ export function ProductEditor({
             ports={draft.middle ?? []}
             section="middle"
             onAdd={() => addPort("middle")}
+            onAddSpacer={() => addSpacer("middle")}
+            onAddSeparator={addSeparator}
             onChange={(i, patch) => setPort("middle", i, patch)}
             onRemove={(i) => removePort("middle", i)}
             onDuplicate={(i) => duplicatePort("middle", i)}
@@ -526,6 +565,8 @@ function PortsEditor({
   ports,
   section,
   onAdd,
+  onAddSpacer,
+  onAddSeparator,
   onChange,
   onRemove,
   onDuplicate,
@@ -536,6 +577,8 @@ function PortsEditor({
   ports: Port[];
   section: PortListKey;
   onAdd: () => void;
+  onAddSpacer?: () => void;
+  onAddSeparator?: () => void;
   onChange: (i: number, patch: Partial<Port>) => void;
   onRemove: (i: number) => void;
   onDuplicate: (i: number) => void;
@@ -550,72 +593,126 @@ function PortsEditor({
     <div className="ports-editor">
       <div className="ports-editor-header">
         <h4>{title}</h4>
-        <button onClick={onAdd}>+ Ajouter</button>
+        <div className="ports-editor-add-group">
+          <button onClick={onAdd}>+ Ajouter</button>
+          {onAddSpacer && (
+            <button
+              onClick={onAddSpacer}
+              title="Insérer une ligne vide (saut de ligne, pas de pastille de connexion)"
+            >
+              + Espace
+            </button>
+          )}
+          {onAddSeparator && (
+            <button
+              onClick={onAddSeparator}
+              title="Insérer une ligne pointillée sur toute la largeur du bloc"
+            >
+              + Séparateur
+            </button>
+          )}
+        </div>
       </div>
       {ports.length === 0 && <div className="muted">Aucune.</div>}
-      {ports.map((p, i) => (
-        <div
-          key={i}
-          className={"port-edit-row" + (dragIdx === i ? " dragging" : "")}
-          draggable
-          onDragStart={(e) => {
-            setDragIdx(i);
-            e.dataTransfer.effectAllowed = "move";
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
-            setDragIdx(null);
-          }}
-          onDragEnd={() => setDragIdx(null)}
-        >
-          <span className="instance-drag-handle" title="Glisser pour réordonner">
-            ≡
-          </span>
-          <span className="port-dot" style={{ background: signals[p.signal]?.color ?? "#888" }} />
-          <input
-            value={p.label}
-            onChange={(e) => onChange(i, { label: e.target.value })}
-            placeholder="Libellé"
-          />
-          <select
-            value={p.signal}
-            onChange={(e) => onChange(i, { signal: e.target.value as SignalType })}
+      {ports.map((p, i) => {
+        const isSpacer = p.kind === "spacer";
+        const isSeparator = p.kind === "separator";
+        const isDecorative = isSpacer || isSeparator;
+        return (
+          <div
+            key={i}
+            className={"port-edit-row"
+              + (dragIdx === i ? " dragging" : "")
+              + (isDecorative ? " port-edit-row-decorative" : "")}
+            draggable
+            onDragStart={(e) => {
+              setDragIdx(i);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
+              setDragIdx(null);
+            }}
+            onDragEnd={() => setDragIdx(null)}
           >
-            {signalOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={section}
-            title="Déplacer dans une autre section"
-            onChange={(e) => onMove(i, e.target.value as PortListKey)}
-            className="port-section-select"
-          >
-            {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
-              <option key={s} value={s}>
-                {SECTION_LABELS[s]}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => onDuplicate(i)}
-            title="Dupliquer ce port (incrémente le numéro)"
-            className="port-dup-btn"
-          >
-            ⎘
-          </button>
-          <button onClick={() => onRemove(i)} title="Supprimer">
-            ✕
-          </button>
-        </div>
-      ))}
+            <span className="instance-drag-handle" title="Glisser pour réordonner">
+              ≡
+            </span>
+            {isDecorative ? (
+              <>
+                <span className="port-decorative-label">
+                  {isSpacer ? "— Espace —" : "— Séparateur —"}
+                </span>
+                {/* Pour un espace : possibilité de changer de section (réordonner globalement).
+                    Pour un séparateur : verrouillé en milieu uniquement. */}
+                {isSpacer && (
+                  <select
+                    value={section}
+                    title="Déplacer dans une autre section"
+                    onChange={(e) => onMove(i, e.target.value as PortListKey)}
+                    className="port-section-select"
+                  >
+                    {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
+                      <option key={s} value={s}>
+                        {SECTION_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button onClick={() => onRemove(i)} title="Supprimer">
+                  ✕
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="port-dot" style={{ background: signals[p.signal]?.color ?? "#888" }} />
+                <input
+                  value={p.label}
+                  onChange={(e) => onChange(i, { label: e.target.value })}
+                  placeholder="Libellé"
+                />
+                <select
+                  value={p.signal}
+                  onChange={(e) => onChange(i, { signal: e.target.value as SignalType })}
+                >
+                  {signalOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={section}
+                  title="Déplacer dans une autre section"
+                  onChange={(e) => onMove(i, e.target.value as PortListKey)}
+                  className="port-section-select"
+                >
+                  {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
+                    <option key={s} value={s}>
+                      {SECTION_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => onDuplicate(i)}
+                  title="Dupliquer ce port (incrémente le numéro)"
+                  className="port-dup-btn"
+                >
+                  ⎘
+                </button>
+                <button onClick={() => onRemove(i)} title="Supprimer">
+                  ✕
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
