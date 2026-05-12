@@ -18,6 +18,7 @@ import type {
   Zone,
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
+import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
 import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
@@ -47,6 +48,14 @@ const DEFAULT_PROJECT_META: ProjectMeta = {
 
 interface State {
   products: Product[];
+  /** Métadonnées modération (statut / créateur / archive) indexées par product.id.
+   *  Présent UNIQUEMENT pour les produits issus du cloud (user_products).
+   *  Les produits builtin (BUILTIN_CATALOG) n'ont pas d'entrée et sont
+   *  considérés comme `approved` du catalogue commun. */
+  productMeta: Record<string, UserProductMeta>;
+  /** Produits archivés (chargés à la demande pour la modal admin). */
+  archivedProducts: Product[];
+  archivedProductsMeta: Record<string, UserProductMeta>;
   // ── Accessoires baie (éditables) ──────────────────────────────────────
   accessories: BayAccessory[];
   addBayAccessory: (acc: Omit<BayAccessory, "id">) => void;
@@ -165,9 +174,24 @@ interface State {
   clearForUser: (userId: string) => void;
   /**
    * Fusionne les produits custom chargés depuis Supabase avec le catalogue
-   * local. Les produits cloud ont la priorité sur ceux du localStorage.
+   * local. Les produits cloud (avec leur meta) ont la priorité sur ceux du
+   * localStorage.
    */
-  mergeUserProducts: (cloudProducts: Product[]) => void;
+  mergeUserProducts: (fetched: FetchedUserProduct[]) => void;
+  /** Définit/écrase la meta d'un produit (utilisé lors d'une création locale,
+   *  avant que le cloud ne réponde, pour que la fiche apparaisse immédiatement
+   *  dans la bonne section). */
+  setProductMeta: (productId: string, meta: UserProductMeta) => void;
+  /** Remplace la liste des produits archivés (admin uniquement). */
+  setArchivedProducts: (fetched: FetchedUserProduct[]) => void;
+  /** Marque un produit pending comme approuvé (mise à jour locale). */
+  validateProductLocal: (productId: string) => void;
+  /** Déplace un produit du catalogue vers les archives (mise à jour locale). */
+  archiveProductLocal: (productId: string) => void;
+  /** Déplace un produit des archives vers le catalogue commun. */
+  restoreProductLocal: (productId: string) => void;
+  /** Supprime définitivement un produit archivé (mise à jour locale). */
+  hardDeleteArchivedLocal: (productId: string) => void;
   /**
    * Fusionne les signaux (légende) chargés depuis Supabase.
    * Les signaux cloud ont la priorité sur ceux du localStorage.
@@ -287,6 +311,9 @@ export const useAppStore = create<State>()(
 
       return {
         products: BUILTIN_CATALOG,
+        productMeta: {},
+        archivedProducts: [],
+        archivedProductsMeta: {},
         accessories: [...BAY_ACCESSORIES],
 
         addBayAccessory: (acc) =>
@@ -1196,21 +1223,113 @@ export const useAppStore = create<State>()(
           });
         },
 
-        mergeUserProducts: (cloudProducts) =>
+        mergeUserProducts: (fetched) =>
           set((s) => {
             const builtinIds = new Set(BUILTIN_CATALOG.map((p) => p.id));
             // Catalogue de base (builtin) + produits cloud (priorité max)
             const result = new Map<string, Product>(
               BUILTIN_CATALOG.map((p) => [p.id, p]),
             );
-            for (const p of cloudProducts) result.set(p.id, p);
+            const nextMeta: Record<string, UserProductMeta> = {};
+            for (const { product, meta } of fetched) {
+              result.set(product.id, product);
+              nextMeta[product.id] = meta;
+            }
             // Produits custom locaux pas encore synchronisés (nouveaux, offline)
             for (const p of s.products) {
               if (!builtinIds.has(p.id) && !result.has(p.id)) {
                 result.set(p.id, p);
+                // Conserver la meta existante si présente (offline)
+                if (s.productMeta[p.id]) nextMeta[p.id] = s.productMeta[p.id];
               }
             }
-            return { products: Array.from(result.values()) };
+            return {
+              products: Array.from(result.values()),
+              productMeta: nextMeta,
+            };
+          }),
+
+        setProductMeta: (productId, meta) =>
+          set((s) => ({
+            productMeta: { ...s.productMeta, [productId]: meta },
+          })),
+
+        setArchivedProducts: (fetched) =>
+          set(() => {
+            const meta: Record<string, UserProductMeta> = {};
+            const products: Product[] = [];
+            for (const { product, meta: m } of fetched) {
+              products.push(product);
+              meta[product.id] = m;
+            }
+            return { archivedProducts: products, archivedProductsMeta: meta };
+          }),
+
+        validateProductLocal: (productId) =>
+          set((s) => {
+            const meta = s.productMeta[productId];
+            if (!meta) return {};
+            return {
+              productMeta: {
+                ...s.productMeta,
+                [productId]: { ...meta, status: 'approved' },
+              },
+            };
+          }),
+
+        archiveProductLocal: (productId) =>
+          set((s) => {
+            const product = s.products.find((p) => p.id === productId);
+            const meta = s.productMeta[productId];
+            if (!product || !meta) return {};
+            const newMeta: UserProductMeta = {
+              ...meta,
+              archivedAt: new Date().toISOString(),
+            };
+            const { [productId]: _omit, ...remainingMeta } = s.productMeta;
+            void _omit;
+            return {
+              products: s.products.filter((p) => p.id !== productId),
+              productMeta: remainingMeta,
+              archivedProducts: [product, ...s.archivedProducts.filter((p) => p.id !== productId)],
+              archivedProductsMeta: {
+                ...s.archivedProductsMeta,
+                [productId]: newMeta,
+              },
+            };
+          }),
+
+        restoreProductLocal: (productId) =>
+          set((s) => {
+            const product = s.archivedProducts.find((p) => p.id === productId);
+            const meta = s.archivedProductsMeta[productId];
+            if (!product || !meta) return {};
+            const newMeta: UserProductMeta = {
+              ...meta,
+              status: 'approved',
+              archivedAt: undefined,
+            };
+            const { [productId]: _omit, ...remainingArchMeta } = s.archivedProductsMeta;
+            void _omit;
+            return {
+              archivedProducts: s.archivedProducts.filter((p) => p.id !== productId),
+              archivedProductsMeta: remainingArchMeta,
+              products: [...s.products.filter((p) => p.id !== productId), product],
+              productMeta: {
+                ...s.productMeta,
+                [productId]: newMeta,
+              },
+            };
+          }),
+
+        hardDeleteArchivedLocal: (productId) =>
+          set((s) => {
+            const { [productId]: _omit, ...remaining } = s.archivedProductsMeta;
+            void _omit;
+            return {
+              archivedProducts: s.archivedProducts.filter((p) => p.id !== productId),
+              archivedProductsMeta: remaining,
+            };
           }),
 
         mergeUserSignals: (cloudSignals) =>

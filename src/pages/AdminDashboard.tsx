@@ -9,8 +9,13 @@ import {
   importMetaFromProducts,
 } from '../lib/catalogMetaApi'
 import type { CatalogBrand, CatalogCategory } from '../lib/catalogMetaApi'
-import { useCatalogMeta } from '../store'
+import { useAppStore, useCatalogMeta } from '../store'
 import { BUILTIN_CATALOG } from '../catalog'
+import {
+  fetchArchivedUserProducts,
+  restoreUserProduct,
+  deleteUserProduct,
+} from '../lib/userProductsApi'
 
 // ── Onglet utilisateurs ───────────────────────────────────────────────────
 
@@ -156,7 +161,7 @@ function CategoryRow({
 
 // ── Composant principal ───────────────────────────────────────────────────
 
-type AdminTab = 'users' | 'catalog'
+type AdminTab = 'users' | 'catalog' | 'archives'
 
 export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const { profile: currentProfile } = useAuth()
@@ -288,6 +293,52 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     if (activeTab === 'catalog') void loadCatalog(true)
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Archives produits ──
+  const archivedProducts = useAppStore(s => s.archivedProducts)
+  const archivedProductsMeta = useAppStore(s => s.archivedProductsMeta)
+  const setArchivedProducts = useAppStore(s => s.setArchivedProducts)
+  const restoreProductLocal = useAppStore(s => s.restoreProductLocal)
+  const hardDeleteArchivedLocal = useAppStore(s => s.hardDeleteArchivedLocal)
+  const [loadingArchives, setLoadingArchives] = useState(false)
+  const [archivesErr, setArchivesErr] = useState<string | null>(null)
+  const [hardDeleting, setHardDeleting] = useState<string | null>(null)
+
+  const loadArchives = async () => {
+    setLoadingArchives(true)
+    setArchivesErr(null)
+    try {
+      const rows = await fetchArchivedUserProducts()
+      setArchivedProducts(rows)
+    } catch (e) {
+      setArchivesErr(e instanceof Error ? e.message : 'Erreur de chargement')
+    } finally {
+      setLoadingArchives(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'archives') void loadArchives()
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRestore = async (productId: string) => {
+    try {
+      await restoreUserProduct(productId)
+      restoreProductLocal(productId)
+    } catch (e) {
+      alert('Erreur lors de la restauration : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  const handleHardDelete = async (productId: string) => {
+    try {
+      await deleteUserProduct(productId)
+      hardDeleteArchivedLocal(productId)
+      setHardDeleting(null)
+    } catch (e) {
+      alert('Erreur lors de la suppression : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   // Marques
   const handleAddBrand = async () => {
     if (!newBrand.trim()) return
@@ -369,6 +420,12 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
               onClick={() => setActiveTab('catalog')}
             >
               Catalogue
+            </button>
+            <button
+              className={`admin-tab${activeTab === 'archives' ? ' active' : ''}`}
+              onClick={() => setActiveTab('archives')}
+            >
+              Archives produits
             </button>
           </div>
           <button onClick={onClose}>✕</button>
@@ -535,6 +592,88 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                 </div>
               )}
             </>
+          )}
+
+          {/* ── Onglet Archives produits ── */}
+          {activeTab === 'archives' && (
+            <div className="archives-panel">
+              <div className="archives-header">
+                <h3 className="archives-title">Fiches archivées du catalogue commun</h3>
+                <button onClick={() => void loadArchives()} disabled={loadingArchives}>
+                  ↻ Recharger
+                </button>
+              </div>
+              {archivesErr && (
+                <div className="auth-error" style={{ marginBottom: 8 }}>{archivesErr}</div>
+              )}
+              {loadingArchives ? (
+                <div className="auth-loading-inline">Chargement…</div>
+              ) : archivedProducts.length === 0 ? (
+                <div className="catmeta-empty">
+                  Aucune fiche archivée.
+                </div>
+              ) : (
+                <table className="archives-table">
+                  <thead>
+                    <tr>
+                      <th>Référence</th>
+                      <th>Marque</th>
+                      <th>Catégorie</th>
+                      <th>Créé par</th>
+                      <th>Archivé le</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedProducts.map(p => {
+                      const meta = archivedProductsMeta[p.id]
+                      const archivedDate = meta?.archivedAt
+                        ? new Date(meta.archivedAt).toLocaleDateString('fr-FR')
+                        : '—'
+                      const isConfirming = hardDeleting === p.id
+                      return (
+                        <tr key={p.id}>
+                          <td>{p.reference}</td>
+                          <td>{p.manufacturer}</td>
+                          <td>{p.category}</td>
+                          <td>{meta?.creatorName ?? '—'}</td>
+                          <td>{archivedDate}</td>
+                          <td className="archives-actions">
+                            <button
+                              className="primary"
+                              onClick={() => void handleRestore(p.id)}
+                              title="Restaurer dans le catalogue commun"
+                            >
+                              ↻ Restaurer
+                            </button>
+                            {isConfirming ? (
+                              <>
+                                <button onClick={() => setHardDeleting(null)}>Annuler</button>
+                                <button
+                                  className="danger danger-confirm"
+                                  onClick={() => void handleHardDelete(p.id)}
+                                  title="Suppression définitive"
+                                >
+                                  Confirmer
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                className="danger"
+                                onClick={() => setHardDeleting(p.id)}
+                                title="Supprimer définitivement"
+                              >
+                                🗑 Supprimer
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           )}
         </div>
 

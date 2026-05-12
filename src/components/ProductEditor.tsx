@@ -3,7 +3,12 @@ import { useAppStore, useCatalogMeta } from "../store";
 import { useAuth } from "../auth/useAuth";
 import { fileToResizedDataUrl } from "../image";
 import { ProductPreview } from "./ProductPreview";
-import { upsertUserProduct, deleteUserProduct } from "../lib/userProductsApi";
+import {
+  upsertUserProduct,
+  deleteUserProduct,
+  archiveUserProduct,
+  type UserProductMeta,
+} from "../lib/userProductsApi";
 import {
   type Port,
   type PortDirection,
@@ -35,9 +40,12 @@ export function ProductEditor({
   onSwitchTo?: (id: string) => void;
 }) {
   const products = useAppStore((s) => s.products);
+  const productMeta = useAppStore((s) => s.productMeta);
   const addProduct = useAppStore((s) => s.addProduct);
   const updateProduct = useAppStore((s) => s.updateProduct);
   const removeProduct = useAppStore((s) => s.removeProduct);
+  const archiveProductLocal = useAppStore((s) => s.archiveProductLocal);
+  const setProductMeta = useAppStore((s) => s.setProductMeta);
   const catalogBrands = useCatalogMeta((s) => s.catalogBrands);
   const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
 
@@ -155,27 +163,63 @@ export function ProductEditor({
     });
   };
 
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+  const meta: UserProductMeta | undefined = productMeta[draft.id];
+  const isApproved = meta?.status === "approved";
+  const isOwn = meta?.creatorId === profile?.id;
+  /** Peut-on éditer cette fiche ?
+   *  - Création : oui toujours
+   *  - Admin : oui sur toutes les fiches cloud
+   *  - Utilisateur : oui uniquement sur ses propres fiches `pending` */
+  const canEdit = isNew || isAdmin || (isOwn && !isApproved);
+  /** Peut-on supprimer / archiver cette fiche ?
+   *  - Admin : oui (archive si approved, suppression si pending)
+   *  - Utilisateur : oui sur ses propres fiches pending uniquement */
+  const canDelete = !isNew && (isAdmin || (isOwn && !isApproved));
+
   const save = () => {
     if (!draft.reference.trim() || !draft.manufacturer.trim()) {
       alert("Référence et marque obligatoires");
       return;
     }
-    if (isNew) addProduct(draft);
-    else updateProduct(draft.id, draft);
-    // Synchronisation cloud — catalogue partagé équipe, tous les produits
-    upsertUserProduct(draft).catch(() => { /* échec silencieux */ });
+    const initialStatus = isAdmin ? "approved" : "pending";
+    if (isNew) {
+      addProduct(draft);
+      // Attache immédiatement la meta locale pour que la fiche apparaisse
+      // dans la bonne section (Mon catalogue / Catalogue commun) sans attendre
+      // un re-fetch cloud.
+      if (profile?.id) {
+        setProductMeta(draft.id, {
+          productId: draft.id,
+          status: initialStatus,
+          creatorId: profile.id,
+          creatorName: profile.full_name?.trim() || profile.email,
+        });
+      }
+    } else {
+      updateProduct(draft.id, draft);
+    }
+    // Synchronisation cloud — à la création, statut selon le rôle :
+    //   admin → approved (directement dans le catalogue commun)
+    //   user  → pending (validation requise par un admin)
+    upsertUserProduct(draft, { initialStatus }).catch(() => { /* échec silencieux */ });
     onClose();
   };
 
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === "admin";
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const startDelete = () => setConfirmingDelete(true);
   const cancelDelete = () => setConfirmingDelete(false);
   const confirmDelete = () => {
-    removeProduct(draft.id);
-    // Suppression cloud — catalogue partagé équipe, tous les produits
-    deleteUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+    // Suppression d'une fiche `approved` par un admin → archivage (réversible).
+    // Suppression d'une fiche `pending` (utilisateur ou admin) → suppression définitive.
+    if (isAdmin && isApproved) {
+      archiveProductLocal(draft.id);
+      archiveUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+    } else {
+      removeProduct(draft.id);
+      deleteUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+    }
     onClose();
   };
 
@@ -184,9 +228,17 @@ export function ProductEditor({
     const refTrim = draft.reference.trim();
     const newRef = refTrim ? `${refTrim} Copie` : "Copie";
     const copy: Product = { ...draft, id: newId, reference: newRef };
+    const initialStatus = isAdmin ? "approved" : "pending";
     addProduct(copy);
-    // La copie est toujours un produit custom — on la sync immédiatement
-    upsertUserProduct(copy).catch(() => { /* échec silencieux */ });
+    if (profile?.id) {
+      setProductMeta(newId, {
+        productId: newId,
+        status: initialStatus,
+        creatorId: profile.id,
+        creatorName: profile.full_name?.trim() || profile.email,
+      });
+    }
+    upsertUserProduct(copy, { initialStatus }).catch(() => { /* échec silencieux */ });
     if (onSwitchTo) onSwitchTo(newId);
     else onClose();
   };
@@ -198,7 +250,23 @@ export function ProductEditor({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>{isNew ? "Nouveau produit" : "Éditer le produit"}</h2>
+          <h2>
+            {isNew
+              ? "Nouveau produit"
+              : canEdit
+                ? "Éditer le produit"
+                : "Détails du produit"}
+            {!isNew && meta?.status === "pending" && (
+              <span className="product-editor-pending-badge" title="En attente de validation">
+                ● En attente
+              </span>
+            )}
+            {!isNew && !canEdit && (
+              <span className="product-editor-readonly-hint">
+                (lecture seule — catalogue commun)
+              </span>
+            )}
+          </h2>
           <button onClick={onClose}>✕</button>
         </div>
         <div className="modal-body modal-body-split">
@@ -408,21 +476,25 @@ export function ProductEditor({
           </aside>
         </div>
         <div className="modal-footer">
-          {!isNew && isAdmin && !confirmingDelete && (
+          {canDelete && !confirmingDelete && (
             <button
               className="danger"
               onClick={startDelete}
-              title="Supprimer ce produit du catalogue"
+              title={isApproved
+                ? "Archiver ce produit (admin pourra le restaurer)"
+                : "Supprimer définitivement ce produit"}
             >
-              Supprimer
+              {isApproved ? "Archiver" : "Supprimer"}
             </button>
           )}
-          {!isNew && isAdmin && confirmingDelete && (
+          {canDelete && confirmingDelete && (
             <div className="delete-confirm-group">
-              <span className="muted" style={{ fontSize: 11 }}>Confirmer la suppression ?</span>
+              <span className="muted" style={{ fontSize: 11 }}>
+                {isApproved ? "Archiver cette fiche ?" : "Confirmer la suppression ?"}
+              </span>
               <button onClick={cancelDelete}>Annuler</button>
               <button className="danger danger-confirm" onClick={confirmDelete}>
-                Supprimer
+                {isApproved ? "Archiver" : "Supprimer"}
               </button>
             </div>
           )}
@@ -431,10 +503,12 @@ export function ProductEditor({
               Dupliquer
             </button>
           )}
-          <button onClick={onClose}>Annuler</button>
-          <button className="primary" onClick={save}>
-            Enregistrer
-          </button>
+          <button onClick={onClose}>{canEdit ? "Annuler" : "Fermer"}</button>
+          {canEdit && (
+            <button className="primary" onClick={save}>
+              Enregistrer
+            </button>
+          )}
         </div>
       </div>
     </div>

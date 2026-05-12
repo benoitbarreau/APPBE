@@ -5155,3 +5155,190 @@ select {
   /* Subtle tint for bay tabs (future enhancement) */
 }
 
+/* ── Modération du catalogue (pending / archives) ───────────────────────── */
+
+/* Pastille orange « en attente » sur une fiche produit pending */
+.palette-pending-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f97316; /* orange-500 */
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Variante pending pour les cartes de la palette */
+.palette-item-pending {
+  background: rgba(249, 115, 22, 0.05);
+}
+.palette-item-pending .palette-item-ref {
+  display: flex;
+  align-items: center;
+}
+
+/* Séparateur entre catalogue commun et section pending dans la palette */
+.palette-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 6px;
+  margin-top: 8px;
+}
+.palette-section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.palette-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.palette-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #f97316;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* Bouton vert ✓ Valider — admin uniquement */
+.palette-validate-btn {
+  background: #10b981 !important;     /* emerald-500 */
+  color: #fff !important;
+  border-color: #10b981 !important;
+  font-weight: 700;
+}
+.palette-validate-btn:hover {
+  background: #059669 !important;     /* emerald-600 */
+  border-color: #059669 !important;
+}
+
+/* Groupe « Catalogue utilisateur » côté admin — accentué */
+.palette-group-pending .palette-group-title {
+  color: #c2410c; /* orange-700 */
+}
+
+/* Variante pending pour la bibliothèque baie */
+.bay-lib-item-pending {
+  background: rgba(249, 115, 22, 0.06);
+}
+.bay-lib-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px 6px;
+}
+.bay-lib-section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.bay-lib-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.bay-lib-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #f97316;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* Badges dans le ProductEditor */
+.product-editor-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 2px 8px;
+  background: #f97316;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+.product-editor-readonly-hint {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Panneau Archives produits (AdminDashboard) ─────────────────────────── */
+
+.archives-panel {
+  padding: 8px 12px 16px;
+}
+.archives-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.archives-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.archives-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.archives-table th,
+.archives-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.archives-table th {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  background: #fafbfc;
+}
+.archives-table tr:hover td {
+  background: #f8fafc;
+}
+.archives-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+

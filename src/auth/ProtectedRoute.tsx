@@ -178,7 +178,7 @@ export function ProtectedRoute() {
   useEffect(() => {
     if (!user || profile?.status !== 'approved') return
     fetchUserProducts()
-      .then(ps => { if (ps.length > 0) mergeUserProducts(ps) })
+      .then(rows => { if (rows.length > 0) mergeUserProducts(rows) })
       .catch(() => { /* échec silencieux — le localStorage fait office de fallback */ })
     fetchUserSignals()
       .then(sigs => { if (Object.keys(sigs).length > 0) mergeUserSignals(sigs) })

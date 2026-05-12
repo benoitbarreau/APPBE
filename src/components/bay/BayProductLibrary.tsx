@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAppStore } from "../../store";
-import type { RackItem } from "../../types";
+import { useAuth } from "../../auth/useAuth";
+import type { Product, RackItem } from "../../types";
 import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
 import type { BayAccessory } from "./bay-accessories";
 import { BayAccessoryEditor } from "./BayAccessoryEditor";
@@ -42,12 +43,16 @@ export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProp
   const [warnMsg, setWarnMsg] = useState<string | null>(null);
   const [editingAcc, setEditingAcc] = useState<BayAccessory | null | "new">(null);
   const products = useAppStore((s) => s.products);
+  const productMeta = useAppStore((s) => s.productMeta);
   const tabs = useAppStore((s) => s.tabs);
   const addRackItem = useAppStore((s) => s.addRackItem);
   const accessories = useAppStore((s) => s.accessories);
   const addBayAccessory = useAppStore((s) => s.addBayAccessory);
   const updateBayAccessory = useAppStore((s) => s.updateBayAccessory);
   const removeBayAccessory = useAppStore((s) => s.removeBayAccessory);
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+  const userId = profile?.id;
 
   // nodeIds déjà présents dans N'IMPORTE QUELLE baie/rack → Map<nodeId, nomDeLaBaie>
   const alreadyInRack = useMemo(() => {
@@ -99,10 +104,22 @@ export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProp
   }, [tabs, products]);
 
   // ── Produits du catalogue avec rackHeightU ───────────────────────────────
-  const catalogItems = useMemo(
-    () => products.filter((p) => (p.rackHeightU ?? 0) > 0),
-    [products],
-  );
+  // Séparation en deux listes : catalogue commun et pending (Mon catalogue / Catalogue utilisateur)
+  const { catalogCommon, catalogPending } = useMemo(() => {
+    const common: Product[] = [];
+    const pending: Product[] = [];
+    for (const p of products) {
+      if ((p.rackHeightU ?? 0) <= 0) continue;
+      const meta = productMeta[p.id];
+      if (!meta) {
+        common.push(p);
+        continue;
+      }
+      if (meta.status === "approved") common.push(p);
+      else if (isAdmin || meta.creatorId === userId) pending.push(p);
+    }
+    return { catalogCommon: common, catalogPending: pending };
+  }, [products, productMeta, isAdmin, userId]);
 
   // ── Filtrage par recherche ───────────────────────────────────────────────
   const q = search.toLowerCase();
@@ -117,12 +134,15 @@ export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProp
     (zoneLabel ?? "").toLowerCase().includes(q),
   );
 
-  const filteredCatalog = catalogItems.filter((p) =>
+  const matchesQ = (p: Product) =>
     !q ||
     p.manufacturer.toLowerCase().includes(q) ||
     p.reference.toLowerCase().includes(q) ||
-    p.category.toLowerCase().includes(q),
-  );
+    p.category.toLowerCase().includes(q);
+
+  const filteredCatalogCommon = catalogCommon.filter(matchesQ);
+  const filteredCatalogPending = catalogPending.filter(matchesQ);
+  const pendingSectionTitle = isAdmin ? "Catalogue utilisateur" : "Mon catalogue";
 
   const filteredAccessories = accessories.filter((a) =>
     !q ||
@@ -240,37 +260,87 @@ export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProp
 
         {/* ── Onglet Catalogue ─────────────────────────────────────────── */}
         {libTab === "catalog" && (
-          filteredCatalog.length === 0 ? (
+          (filteredCatalogCommon.length === 0 && filteredCatalogPending.length === 0) ? (
             <div className="bay-lib-empty">
               {search ? "Aucun résultat." : "Aucun produit avec hauteur en U."}
             </div>
           ) : (
-            filteredCatalog.map((p) => {
-              const item: Omit<RackItem, "id" | "uStart"> = {
-                sourceType: "catalog",
-                productId: p.id,
-                manufacturer: p.manufacturer,
-                reference: p.reference,
-                category: p.category,
-                heightU: p.rackHeightU ?? 1,
-                widthCols: rackWidthToCol(p.rackWidth),
-                colStart: 0,
-              };
-              return (
-                <div
-                  key={p.id}
-                  className="bay-lib-item"
-                  draggable
-                  onDragStart={() => handleDragStart(item)}
-                  onDragEnd={clearDragItem}
-                  onClick={() => quickAdd(item)}
-                  title={`${p.manufacturer} ${p.reference} — ${p.rackHeightU}U — Cliquer pour ajouter`}
-                >
-                  <span className="bay-lib-item-label">{p.reference}</span>
-                  <span className="bay-lib-item-sub">{p.manufacturer} · {p.rackHeightU}U · {p.category}</span>
+            <>
+              {/* Catalogue commun */}
+              {filteredCatalogCommon.map((p) => {
+                const item: Omit<RackItem, "id" | "uStart"> = {
+                  sourceType: "catalog",
+                  productId: p.id,
+                  manufacturer: p.manufacturer,
+                  reference: p.reference,
+                  category: p.category,
+                  heightU: p.rackHeightU ?? 1,
+                  widthCols: rackWidthToCol(p.rackWidth),
+                  colStart: 0,
+                };
+                return (
+                  <div
+                    key={p.id}
+                    className="bay-lib-item"
+                    draggable
+                    onDragStart={() => handleDragStart(item)}
+                    onDragEnd={clearDragItem}
+                    onClick={() => quickAdd(item)}
+                    title={`${p.manufacturer} ${p.reference} — ${p.rackHeightU}U — Cliquer pour ajouter`}
+                  >
+                    <span className="bay-lib-item-label">{p.reference}</span>
+                    <span className="bay-lib-item-sub">{p.manufacturer} · {p.rackHeightU}U · {p.category}</span>
+                  </div>
+                );
+              })}
+
+              {/* Séparateur + section pending */}
+              {filteredCatalogPending.length > 0 && (
+                <div className="bay-lib-section-divider">
+                  <div className="bay-lib-section-line" />
+                  <div className="bay-lib-section-label">
+                    {pendingSectionTitle}
+                    <span className="bay-lib-section-count">{filteredCatalogPending.length}</span>
+                  </div>
+                  <div className="bay-lib-section-line" />
                 </div>
-              );
-            })
+              )}
+
+              {filteredCatalogPending.map((p) => {
+                const meta = productMeta[p.id];
+                const item: Omit<RackItem, "id" | "uStart"> = {
+                  sourceType: "catalog",
+                  productId: p.id,
+                  manufacturer: p.manufacturer,
+                  reference: p.reference,
+                  category: p.category,
+                  heightU: p.rackHeightU ?? 1,
+                  widthCols: rackWidthToCol(p.rackWidth),
+                  colStart: 0,
+                };
+                return (
+                  <div
+                    key={p.id}
+                    className="bay-lib-item bay-lib-item-pending"
+                    draggable
+                    onDragStart={() => handleDragStart(item)}
+                    onDragEnd={clearDragItem}
+                    onClick={() => quickAdd(item)}
+                    title={`${p.manufacturer} ${p.reference} — ${p.rackHeightU}U — En attente de validation${isAdmin && meta?.creatorName ? ` · ${meta.creatorName}` : ""}`}
+                  >
+                    <span className="bay-lib-item-label">
+                      <span className="palette-pending-dot" /> {p.reference}
+                    </span>
+                    <span className="bay-lib-item-sub">
+                      {p.manufacturer} · {p.rackHeightU}U · {p.category}
+                    </span>
+                    {isAdmin && meta?.creatorName && (
+                      <span className="bay-lib-item-zone">par {meta.creatorName}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </>
           )
         )}
 

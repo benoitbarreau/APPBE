@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore, useCatalogMeta } from "../store";
+import { useAuth } from "../auth/useAuth";
 import type { Product } from "../types";
+import { validateUserProduct } from "../lib/userProductsApi";
 import { exportProductsCsv, exportProductsXls } from "../lib/productImportExport";
 
 type GroupBy = "brand" | "category";
@@ -22,7 +24,12 @@ export function ProductPalette({
   onCollapse?: () => void;
 }) {
   const products = useAppStore((s) => s.products);
+  const productMeta = useAppStore((s) => s.productMeta);
+  const validateProductLocal = useAppStore((s) => s.validateProductLocal);
   const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+  const userId = profile?.id;
 
   const [filter, setFilter] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("brand");
@@ -66,6 +73,8 @@ export function ProductPalette({
   // Groupes ouverts — vide = tout replié par défaut
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const [openSubGroups, setOpenSubGroups] = useState<Set<string>>(new Set());
+  // État ouvert/replié pour les groupes par utilisateur (section admin)
+  const [openUserGroups, setOpenUserGroups] = useState<Set<string>>(new Set());
 
   // Réinitialise l'état open lors du changement de mode groupement
   const prevGroupBy = useRef<GroupBy>(groupBy);
@@ -91,68 +100,208 @@ export function ProductPalette({
       return next;
     });
 
+  const toggleUserGroup = (key: string) =>
+    setOpenUserGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   // Map catégorie → couleur pour l'affichage
   const categoryColorMap = useMemo(
     () => new Map(catalogCategories.map((c) => [c.name, c.color])),
     [catalogCategories],
   );
 
-  // Hiérarchie deux niveaux : primary → [sub → [Product]]
-  const grouped = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    const filtered = products.filter(
-      (p) =>
-        !f ||
-        p.reference.toLowerCase().includes(f) ||
-        p.manufacturer.toLowerCase().includes(f) ||
-        p.category.toLowerCase().includes(f),
-    );
-
-    const getPrimary = (p: Product) =>
-      groupBy === "brand"
-        ? p.manufacturer || "Sans marque"
-        : p.category || "Sans catégorie";
-
-    const getSecondary = (p: Product) =>
-      groupBy === "brand"
-        ? p.category || "Sans catégorie"
-        : p.manufacturer || "Sans marque";
-
-    // Premier niveau
-    const primaryMap = new Map<string, Product[]>();
-    for (const p of filtered) {
-      const pk = getPrimary(p);
-      const arr = primaryMap.get(pk) ?? [];
-      arr.push(p);
-      primaryMap.set(pk, arr);
+  /**
+   * Sépare les produits en deux listes :
+   *  - common  : catalogue commun (builtin OU meta.status='approved')
+   *  - pending : fiches en attente
+   *      • utilisateur : uniquement les SIENNES
+   *      • admin       : TOUTES les pending de tous les utilisateurs
+   */
+  const { commonProducts, pendingProducts } = useMemo(() => {
+    const common: Product[] = [];
+    const pending: Product[] = [];
+    for (const p of products) {
+      const meta = productMeta[p.id];
+      if (!meta) {
+        // Pas de meta → produit builtin → catalogue commun
+        common.push(p);
+        continue;
+      }
+      if (meta.status === "approved") {
+        common.push(p);
+      } else {
+        // pending — filtrage : admin voit tout, user voit ses propres
+        if (isAdmin || meta.creatorId === userId) pending.push(p);
+      }
     }
+    return { commonProducts: common, pendingProducts: pending };
+  }, [products, productMeta, isAdmin, userId]);
 
-    // Deuxième niveau dans chaque groupe primaire
-    return Array.from(primaryMap.entries())
+  /** Validation d'une fiche pending par un admin. */
+  const handleValidate = (productId: string) => {
+    if (!isAdmin) return;
+    validateProductLocal(productId);
+    validateUserProduct(productId).catch(() => { /* échec silencieux */ });
+  };
+
+  // ── Filtre texte ────────────────────────────────────────────────────────
+  const f = filter.trim().toLowerCase();
+  const matchesFilter = (p: Product) =>
+    !f ||
+    p.reference.toLowerCase().includes(f) ||
+    p.manufacturer.toLowerCase().includes(f) ||
+    p.category.toLowerCase().includes(f);
+
+  // Hiérarchie deux niveaux pour le catalogue commun
+  const groupedCommon = useMemo(() => groupProducts(commonProducts.filter(matchesFilter), groupBy),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commonProducts, filter, groupBy]);
+
+  // Pour la section pending :
+  //  - utilisateur : même groupement par marque/catégorie
+  //  - admin       : groupement par créateur (full_name / email), trié alpha,
+  //                  fiches triées par date décroissante (createdAt non disponible
+  //                  côté client → fallback : ordre d'arrivée du fetch)
+  const filteredPending = pendingProducts.filter(matchesFilter);
+
+  const groupedPendingByUser = useMemo(() => {
+    if (!isAdmin) return [];
+    const map = new Map<string, { creatorId: string; products: Product[] }>();
+    for (const p of filteredPending) {
+      const meta = productMeta[p.id];
+      const key = meta?.creatorName ?? meta?.creatorId ?? "Inconnu";
+      const cur = map.get(key) ?? { creatorId: meta?.creatorId ?? "", products: [] };
+      cur.products.push(p);
+      map.set(key, cur);
+    }
+    return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b, "fr"))
-      .map(([pk, items]) => {
-        const subMap = new Map<string, Product[]>();
-        for (const p of items) {
-          const sk = getSecondary(p);
-          const arr = subMap.get(sk) ?? [];
-          arr.push(p);
-          subMap.set(sk, arr);
-        }
-        const subs = Array.from(subMap.entries())
-          .sort(([a], [b]) => a.localeCompare(b, "fr"))
-          .map(([sk, si]) => [
-            sk,
-            [...si].sort((a, b) => a.reference.localeCompare(b.reference, "fr")),
-          ] as [string, Product[]]);
-        return [pk, subs] as [string, [string, Product[]][]];
-      });
-  }, [products, filter, groupBy]);
+      .map(([name, { creatorId, products }]) => ({ name, creatorId, products }));
+  }, [filteredPending, productMeta, isAdmin]);
+
+  const groupedPendingUser = useMemo(() => {
+    if (isAdmin) return [];
+    return groupProducts(filteredPending, groupBy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredPending, groupBy, isAdmin]);
 
   const hasFilter = filter.trim() !== "";
 
+  /**
+   * Rendu d'une carte produit.
+   * - showValidate : pour les admins, ajoute le bouton vert ✓ Valider
+   * - meta         : utilisé pour l'affichage du badge pending
+   */
+  const renderProductCard = (
+    p: Product,
+    catColor: string | undefined,
+    showCatBadge: boolean,
+    secondary: string,
+  ) => {
+    const meta = productMeta[p.id];
+    const isPending = meta?.status === "pending";
+    return (
+      <div
+        key={p.id}
+        className={`palette-item${isPending ? " palette-item-pending" : ""}`}
+        style={catColor ? { borderLeftColor: catColor, borderLeftWidth: 3 } : undefined}
+      >
+        <div className="palette-item-info">
+          <div className="palette-item-ref">
+            {isPending && <span className="palette-pending-dot" title="En attente de validation" />}
+            {p.reference}
+          </div>
+          {showCatBadge && (
+            <div
+              className="palette-item-cat"
+              style={catColor ? { color: catColor } : undefined}
+            >
+              {secondary}
+            </div>
+          )}
+          <div className="palette-item-io">
+            {p.inputs.length} in · {p.outputs.length} out
+          </div>
+        </div>
+        <div className="palette-item-actions">
+          <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
+          <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
+          {isPending && isAdmin && (
+            <button
+              className="palette-validate-btn"
+              onClick={() => handleValidate(p.id)}
+              title="Valider et transférer au catalogue commun"
+            >
+              ✓
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /** Rendu d'un bloc grouped (deux niveaux primaire → secondaire). */
+  const renderGroupedBlock = (
+    grouped: [string, [string, Product[]][]][],
+    keyPrefix: string,
+  ) => (
+    <>
+      {grouped.map(([primary, subs]) => {
+        const stableKey = `${keyPrefix}::${primary}`;
+        const primaryOpen = hasFilter || openGroups.has(stableKey);
+        const totalCount = subs.reduce((n, [, items]) => n + items.length, 0);
+        return (
+          <div key={stableKey} className="palette-group">
+            <button
+              className="palette-group-title"
+              onClick={() => toggleGroup(stableKey)}
+              title={primaryOpen ? "Réduire" : "Développer"}
+            >
+              <span className={`palette-group-chevron${primaryOpen ? "" : " closed"}`}>▾</span>
+              <span className="palette-group-name">{primary}</span>
+              <span className="palette-group-count">{totalCount}</span>
+            </button>
+            {primaryOpen && subs.map(([secondary, items]) => {
+              const sk = `${keyPrefix}::${subKey(primary, secondary)}`;
+              const subOpen = hasFilter || openSubGroups.has(sk);
+              const catColor = groupBy === "brand"
+                ? categoryColorMap.get(secondary)
+                : categoryColorMap.get(primary);
+              const showSubGroup = subs.length > 1;
+              return (
+                <div key={sk} className="palette-subgroup">
+                  {showSubGroup && (
+                    <button
+                      className="palette-subgroup-title"
+                      onClick={() => toggleSubGroup(sk)}
+                      title={subOpen ? "Réduire" : "Développer"}
+                      style={catColor ? { color: catColor } : undefined}
+                    >
+                      <span className={`palette-subgroup-chevron${subOpen ? "" : " closed"}`}>›</span>
+                      <span className="palette-subgroup-name">{secondary}</span>
+                      <span className="palette-group-count">{items.length}</span>
+                    </button>
+                  )}
+                  {(subOpen || !showSubGroup) && items.map((p) =>
+                    renderProductCard(p, catColor, !showSubGroup, secondary),
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
+  );
+
+  const pendingSectionTitle = isAdmin ? "Catalogue utilisateur" : "Mon catalogue";
+
   return (
     <div className="palette">
-      {/* ── En-tête ── */}
       <div className="palette-header">
         <h3>Catalogue</h3>
         <div className="palette-actions">
@@ -186,7 +335,6 @@ export function ProductPalette({
         </div>
       </div>
 
-      {/* ── Bascule par marque / par catégorie ── */}
       <div className="palette-groupby">
         <button
           className={groupBy === "brand" ? "active" : ""}
@@ -202,7 +350,6 @@ export function ProductPalette({
         </button>
       </div>
 
-      {/* ── Recherche ── */}
       <input
         type="search"
         placeholder="Rechercher…"
@@ -211,91 +358,92 @@ export function ProductPalette({
         className="palette-search"
       />
 
-      {/* ── Liste deux niveaux ── */}
       <div className="palette-list">
-        {grouped.length === 0 && (
+        {/* ── Catalogue commun ─────────────────────────────────────────── */}
+        {groupedCommon.length === 0 && filteredPending.length === 0 && (
           <div className="palette-empty">Aucun produit trouvé</div>
         )}
-        {grouped.map(([primary, subs]) => {
-          const primaryOpen = hasFilter || openGroups.has(primary);
-          const totalCount = subs.reduce((n, [, items]) => n + items.length, 0);
+        {renderGroupedBlock(groupedCommon, "common")}
 
+        {/* ── Séparateur + section pending / Mon catalogue ─────────────── */}
+        {filteredPending.length > 0 && (
+          <div className="palette-section-divider">
+            <div className="palette-section-line" />
+            <div className="palette-section-label">
+              {pendingSectionTitle}
+              <span className="palette-section-count">{filteredPending.length}</span>
+            </div>
+            <div className="palette-section-line" />
+          </div>
+        )}
+
+        {/* Admin → regroupement par créateur */}
+        {isAdmin && groupedPendingByUser.map(({ name, creatorId, products: prods }) => {
+          const key = `creator::${creatorId || name}`;
+          const open = hasFilter || openUserGroups.has(key);
           return (
-            <div key={primary} className="palette-group">
-              {/* Titre groupe primaire (marque ou catégorie) */}
+            <div key={key} className="palette-group palette-group-pending">
               <button
                 className="palette-group-title"
-                onClick={() => toggleGroup(primary)}
-                title={primaryOpen ? "Réduire" : "Développer"}
+                onClick={() => toggleUserGroup(key)}
+                title={open ? "Réduire" : "Développer"}
               >
-                <span className={`palette-group-chevron${primaryOpen ? "" : " closed"}`}>▾</span>
-                <span className="palette-group-name">{primary}</span>
-                <span className="palette-group-count">{totalCount}</span>
+                <span className={`palette-group-chevron${open ? "" : " closed"}`}>▾</span>
+                <span className="palette-group-name">{name}</span>
+                <span className="palette-group-count">{prods.length}</span>
               </button>
-
-              {primaryOpen && subs.map(([secondary, items]) => {
-                const sk = subKey(primary, secondary);
-                const subOpen = hasFilter || openSubGroups.has(sk);
-                const catColor = groupBy === "brand"
-                  ? categoryColorMap.get(secondary)
-                  : categoryColorMap.get(primary);
-
-                // N'afficher le sous-groupe que s'il y a plusieurs sous-groupes
-                const showSubGroup = subs.length > 1;
-
-                return (
-                  <div key={sk} className="palette-subgroup">
-                    {/* Titre sous-groupe — caché si un seul sous-groupe */}
-                    {showSubGroup && (
-                      <button
-                        className="palette-subgroup-title"
-                        onClick={() => toggleSubGroup(sk)}
-                        title={subOpen ? "Réduire" : "Développer"}
-                        style={catColor ? { color: catColor } : undefined}
-                      >
-                        <span className={`palette-subgroup-chevron${subOpen ? "" : " closed"}`}>›</span>
-                        <span className="palette-subgroup-name">{secondary}</span>
-                        <span className="palette-group-count">{items.length}</span>
-                      </button>
-                    )}
-
-                    {/* Produits */}
-                    {(subOpen || !showSubGroup) && items.map((p) => {
-                      const itemColor = catColor;
-                      return (
-                        <div
-                          key={p.id}
-                          className="palette-item"
-                          style={itemColor ? { borderLeftColor: itemColor, borderLeftWidth: 3 } : undefined}
-                        >
-                          <div className="palette-item-info">
-                            <div className="palette-item-ref">{p.reference}</div>
-                            {!showSubGroup && (
-                              <div
-                                className="palette-item-cat"
-                                style={itemColor ? { color: itemColor } : undefined}
-                              >
-                                {secondary}
-                              </div>
-                            )}
-                            <div className="palette-item-io">
-                              {p.inputs.length} in · {p.outputs.length} out
-                            </div>
-                          </div>
-                          <div className="palette-item-actions">
-                            <button onClick={() => onAdd(p.id)} title="Placer sur le synoptique">+</button>
-                            <button onClick={() => onEdit(p.id)} title="Éditer la fiche">✎</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+              {open && (
+                <div className="palette-subgroup">
+                  {prods.map((p) => renderProductCard(p, undefined, true, p.category || "Sans catégorie"))}
+                </div>
+              )}
             </div>
           );
         })}
+
+        {/* Utilisateur → regroupement par marque/catégorie comme le commun */}
+        {!isAdmin && renderGroupedBlock(groupedPendingUser, "mine")}
       </div>
     </div>
   );
 }
+
+// ── Utilitaire de groupement deux niveaux ────────────────────────────────
+function groupProducts(items: Product[], groupBy: GroupBy): [string, [string, Product[]][]][] {
+  const getPrimary = (p: Product) =>
+    groupBy === "brand"
+      ? p.manufacturer || "Sans marque"
+      : p.category || "Sans catégorie";
+
+  const getSecondary = (p: Product) =>
+    groupBy === "brand"
+      ? p.category || "Sans catégorie"
+      : p.manufacturer || "Sans marque";
+
+  const primaryMap = new Map<string, Product[]>();
+  for (const p of items) {
+    const pk = getPrimary(p);
+    const arr = primaryMap.get(pk) ?? [];
+    arr.push(p);
+    primaryMap.set(pk, arr);
+  }
+  return Array.from(primaryMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b, "fr"))
+    .map(([pk, items]) => {
+      const subMap = new Map<string, Product[]>();
+      for (const p of items) {
+        const sk = getSecondary(p);
+        const arr = subMap.get(sk) ?? [];
+        arr.push(p);
+        subMap.set(sk, arr);
+      }
+      const subs = Array.from(subMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, "fr"))
+        .map(([sk, si]) => [
+          sk,
+          [...si].sort((a, b) => a.reference.localeCompare(b.reference, "fr")),
+        ] as [string, Product[]]);
+      return [pk, subs] as [string, [string, Product[]][]];
+    });
+}
+
