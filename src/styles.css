@@ -4241,6 +4241,18 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.bay-lib-item-zone {
+  display: block;
+  font-size: 10px;
+  font-style: italic;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bay-lib-item-zone-sep {
+  color: var(--muted);
+}
 .bay-lib-item-synoptic {
   color: #9ca3af;
   font-style: italic;

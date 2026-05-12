@@ -60,13 +60,15 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   }, [tabs]);
 
   // ── Produits placés dans TOUS les onglets synoptiques ────────────────────
-  // Chaque entrée porte aussi le nom du synoptique source pour l'affichage.
+  // Chaque entrée porte aussi le nom du synoptique + la zone du nœud.
   const synopticItems = useMemo(() => {
     const items: {
       productId: string;
       nodeId: string;
       label?: string;
       synopticName: string;
+      zoneLabel?: string;
+      zoneColor?: string;
       product: typeof products[number] | undefined;
     }[] = [];
     const seenNodeIds = new Set<string>();
@@ -77,11 +79,14 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
         seenNodeIds.add(node.id);
         const product = products.find((p) => p.id === node.productId);
         if (!product || (product.rackHeightU ?? 0) <= 0) continue;
+        const zone = node.zoneId ? (t.zones ?? []).find((z) => z.id === node.zoneId) : undefined;
         items.push({
           productId: node.productId,
           nodeId: node.id,
           label: node.label,
           synopticName: t.name,
+          zoneLabel: zone?.label,
+          zoneColor: zone?.color,
           product,
         });
       }
@@ -98,13 +103,14 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   // ── Filtrage par recherche ───────────────────────────────────────────────
   const q = search.toLowerCase();
 
-  const filteredSynoptic = synopticItems.filter(({ product, label, synopticName }) =>
+  const filteredSynoptic = synopticItems.filter(({ product, label, synopticName, zoneLabel }) =>
     !q ||
     (product?.manufacturer ?? "").toLowerCase().includes(q) ||
     (product?.reference ?? "").toLowerCase().includes(q) ||
     (product?.category ?? "").toLowerCase().includes(q) ||
     (label ?? "").toLowerCase().includes(q) ||
-    synopticName.toLowerCase().includes(q),
+    synopticName.toLowerCase().includes(q) ||
+    (zoneLabel ?? "").toLowerCase().includes(q),
   );
 
   const filteredCatalog = catalogItems.filter((p) =>
@@ -180,7 +186,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
               {search ? "Aucun résultat." : "Aucun produit dans les synoptiques."}
             </div>
           ) : (
-            filteredSynoptic.map(({ productId, nodeId, label, product }) => {
+            filteredSynoptic.map(({ productId, nodeId, label, product, synopticName, zoneLabel, zoneColor }) => {
               const alreadyAdded = alreadyInRack.has(nodeId);
               const alreadyBayName = alreadyInRack.get(nodeId);
               const item: Omit<RackItem, "id" | "uStart"> = {
@@ -213,6 +219,13 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   </span>
                   <span className="bay-lib-item-sub">
                     {product!.manufacturer} · {product!.reference} · {product!.rackHeightU ?? 1}U
+                  </span>
+                  <span className="bay-lib-item-zone">
+                    {zoneLabel && (
+                      <span style={{ color: zoneColor ?? "inherit" }}>{zoneLabel}</span>
+                    )}
+                    {zoneLabel && <span className="bay-lib-item-zone-sep"> — </span>}
+                    {synopticName}
                   </span>
                 </div>
               );
