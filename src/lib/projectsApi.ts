@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Cable, PlacedProduct, Product, ProjectMeta, SignalDef, Tab, Zone } from '../types'
+import type { BayAccessory } from '../components/bay/bay-accessories'
 
 export interface ProjectData {
   // Format v2 : onglets multiples
@@ -13,6 +14,8 @@ export interface ProjectData {
   projectMeta: ProjectMeta
   signals: Record<string, SignalDef>
   products: Product[]
+  /** Accessoires baie personnalisés (ajoutés / modifiés par l'utilisateur). */
+  accessories?: BayAccessory[]
 }
 
 // ── Versionning ────────────────────────────────────────────────────────────
@@ -70,8 +73,9 @@ export function computeProjectHash(
   tabs: unknown,
   products: unknown,
   signals: unknown,
+  accessories?: unknown,
 ): string {
-  const str = JSON.stringify({ tabs, products, signals })
+  const str = JSON.stringify({ tabs, products, signals, accessories })
   let h = 0
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(31, h) + str.charCodeAt(i) | 0

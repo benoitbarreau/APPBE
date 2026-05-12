@@ -1091,6 +1091,10 @@ export const useAppStore = create<State>()(
             // zones et signals : on garde ce qui est déjà dans le store
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             products: Array.from(mergedProductMap.values()),
+            // Accessoires : restaurer depuis le projet si présents, sinon conserver les actuels
+            ...(data.accessories && data.accessories.length > 0
+              ? { accessories: data.accessories }
+              : {}),
             selectedNodeId: null,
             selectedCableId: null,
           });

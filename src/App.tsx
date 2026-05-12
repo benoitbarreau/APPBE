@@ -172,7 +172,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       const flushedTabs = getFlushedTabs();
 
       // ── Détection de modification réelle ──────────────────────────────
-      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals);
+      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories);
       const isModified = lastSavedHash.current !== "" && currentHash !== lastSavedHash.current;
       const isExistingProject = !!state.currentProjectId;
 
@@ -199,6 +199,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             projectMeta: state.projectMeta,
             signals: state.signals,
             products: state.products,
+            accessories: state.accessories,
           });
           // Conserver les 3 derniers snapshots archivés max
           versionsMeta = [...versionsMeta, archived].slice(-3);
@@ -224,6 +225,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           projectMeta: metaToSave,
           signals: state.signals,
           products: state.products,
+          accessories: state.accessories,
         },
       );
 
