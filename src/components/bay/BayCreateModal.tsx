@@ -3,12 +3,16 @@ import { useState } from "react";
 interface BayCreateModalProps {
   onConfirm: (opts: { name: string; widthInch: 10 | 19; heightU: number }) => void;
   onCancel: () => void;
+  /** Titre de la modale (défaut : "Nouvelle Baie") */
+  title?: string;
+  /** Nom pré-rempli dans le champ nom */
+  defaultName?: string;
 }
 
 const PRESET_HEIGHTS = [6, 12, 18, 24, 42, 48];
 
-export function BayCreateModal({ onConfirm, onCancel }: BayCreateModalProps) {
-  const [name, setName] = useState("");
+export function BayCreateModal({ onConfirm, onCancel, title = "Nouvelle Baie", defaultName = "" }: BayCreateModalProps) {
+  const [name, setName] = useState(defaultName);
   const [widthInch, setWidthInch] = useState<10 | 19>(19);
   const [heightU, setHeightU] = useState<number>(42);
   const [customHeight, setCustomHeight] = useState("");
@@ -24,7 +28,7 @@ export function BayCreateModal({ onConfirm, onCancel }: BayCreateModalProps) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-box bay-create-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Nouvelle Baie</h2>
+        <h2>{title}</h2>
 
         <div className="modal-field">
           <label>Nom de l'onglet</label>

@@ -4404,9 +4404,51 @@ select {
   flex: 1;
   overflow: auto;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 24px;
   background: #fff;
+}
+
+/* Ligne horizontale de baies côte à côte */
+.bay-racks-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+/* Colonne avec le bouton + Ajouter une baie */
+.bay-add-rack-col {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding-top: 34px; /* aligne avec le cadre rack (nameplate height) */
+}
+.bay-add-rack-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 20px;
+  border: 2px dashed #c0c8d4;
+  border-radius: 8px;
+  background: #f8f9fb;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+  min-width: 120px;
+}
+.bay-add-rack-btn:hover {
+  border-color: var(--primary);
+  background: #eef3ff;
+  color: var(--primary);
+}
+.bay-add-rack-icon {
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
 }
 
 /* ── RackView ────────────────────────────────────────────────────────────── */
@@ -4415,21 +4457,67 @@ select {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
+  border-radius: 8px;
+  transition: box-shadow 0.15s;
+}
+/* Baie active (sélectionnée pour recevoir les ajouts depuis la bibliothèque) */
+.bay-rack-wrapper.rack-active {
+  box-shadow: 0 0 0 2px var(--primary);
+  border-radius: 8px;
 }
 
-/* Titre encadré au-dessus du rack (aligné avec le cadre, pas les numéros U) */
+/* Titre encadré au-dessus du rack — nameplate avec input éditable */
 .bay-rack-tab-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   font-weight: 700;
   color: var(--primary);
-  text-align: center;
-  padding: 5px 12px;
+  padding: 3px 6px 3px 10px;
   border: 2px solid var(--primary);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
   background: #eef3ff;
   box-sizing: border-box;
+}
+.rack-name-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
   letter-spacing: 0.01em;
+  outline: none;
+  min-width: 60px;
+  padding: 2px 0;
+  text-align: center;
+}
+.rack-name-input:focus {
+  background: rgba(255,255,255,0.6);
+  border-radius: 3px;
+}
+.rack-delete-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 14px;
+  line-height: 18px;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.5;
+  padding: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.rack-delete-btn:hover {
+  opacity: 1;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
 }
 
 .bay-rack-view {

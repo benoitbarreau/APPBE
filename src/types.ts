@@ -120,6 +120,16 @@ export interface IPNetworkInfo {
 
 // ── Baie (rack planner) ──────────────────────────────────────────────────────
 
+/** Une baie physique au sein d'un onglet baie (supporte plusieurs baies côte à côte). */
+export interface Rack {
+  id: string
+  name: string
+  widthInch: 10 | 19
+  heightU: number
+  numberingFromBottom: boolean
+  items: RackItem[]
+}
+
 export interface RackAnnotations {
   comment?: string
   powerA?: string
@@ -181,10 +191,29 @@ export interface Tab {
   bayHeightU?: number
   bayNumberingFromBottom?: boolean
   bayItems?: RackItem[]
+  /** Baies physiques (v2 multi-rack). Remplace bayItems/bayWidthInch/etc. si présent. */
+  racks?: Rack[]
 }
 
 /** Helper : true si l'onglet est un Tableau IP. */
 export const isIPTableTab = (t: Tab): boolean => t.kind === 'iptable'
+
+/**
+ * Retourne les racks d'un onglet baie.
+ * Si l'onglet est au format legacy (pas de `racks`), retourne un rack virtuel
+ * construit depuis bayItems/bayWidthInch/bayHeightU pour compatibilité ascendante.
+ */
+export function ensureRacks(tab: Tab): Rack[] {
+  if (tab.racks && tab.racks.length > 0) return tab.racks;
+  return [{
+    id: `${tab.id}-r0`,
+    name: tab.name,
+    widthInch: tab.bayWidthInch ?? 19,
+    heightU: tab.bayHeightU ?? 42,
+    numberingFromBottom: tab.bayNumberingFromBottom !== false,
+    items: tab.bayItems ?? [],
+  }];
+}
 /** Helper : true si l'onglet est une Baie. */
 export const isBayTab = (t: Tab): boolean => t.kind === 'bay'
 /** Helper : true si l'onglet est un synoptique (compat ascendant si kind absent). */

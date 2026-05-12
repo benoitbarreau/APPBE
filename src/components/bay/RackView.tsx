@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { RackItem, Tab } from "../../types";
+import type { Rack, RackItem, Tab } from "../../types";
 import { useAppStore } from "../../store";
 import { getDragItem, clearDragItem } from "./BayProductLibrary";
 
@@ -19,18 +19,24 @@ function collides(a: RackItem, b: RackItem): boolean {
 
 interface RackViewProps {
   tab: Tab;
+  rack: Rack;
   selectedItemId: string | null;
   onSelectItem: (id: string | null) => void;
+  onRackClick: () => void;
+  canDelete: boolean;
+  onDeleteRack: () => void;
+  isActive: boolean;
 }
 
-export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
+export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick, canDelete, onDeleteRack, isActive }: RackViewProps) {
   const addRackItem = useAppStore((s) => s.addRackItem);
   const updateRackItem = useAppStore((s) => s.updateRackItem);
+  const renameRack = useAppStore((s) => s.renameRack);
 
-  const heightU = tab.bayHeightU ?? 42;
-  const widthInch = tab.bayWidthInch ?? 19;
-  const fromBottom = tab.bayNumberingFromBottom !== false;
-  const items = tab.bayItems ?? [];
+  const heightU = rack.heightU;
+  const widthInch = rack.widthInch;
+  const fromBottom = rack.numberingFromBottom;
+  const items = rack.items;
   const innerWidth = widthInch === 19 ? RACK_INNER_WIDTH_19 : RACK_INNER_WIDTH_10;
   const colWidth = innerWidth / 4;
   const rackH = heightU * U_PX;
@@ -99,7 +105,7 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
     );
     if (hasCollision) return;
 
-    addRackItem(tab.id, candidate);
+    addRackItem(tab.id, candidate, rack.id);
   };
 
   // ── Drag item within rack ────────────────────────────────────────────────
@@ -161,13 +167,30 @@ export function RackView({ tab, selectedItemId, onSelectItem }: RackViewProps) {
     fromBottom ? heightU - slotIndex : slotIndex + 1;
 
   return (
-    <div className="bay-rack-wrapper">
-      {/* Titre encadré aligné avec le cadre de la baie */}
+    <div
+      className={`bay-rack-wrapper${isActive ? " rack-active" : ""}`}
+      onClick={onRackClick}
+    >
+      {/* Titre encadré aligné avec le cadre de la baie — nom éditable */}
       <div
         className="bay-rack-tab-name"
         style={{ marginLeft: U_LABEL_WIDTH, width: innerWidth + EAR_WIDTH * 2 }}
       >
-        {tab.name}
+        <input
+          className="rack-name-input"
+          value={rack.name}
+          onChange={(e) => renameRack(tab.id, rack.id, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          placeholder="Nom de la baie"
+          title="Cliquer pour renommer la baie"
+        />
+        {canDelete && (
+          <button
+            className="rack-delete-btn"
+            title="Supprimer cette baie"
+            onClick={(e) => { e.stopPropagation(); onDeleteRack(); }}
+          >×</button>
+        )}
       </div>
 
       <div

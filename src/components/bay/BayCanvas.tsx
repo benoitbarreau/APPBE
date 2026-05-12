@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAppStore } from "../../store";
-import { isBayTab } from "../../types";
+import { ensureRacks, isBayTab } from "../../types";
 import { BayProductLibrary } from "./BayProductLibrary";
 import { RackView } from "./RackView";
 import { BayItemProperties } from "./BayItemProperties";
+import { BayCreateModal } from "./BayCreateModal";
 
 interface BayCanvasProps {
   tabId: string;
@@ -12,11 +13,23 @@ interface BayCanvasProps {
 export function BayCanvas({ tabId }: BayCanvasProps) {
   const tabs = useAppStore((s) => s.tabs);
   const syncBayItems = useAppStore((s) => s.syncBayItems);
+  const addRackToTab = useAppStore((s) => s.addRackToTab);
+  const removeRackFromTab = useAppStore((s) => s.removeRackFromTab);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [activeRackId, setActiveRackId] = useState<string | null>(null);
+  const [addRackOpen, setAddRackOpen] = useState(false);
   const [synced, setSynced] = useState(false);
 
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab || !isBayTab(tab)) return null;
+
+  const racks = ensureRacks(tab);
+  const effectiveRackId = activeRackId ?? racks[0]?.id ?? "";
+
+  const handleSelectItem = (rackId: string, itemId: string | null) => {
+    setSelectedItemId(itemId);
+    if (itemId) setActiveRackId(rackId);
+  };
 
   const handleSync = () => {
     syncBayItems(tabId);
@@ -24,18 +37,21 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
     setTimeout(() => setSynced(false), 2000);
   };
 
+  const totalItems = racks.reduce((n, r) => n + r.items.length, 0);
+  const selectedRack = racks.find((r) => r.id === activeRackId) ?? null;
+
   return (
     <div className="bay-canvas">
       {/* ── Info bar ─────────────────────────────────────────────────────── */}
       <div className="bay-infobar">
         <span className="bay-infobar-label">
-          Baie {tab.bayWidthInch ?? 19}" · {tab.bayHeightU ?? 42}U
+          {racks.length} baie{racks.length > 1 ? "s" : ""}
         </span>
         <span className="bay-infobar-hint">
-          Glisser un équipement depuis la bibliothèque sur la baie, ou cliquer pour ajouter en bas.
+          Glisser un équipement depuis la bibliothèque · Cliquer sur une baie pour la sélectionner
         </span>
         <span className="bay-infobar-count">
-          {(tab.bayItems ?? []).length} équipement{(tab.bayItems ?? []).length > 1 ? "s" : ""}
+          {totalItems} équipement{totalItems > 1 ? "s" : ""}
         </span>
         <button
           className={`bay-sync-btn${synced ? " synced" : ""}`}
@@ -48,23 +64,66 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
 
       {/* ── Main layout ──────────────────────────────────────────────────── */}
       <div className="bay-layout">
-        <BayProductLibrary tabId={tabId} />
+        <BayProductLibrary tabId={tabId} activeRackId={effectiveRackId} />
 
         <div className="bay-center">
-          <RackView
-            tab={tab}
-            selectedItemId={selectedItemId}
-            onSelectItem={setSelectedItemId}
-          />
+          <div className="bay-racks-row">
+            {racks.map((rack) => (
+              <RackView
+                key={rack.id}
+                tab={tab}
+                rack={rack}
+                selectedItemId={selectedItemId}
+                onSelectItem={(itemId) => handleSelectItem(rack.id, itemId)}
+                onRackClick={() => setActiveRackId(rack.id)}
+                canDelete={racks.length > 1}
+                onDeleteRack={() => {
+                  if (activeRackId === rack.id) {
+                    setSelectedItemId(null);
+                    setActiveRackId(null);
+                  }
+                  removeRackFromTab(tabId, rack.id);
+                }}
+                isActive={effectiveRackId === rack.id}
+              />
+            ))}
+
+            {/* Bouton ajouter une baie */}
+            <div className="bay-add-rack-col">
+              <button
+                className="bay-add-rack-btn"
+                onClick={() => setAddRackOpen(true)}
+                title="Ajouter une baie dans cet onglet"
+              >
+                <span className="bay-add-rack-icon">+</span>
+                Ajouter une baie
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Modal propriétés (portail vers document.body) */}
       <BayItemProperties
         tab={tab}
+        rack={selectedRack}
         selectedItemId={selectedItemId}
-        onDeselect={() => setSelectedItemId(null)}
+        onDeselect={() => { setSelectedItemId(null); }}
       />
+
+      {/* Modal ajout baie */}
+      {addRackOpen && (
+        <BayCreateModal
+          title="Ajouter une baie"
+          defaultName={`Baie ${racks.length + 1}`}
+          onConfirm={({ name, widthInch, heightU }) => {
+            const newId = addRackToTab(tabId, { name, widthInch, heightU });
+            setActiveRackId(newId);
+            setAddRackOpen(false);
+          }}
+          onCancel={() => setAddRackOpen(false)}
+        />
+      )}
     </div>
   );
 }

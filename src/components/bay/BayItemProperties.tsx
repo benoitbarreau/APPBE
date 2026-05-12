@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "../../store";
-import type { RackAnnotations, RackItem, Tab } from "../../types";
-import { isIPTableTab } from "../../types";
+import type { Rack, RackAnnotations, RackItem, Tab } from "../../types";
+import { ensureRacks, isIPTableTab } from "../../types";
 
 interface BayItemPropertiesProps {
   tab: Tab;
+  rack: Rack | null;
   selectedItemId: string | null;
   onDeselect: () => void;
 }
@@ -22,12 +23,15 @@ const ANNOTATION_FIELDS: { key: keyof RackAnnotations; label: string }[] = [
   { key: "note", label: "Note" },
 ];
 
-export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPropertiesProps) {
+export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: BayItemPropertiesProps) {
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const removeRackItem = useAppStore((s) => s.removeRackItem);
   const allTabs = useAppStore((s) => s.tabs);
 
-  const item = (tab.bayItems ?? []).find((it) => it.id === selectedItemId);
+  // Cherche l'item dans la baie sélectionnée, ou dans toutes les baies de l'onglet
+  const item = (rack?.items ?? ensureRacks(tab).flatMap((r) => r.items))
+    .find((it) => it.id === selectedItemId) ?? null;
+  const rackHeightU = rack?.heightU ?? tab.bayHeightU ?? 42;
 
   // ── IP depuis le Tableau IP (pour les produits synoptique liés) ─────────
   const ipFromIPTable = useMemo(() => {
@@ -101,11 +105,11 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
           <input
             type="number"
             min={1}
-            max={tab.bayHeightU ?? 42}
+            max={rackHeightU}
             value={item.uStart}
             onChange={(e) => {
               const v = parseInt(e.target.value);
-              if (v >= 1 && v <= (tab.bayHeightU ?? 42)) patchItem({ uStart: v });
+              if (v >= 1 && v <= rackHeightU) patchItem({ uStart: v });
             }}
           />
         </div>
@@ -114,7 +118,7 @@ export function BayItemProperties({ tab, selectedItemId, onDeselect }: BayItemPr
           <input
             type="number"
             min={1}
-            max={tab.bayHeightU ?? 42}
+            max={rackHeightU}
             value={item.heightU}
             onChange={(e) => {
               const v = parseInt(e.target.value);

@@ -10,6 +10,7 @@ import type {
   PortSide,
   Product,
   ProjectMeta,
+  Rack,
   RackItem,
   SignalDef,
   SignalType,
@@ -17,7 +18,7 @@ import type {
   Zone,
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
-import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, isBayTab, isIPTableTab, isSynopticTab } from "./types";
+import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
 const DEFAULT_ZONES: Zone[] = [
@@ -80,11 +81,17 @@ interface State {
   /** Synchronise les métadonnées (label, fabricant, référence) des items de type
    *  "synoptic" en relisant leurs nœuds sources dans les onglets synoptiques. */
   syncBayItems: (tabId: string) => void;
-  /** Ajoute un équipement dans la baie. Retourne l'ID créé. */
-  addRackItem: (tabId: string, item: Omit<RackItem, 'id'>) => string;
-  /** Met à jour un équipement de la baie. */
+  /** Ajoute une baie physique dans un onglet baie. Retourne l'ID de la nouvelle baie. */
+  addRackToTab: (tabId: string, opts?: { name?: string; widthInch?: 10 | 19; heightU?: number }) => string;
+  /** Supprime une baie physique (impossible si c'est la seule). */
+  removeRackFromTab: (tabId: string, rackId: string) => void;
+  /** Renomme une baie physique. */
+  renameRack: (tabId: string, rackId: string, name: string) => void;
+  /** Ajoute un équipement dans la baie. rackId optionnel : défaut = première baie. Retourne l'ID créé. */
+  addRackItem: (tabId: string, item: Omit<RackItem, 'id'>, rackId?: string) => string;
+  /** Met à jour un équipement (cherche dans toutes les baies de l'onglet). */
   updateRackItem: (tabId: string, itemId: string, patch: Partial<RackItem>) => void;
-  /** Supprime un équipement de la baie. */
+  /** Supprime un équipement (cherche dans toutes les baies de l'onglet). */
   removeRackItem: (tabId: string, itemId: string) => void;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
@@ -254,6 +261,7 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
   bayHeightU: heightU,
   bayNumberingFromBottom: true,
   bayItems: [],
+  racks: [{ id: uid(), name, widthInch, heightU, numberingFromBottom: true, items: [] }],
 });
 
 /**
@@ -384,7 +392,7 @@ export const useAppStore = create<State>()(
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target || !isBayTab(target)) return {};
-            const updatedItems = (target.bayItems ?? []).map((item) => {
+            const syncItem = (item: RackItem): RackItem => {
               if (item.sourceType !== "synoptic" || !item.nodeId) return item;
               for (const t of flushed) {
                 if (!isSynopticTab(t)) continue;
@@ -402,22 +410,72 @@ export const useAppStore = create<State>()(
                 }
               }
               return item;
-            });
+            };
             return {
               tabs: flushed.map((t) =>
-                t.id === tabId ? { ...t, bayItems: updatedItems } : t,
+                t.id === tabId
+                  ? { ...t, racks: ensureRacks(t).map((r) => ({ ...r, items: r.items.map(syncItem) })) }
+                  : t,
               ),
             };
           }),
 
-        addRackItem: (tabId, item) => {
+        addRackToTab: (tabId, opts) => {
           const newId = uid();
+          set((s) => ({
+            tabs: s.tabs.map((t) => {
+              if (t.id !== tabId || !isBayTab(t)) return t;
+              const existing = ensureRacks(t);
+              const name = opts?.name ?? `Baie ${existing.length + 1}`;
+              const newRack: Rack = {
+                id: newId,
+                name,
+                widthInch: opts?.widthInch ?? 19,
+                heightU: opts?.heightU ?? 42,
+                numberingFromBottom: true,
+                items: [],
+              };
+              return { ...t, racks: [...existing, newRack] };
+            }),
+          }));
+          return newId;
+        },
+
+        removeRackFromTab: (tabId, rackId) =>
+          set((s) => ({
+            tabs: s.tabs.map((t) => {
+              if (t.id !== tabId || !isBayTab(t)) return t;
+              const racks = ensureRacks(t);
+              if (racks.length <= 1) return t;
+              return { ...t, racks: racks.filter((r) => r.id !== rackId) };
+            }),
+          })),
+
+        renameRack: (tabId, rackId, name) =>
           set((s) => ({
             tabs: s.tabs.map((t) =>
               t.id === tabId && isBayTab(t)
-                ? { ...t, bayItems: [...(t.bayItems ?? []), { ...item, id: newId }] }
+                ? { ...t, racks: ensureRacks(t).map((r) => r.id === rackId ? { ...r, name } : r) }
                 : t,
             ),
+          })),
+
+        addRackItem: (tabId, item, rackId?) => {
+          const newId = uid();
+          set((s) => ({
+            tabs: s.tabs.map((t) => {
+              if (t.id !== tabId || !isBayTab(t)) return t;
+              const racks = ensureRacks(t);
+              const targetId = rackId ?? racks[0]?.id;
+              return {
+                ...t,
+                racks: racks.map((r) =>
+                  r.id === targetId
+                    ? { ...r, items: [...r.items, { ...item, id: newId }] }
+                    : r,
+                ),
+              };
+            }),
           }));
           return newId;
         },
@@ -428,9 +486,10 @@ export const useAppStore = create<State>()(
               t.id === tabId && isBayTab(t)
                 ? {
                     ...t,
-                    bayItems: (t.bayItems ?? []).map((it) =>
-                      it.id === itemId ? { ...it, ...patch } : it,
-                    ),
+                    racks: ensureRacks(t).map((r) => ({
+                      ...r,
+                      items: r.items.map((it) => it.id === itemId ? { ...it, ...patch } : it),
+                    })),
                   }
                 : t,
             ),
@@ -440,7 +499,13 @@ export const useAppStore = create<State>()(
           set((s) => ({
             tabs: s.tabs.map((t) =>
               t.id === tabId && isBayTab(t)
-                ? { ...t, bayItems: (t.bayItems ?? []).filter((it) => it.id !== itemId) }
+                ? {
+                    ...t,
+                    racks: ensureRacks(t).map((r) => ({
+                      ...r,
+                      items: r.items.filter((it) => it.id !== itemId),
+                    })),
+                  }
                 : t,
             ),
           })),
@@ -1042,7 +1107,21 @@ export const useAppStore = create<State>()(
           let activeTabId: string;
 
           if (data.tabs && data.tabs.length > 0) {
-            tabs = data.tabs;
+            // Migration legacy → multi-rack pour les onglets baie sans racks
+            tabs = data.tabs.map((t) => {
+              if (!isBayTab(t) || (t.racks && t.racks.length > 0)) return t;
+              return {
+                ...t,
+                racks: [{
+                  id: `${t.id}-r0`,
+                  name: t.name,
+                  widthInch: t.bayWidthInch ?? 19,
+                  heightU: t.bayHeightU ?? 42,
+                  numberingFromBottom: t.bayNumberingFromBottom !== false,
+                  items: t.bayItems ?? [],
+                }],
+              };
+            });
             const stored = data.activeTabId;
             activeTabId =
               stored && tabs.some((t) => t.id === stored) ? stored : tabs[0].id;
@@ -1177,7 +1256,7 @@ export const useAppStore = create<State>()(
     },
     {
       name: "av-diagram-generator",
-      version: 10,
+      version: 11,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & {
           adminCode?: unknown;
@@ -1228,6 +1307,24 @@ export const useAppStore = create<State>()(
           state.tabs = state.tabs.map((t) =>
             t.kind === undefined ? { ...t, kind: "synoptic" as const } : t,
           );
+        }
+
+        // v11 : migration vers le modèle multi-rack pour les onglets baie
+        if (fromVersion < 11 && state.tabs) {
+          state.tabs = state.tabs.map((t) => {
+            if (!isBayTab(t) || (t.racks && t.racks.length > 0)) return t;
+            return {
+              ...t,
+              racks: [{
+                id: `${t.id}-r0`,
+                name: t.name,
+                widthInch: t.bayWidthInch ?? 19,
+                heightU: t.bayHeightU ?? 42,
+                numberingFromBottom: t.bayNumberingFromBottom !== false,
+                items: t.bayItems ?? [],
+              }],
+            };
+          });
         }
 
         return state as unknown as State;

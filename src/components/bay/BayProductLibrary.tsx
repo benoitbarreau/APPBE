@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { useAppStore } from "../../store";
 import type { RackItem } from "../../types";
-import { isBayTab, isSynopticTab } from "../../types";
+import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
 import type { BayAccessory } from "./bay-accessories";
 import { BayAccessoryEditor } from "./BayAccessoryEditor";
 
 interface BayProductLibraryProps {
   tabId: string;
+  /** ID de la baie physique active (pour "cliquer pour ajouter"). */
+  activeRackId: string;
 }
 
 type LibTab = "synoptic" | "catalog" | "accessories";
@@ -34,7 +36,7 @@ declare global {
   }
 }
 
-export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
+export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProps) {
   const [libTab, setLibTab] = useState<LibTab>("synoptic");
   const [search, setSearch] = useState("");
   const [warnMsg, setWarnMsg] = useState<string | null>(null);
@@ -47,13 +49,15 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   const updateBayAccessory = useAppStore((s) => s.updateBayAccessory);
   const removeBayAccessory = useAppStore((s) => s.removeBayAccessory);
 
-  // nodeIds déjà présents dans N'IMPORTE QUELLE baie → Map<nodeId, nomDeLaBaie>
+  // nodeIds déjà présents dans N'IMPORTE QUELLE baie/rack → Map<nodeId, nomDeLaBaie>
   const alreadyInRack = useMemo(() => {
     const map = new Map<string, string>();
     for (const t of tabs) {
       if (!isBayTab(t)) continue;
-      for (const it of t.bayItems ?? []) {
-        if (it.sourceType === "synoptic" && it.nodeId) map.set(it.nodeId, t.name);
+      for (const rack of ensureRacks(t)) {
+        for (const it of rack.items) {
+          if (it.sourceType === "synoptic" && it.nodeId) map.set(it.nodeId, t.name);
+        }
       }
     }
     return map;
@@ -140,11 +144,12 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
       showWarn(item.label ?? item.reference ?? "Ce produit", alreadyInRack.get(nodeId));
       return;
     }
-    // Placer à la suite du dernier item (pas d'empilement)
+    // Placer à la suite du dernier item dans la baie active
     const bayTab = tabs.find((t) => t.id === tabId && isBayTab(t));
-    const existing = bayTab?.bayItems ?? [];
+    const rack = bayTab ? ensureRacks(bayTab).find((r) => r.id === activeRackId) : undefined;
+    const existing = rack?.items ?? [];
     const maxU = existing.reduce((m, it) => Math.max(m, it.uStart + it.heightU - 1), 0);
-    addRackItem(tabId, { ...item, uStart: maxU + 1, colStart: 0 });
+    addRackItem(tabId, { ...item, uStart: maxU + 1, colStart: 0 }, activeRackId);
   };
 
   // ── Drag start (bloqué si déjà présent dans n'importe quelle baie) ──────
