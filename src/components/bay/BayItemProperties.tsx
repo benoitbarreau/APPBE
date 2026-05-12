@@ -11,37 +11,43 @@ interface BayItemPropertiesProps {
   onDeselect: () => void;
 }
 
+/** Champs annotation visibles dans la modal, dans l'ordre demandé. */
 const ANNOTATION_FIELDS: { key: keyof RackAnnotations; label: string }[] = [
-  { key: "comment", label: "Commentaire" },
-  { key: "powerA", label: "Alimentation A" },
-  { key: "powerB", label: "Alimentation B" },
-  { key: "outlet", label: "Prise secteur" },
-  { key: "switchPort", label: "Port switch" },
-  { key: "vlan", label: "VLAN" },
-  { key: "ip", label: "Adresse IP" },
-  { key: "location", label: "Emplacement" },
-  { key: "note", label: "Note" },
+  { key: "comment",    label: "Commentaire" },
+  { key: "ip",         label: "Adresse IP" },
+  { key: "switchPort", label: "Port Switch" },
+  { key: "vlan",       label: "VLAN" },
+  { key: "serial",     label: "N° Série" },
 ];
 
 export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: BayItemPropertiesProps) {
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const removeRackItem = useAppStore((s) => s.removeRackItem);
-  const allTabs = useAppStore((s) => s.tabs);
+  const updateIPRow    = useAppStore((s) => s.updateIPRow);
+  const allTabs        = useAppStore((s) => s.tabs);
 
   // Cherche l'item dans la baie sélectionnée, ou dans toutes les baies de l'onglet
   const item = (rack?.items ?? ensureRacks(tab).flatMap((r) => r.items))
     .find((it) => it.id === selectedItemId) ?? null;
   const rackHeightU = rack?.heightU ?? tab.bayHeightU ?? 42;
 
-  // ── IP depuis le Tableau IP (pour les produits synoptique liés) ─────────
-  const ipFromIPTable = useMemo(() => {
+  /**
+   * Ligne du Tableau IP correspondant au produit synoptique (le cas échéant).
+   * Utilisé pour lier directement les champs Adresse IP et N° Série à la source
+   * de vérité, plutôt qu'à une annotation locale.
+   */
+  const ipLink = useMemo(() => {
     if (!item || item.sourceType !== "synoptic" || !item.nodeId) return null;
     for (const t of allTabs) {
       if (!isIPTableTab(t)) continue;
-      for (const row of t.rows ?? []) {
-        if (row.productInstanceIds.includes(item.nodeId) && row.ip?.trim()) {
-          return row.ip.trim();
-        }
+      const row = (t.rows ?? []).find((r) => r.productInstanceIds.includes(item.nodeId!));
+      if (row) {
+        return {
+          tabId: t.id,
+          rowId: row.id,
+          ip: row.ip ?? "",
+          serial: row.serialNumber ?? "",
+        };
       }
     }
     return null;
@@ -57,6 +63,32 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
     updateRackItem(tab.id, item.id, {
       annotations: { ...(item.annotations ?? {}), [key]: value || undefined },
     });
+  };
+
+  /**
+   * Valeur affichée pour un champ annotation.
+   * - IP et N° Série : préfère la valeur du Tableau IP si l'item est lié à
+   *   un produit synoptique présent dans un Tableau IP. Sinon, fallback sur
+   *   l'annotation locale.
+   * - Autres champs : annotation locale.
+   */
+  const valueFor = (key: keyof RackAnnotations): string => {
+    if (key === "ip" && ipLink)     return ipLink.ip;
+    if (key === "serial" && ipLink) return ipLink.serial;
+    return item?.annotations?.[key] ?? "";
+  };
+
+  /** Mise à jour d'un champ : route vers Tableau IP pour IP/Série quand lié. */
+  const setFieldValue = (key: keyof RackAnnotations, value: string) => {
+    if (key === "ip" && ipLink) {
+      updateIPRow(ipLink.tabId, ipLink.rowId, { ip: value });
+      return;
+    }
+    if (key === "serial" && ipLink) {
+      updateIPRow(ipLink.tabId, ipLink.rowId, { serialNumber: value });
+      return;
+    }
+    patchAnnotation(key, value);
   };
 
   // Fermeture par touche Escape
@@ -178,32 +210,25 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
       {/* ── Annotations ────────────────────────────────────────────────── */}
       <div className="bay-prop-section-title">Annotations</div>
 
-      {ANNOTATION_FIELDS.map(({ key, label }) => (
-        <div key={key} className="bay-prop-group bay-prop-annotation">
-          <label>{label}</label>
-          {/* Champ IP : afficher l'IP du Tableau IP si disponible */}
-          {key === "ip" && ipFromIPTable && (
-            <div className="bay-prop-ip-hint">
-              <span className="bay-prop-ip-source" title="IP issue du Tableau IP">📋 {ipFromIPTable}</span>
-              {!item.annotations?.ip && (
-                <button
-                  className="bay-prop-ip-copy"
-                  onClick={() => patchAnnotation("ip", ipFromIPTable)}
-                  title="Copier depuis le Tableau IP"
-                >
-                  ↓ Copier
-                </button>
+      {ANNOTATION_FIELDS.map(({ key, label }) => {
+        const linked = ipLink && (key === "ip" || key === "serial");
+        return (
+          <div key={key} className="bay-prop-group bay-prop-annotation">
+            <label>
+              {label}
+              {linked && (
+                <span className="bay-prop-iplink-badge" title="Lié au Tableau IP">📋</span>
               )}
-            </div>
-          )}
-          <input
-            type="text"
-            value={item.annotations?.[key] ?? ""}
-            onChange={(e) => patchAnnotation(key, e.target.value)}
-            placeholder={key === "ip" && ipFromIPTable ? ipFromIPTable : "—"}
-          />
-        </div>
-      ))}
+            </label>
+            <input
+              type="text"
+              value={valueFor(key)}
+              onChange={(e) => setFieldValue(key, e.target.value)}
+              placeholder="—"
+            />
+          </div>
+        );
+      })}
 
       {/* ── Actions ────────────────────────────────────────────────────── */}
       <div className="bay-prop-actions">

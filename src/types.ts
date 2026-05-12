@@ -132,14 +132,10 @@ export interface Rack {
 
 export interface RackAnnotations {
   comment?: string
-  powerA?: string
-  powerB?: string
-  outlet?: string
+  ip?: string
   switchPort?: string
   vlan?: string
-  ip?: string
-  location?: string
-  note?: string
+  serial?: string
 }
 
 export interface RackItem {

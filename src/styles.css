@@ -5140,34 +5140,13 @@ select {
   font-weight: 700;
 }
 
-/* ── IP depuis Tableau IP ───────────────────────────────────────────────── */
+/* ── Liaison Tableau IP (badge dans la modal Propriétés) ────────────────── */
 
-.bay-prop-ip-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.bay-prop-ip-source {
-  font-size: 10px;
-  color: #7fc97f;
-  font-weight: 500;
-}
-
-.bay-prop-ip-copy {
-  font-size: 10px;
-  padding: 2px 7px;
-  border: 1px solid #4a7a4a;
-  background: #1a2e1a;
-  color: #7fc97f;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.bay-prop-ip-copy:hover {
-  background: #4a7a4a;
-  color: #fff;
+.bay-prop-iplink-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  vertical-align: middle;
 }
 
 /* ── Bay tab styling ─────────────────────────────────────────────────────── */
