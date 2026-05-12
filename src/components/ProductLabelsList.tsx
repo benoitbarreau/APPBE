@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
+import { isSynopticTab } from "../types";
 
-type SortKey = "label" | "reference" | "zone" | "manual";
+type SortKey = "label" | "reference" | "zone" | "tabName" | "manual";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: Exclude<SortKey, "manual">; label: string }[] = [
-  { key: "label", label: "Label" },
+  { key: "label",     label: "Label" },
   { key: "reference", label: "Référence produit" },
-  { key: "zone", label: "Zone" },
+  { key: "zone",      label: "Zone" },
+  { key: "tabName",   label: "Synoptique" },
 ];
 
 interface Row {
   id: string;
   label: string;
-  reference: string; // manufacturer + reference
+  reference: string;
   zoneId: string;
   zoneLabel: string;
-  /** Index dans state.nodes — utilisé pour le drag & drop */
+  tabId: string;
+  tabName: string;
+  editable: boolean;
+  /** Index dans le tableau nodes du synoptique actif — drag & drop uniquement */
   originalIndex: number;
 }
 
@@ -30,13 +35,7 @@ function downloadFile(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Cellule label éditable (clic simple).
- *
- * Garde un draft local pour ne pas commit à chaque frappe (évite re-renders
- * massifs sur le diagramme), mais resynchronise depuis la prop quand l'input
- * n'a pas le focus — sinon une saisie depuis le bloc produit ne remonterait
- * pas dans la liste tant que cette cellule n'a pas été touchée.
- */
+/** Cellule label éditable (clic simple). */
 function LabelCell({
   id,
   label,
@@ -102,52 +101,61 @@ function ZoneCell({ id, zoneId, readOnly }: { id: string; zoneId: string; readOn
 }
 
 export function ProductLabelsList() {
-  const nodes = useAppStore((s) => s.nodes);
-  const products = useAppStore((s) => s.products);
-  const zones = useAppStore((s) => s.zones);
+  const tabs         = useAppStore((s) => s.tabs);
+  const activeTabId  = useAppStore((s) => s.activeTabId);
+  const activeNodes  = useAppStore((s) => s.nodes);
+  const products     = useAppStore((s) => s.products);
+  const zones        = useAppStore((s) => s.zones);
   const reorderNodes = useAppStore((s) => s.reorderNodes);
-  const readOnly = useEditorState((s) => s.readOnly);
+  const readOnly     = useEditorState((s) => s.readOnly);
 
-  // "manual" = ordre du store (drag & drop), sinon tri par colonne
   const [sortKey, setSortKey] = useState<SortKey>("manual");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  // État de drag (index source en cours)
-  const [dragSrc, setDragSrc] = useState<number | null>(null);
+  const [dragSrc,    setDragSrc]    = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
 
+  /** Agrégation depuis tous les synoptiques. */
   const baseRows = useMemo<Row[]>(() => {
-    return nodes.map((n, idx) => {
-      const p = products.find((pr) => pr.id === n.productId);
-      const reference = p ? `${p.manufacturer} ${p.reference}` : n.name;
-      const zone = zones.find((z) => z.id === n.zoneId);
-      return {
-        id: n.id,
-        label: n.label ?? "",
-        reference,
-        zoneId: n.zoneId ?? "",
-        zoneLabel: zone?.label ?? "",
-        originalIndex: idx,
-      };
-    });
-  }, [nodes, products, zones]);
+    const list: Row[] = [];
+    for (const t of tabs) {
+      if (!isSynopticTab(t)) continue;
+      const isActive = t.id === activeTabId;
+      const nodes    = isActive ? activeNodes : (t.nodes ?? []);
+      nodes.forEach((n, idx) => {
+        const p = products.find((pr) => pr.id === n.productId);
+        const reference = p ? `${p.manufacturer} ${p.reference}` : n.name;
+        const zone = zones.find((z) => z.id === n.zoneId);
+        list.push({
+          id: n.id,
+          label:      n.label ?? "",
+          reference,
+          zoneId:     n.zoneId ?? "",
+          zoneLabel:  zone?.label ?? "",
+          tabId:      t.id,
+          tabName:    t.name,
+          editable:   isActive,
+          originalIndex: isActive ? idx : -1,
+        });
+      });
+    }
+    return list;
+  }, [tabs, activeTabId, activeNodes, products, zones]);
 
   const rows = useMemo<Row[]>(() => {
     if (sortKey === "manual") return baseRows;
     const sorted = [...baseRows];
     sorted.sort((a, b) => {
       const av =
-        sortKey === "label"
-          ? a.label
-          : sortKey === "reference"
-          ? a.reference
-          : a.zoneLabel;
+        sortKey === "label"     ? a.label     :
+        sortKey === "reference" ? a.reference :
+        sortKey === "zone"      ? a.zoneLabel :
+        a.tabName;
       const bv =
-        sortKey === "label"
-          ? b.label
-          : sortKey === "reference"
-          ? b.reference
-          : b.zoneLabel;
+        sortKey === "label"     ? b.label     :
+        sortKey === "reference" ? b.reference :
+        sortKey === "zone"      ? b.zoneLabel :
+        b.tabName;
       const cmp = String(av).localeCompare(String(bv), "fr", { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -155,25 +163,17 @@ export function ProductLabelsList() {
   }, [baseRows, sortKey, sortDir]);
 
   const onHeaderClick = (key: Exclude<SortKey, "manual">) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const resetManualOrder = () => {
-    setSortKey("manual");
-    setSortDir("asc");
-  };
+  const resetManualOrder = () => { setSortKey("manual"); setSortDir("asc"); };
 
-  // ── Drag & drop (basé sur l'index dans state.nodes) ───────────────────
+  // ── Drag & drop (uniquement sur le synoptique actif) ─────────────────
   const onDragStart = (e: React.DragEvent, idx: number) => {
     if (readOnly) return;
     setDragSrc(idx);
     e.dataTransfer.effectAllowed = "move";
-    // Firefox exige un setData pour démarrer le drag
     e.dataTransfer.setData("text/plain", String(idx));
   };
 
@@ -188,8 +188,6 @@ export function ProductLabelsList() {
     if (readOnly || dragSrc === null) return;
     e.preventDefault();
     if (dragSrc !== idx) {
-      // Si un tri colonne est actif, on le désactive (l'ordre canonique
-      // devient l'ordre manuel).
       if (sortKey !== "manual") resetManualOrder();
       reorderNodes(dragSrc, idx);
     }
@@ -197,46 +195,27 @@ export function ProductLabelsList() {
     setDropTarget(null);
   };
 
-  const onDragEnd = () => {
-    setDragSrc(null);
-    setDropTarget(null);
-  };
+  const onDragEnd = () => { setDragSrc(null); setDropTarget(null); };
 
-  // ── Exports ──────────────────────────────────────────────────────────
+  // ── Exports ───────────────────────────────────────────────────────────
   const exportCsv = () => {
-    const header = ["Label", "Référence produit", "Zone"].join(";");
+    const header = ["Label", "Référence produit", "Zone", "Synoptique"].join(";");
     const lines = rows.map((r) =>
-      [r.label, r.reference, r.zoneLabel]
+      [r.label, r.reference, r.zoneLabel, r.tabName]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(";"),
     );
-    downloadFile(
-      "labels-produits.csv",
-      "﻿" + [header, ...lines].join("\n"),
-      "text/csv;charset=utf-8",
-    );
+    downloadFile("labels-produits.csv", "﻿" + [header, ...lines].join("\n"), "text/csv;charset=utf-8");
   };
 
   const exportXls = () => {
     const escape = (v: unknown) =>
-      String(v)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+      String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const headerRow =
-      "<tr>" +
-      ["Label", "Référence produit", "Zone"]
-        .map((h) => `<th>${escape(h)}</th>`)
-        .join("") +
-      "</tr>";
+      "<tr>" + ["Label", "Référence produit", "Zone", "Synoptique"].map((h) => `<th>${escape(h)}</th>`).join("") + "</tr>";
     const bodyRows = rows
-      .map(
-        (r) =>
-          "<tr>" +
-          [r.label, r.reference, r.zoneLabel]
-            .map((v) => `<td>${escape(v)}</td>`)
-            .join("") +
-          "</tr>",
+      .map((r) =>
+        "<tr>" + [r.label, r.reference, r.zoneLabel, r.tabName].map((v) => `<td>${escape(v)}</td>`).join("") + "</tr>",
       )
       .join("");
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -247,33 +226,26 @@ export function ProductLabelsList() {
   };
 
   const sortActive = sortKey !== "manual";
+  const totalRows  = rows.length;
 
   return (
     <div className="etiquettes-list product-labels-list">
       <div className="etiquettes-header">
-        <h3>Labels produits ({rows.length})</h3>
+        <h3>Labels produits ({totalRows})</h3>
         <div className="etiquettes-actions">
           {sortActive && (
-            <button
-              onClick={resetManualOrder}
-              title="Revenir à l'ordre manuel (drag & drop)"
-            >
+            <button onClick={resetManualOrder} title="Revenir à l'ordre manuel (drag & drop)">
               Ordre manuel
             </button>
           )}
-          <button onClick={exportCsv} disabled={!rows.length}>
-            CSV
-          </button>
-          <button onClick={exportXls} disabled={!rows.length}>
-            XLS
-          </button>
+          <button onClick={exportCsv} disabled={!totalRows}>CSV</button>
+          <button onClick={exportXls} disabled={!totalRows}>XLS</button>
         </div>
       </div>
       {!readOnly && (
         <p className="etiquettes-hint">
-          Cliquer dans une cellule pour modifier. Glisser une ligne par sa
-          poignée <span className="drag-handle-inline">⋮⋮</span> pour
-          réorganiser. Cliquer sur une colonne pour trier.
+          Cliquer dans une cellule pour modifier. Glisser une ligne par sa poignée{" "}
+          <span className="drag-handle-inline">⋮⋮</span> pour réorganiser (synoptique actif uniquement).
           {sortActive && " (Le tri remplace temporairement l'ordre manuel.)"}
         </p>
       )}
@@ -290,9 +262,7 @@ export function ProductLabelsList() {
                 >
                   {c.label}
                   {sortKey === c.key && (
-                    <span className="sort-indicator">
-                      {sortDir === "asc" ? "▲" : "▼"}
-                    </span>
+                    <span className="sort-indicator">{sortDir === "asc" ? "▲" : "▼"}</span>
                   )}
                 </th>
               ))}
@@ -300,46 +270,51 @@ export function ProductLabelsList() {
           </thead>
           <tbody>
             {rows.map((r) => {
-              const isDragging = dragSrc === r.originalIndex;
-              const isDropTarget =
-                dropTarget === r.originalIndex && dragSrc !== r.originalIndex;
+              const cellReadOnly = readOnly || !r.editable;
+              const canDrag      = !readOnly && r.editable && sortKey === "manual";
+              const isDragging   = dragSrc === r.originalIndex && r.editable;
+              const isDropTarget = dropTarget === r.originalIndex && dragSrc !== r.originalIndex && r.editable;
               return (
                 <tr
                   key={r.id}
-                  draggable={!readOnly}
-                  onDragStart={(e) => onDragStart(e, r.originalIndex)}
-                  onDragOver={(e) => onDragOver(e, r.originalIndex)}
-                  onDrop={(e) => onDrop(e, r.originalIndex)}
-                  onDragEnd={onDragEnd}
+                  draggable={canDrag}
+                  onDragStart={canDrag ? (e) => onDragStart(e, r.originalIndex) : undefined}
+                  onDragOver={canDrag ? (e) => onDragOver(e, r.originalIndex) : undefined}
+                  onDrop={canDrag ? (e) => onDrop(e, r.originalIndex) : undefined}
+                  onDragEnd={canDrag ? onDragEnd : undefined}
                   className={
-                    (isDragging ? "dragging" : "") +
-                    (isDropTarget ? " drop-target" : "")
+                    (!r.editable ? "etiquette-row-other-tab " : "") +
+                    (isDragging   ? "dragging "    : "") +
+                    (isDropTarget ? "drop-target"  : "")
                   }
                 >
                   <td className="drag-col">
+                    {r.editable ? (
+                      <span className="drag-handle" title="Glisser pour réordonner">⋮⋮</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <LabelCell id={r.id} label={r.label} readOnly={cellReadOnly} />
+                  </td>
+                  <td className="muted-cell" title={r.reference}>{r.reference}</td>
+                  <td>
+                    <ZoneCell id={r.id} zoneId={r.zoneId} readOnly={cellReadOnly} />
+                  </td>
+                  <td>
                     <span
-                      className="drag-handle"
-                      title="Glisser pour réordonner"
+                      className={`etiquette-tab-chip${r.editable ? " active" : ""}`}
+                      title={r.tabName}
                     >
-                      ⋮⋮
+                      {r.tabName}
                     </span>
-                  </td>
-                  <td>
-                    <LabelCell id={r.id} label={r.label} readOnly={readOnly} />
-                  </td>
-                  <td className="muted-cell" title={r.reference}>
-                    {r.reference}
-                  </td>
-                  <td>
-                    <ZoneCell id={r.id} zoneId={r.zoneId} readOnly={readOnly} />
                   </td>
                 </tr>
               );
             })}
-            {rows.length === 0 && (
+            {totalRows === 0 && (
               <tr>
                 <td colSpan={COLUMNS.length + 1} className="muted center">
-                  Aucun produit placé sur ce synoptique.
+                  Aucun produit placé sur les synoptiques.
                 </td>
               </tr>
             )}

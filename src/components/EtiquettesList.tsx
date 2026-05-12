@@ -1,28 +1,29 @@
 import { useMemo, useRef, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
+import { isSynopticTab } from "../types";
 
-type SortKey = "number" | "label" | "cableType" | "lengthMeters";
+type SortKey = "number" | "label" | "cableType" | "lengthMeters" | "tabName";
 type SortDir = "asc" | "desc";
 
 const COLUMNS_DETAIL: { key: SortKey; label: string; align?: "right" }[] = [
-  { key: "number", label: "N°" },
-  { key: "label", label: "Etiquette câble" },
-  { key: "cableType", label: "Type de câble" },
+  { key: "number",      label: "N°" },
+  { key: "tabName",     label: "Synoptique" },
+  { key: "label",       label: "Etiquette câble" },
+  { key: "cableType",   label: "Type de câble" },
   { key: "lengthMeters", label: "Longueur (m)", align: "right" },
 ];
 
 const COLUMNS_SIMPLE: { key: SortKey; label: string; align?: "right" }[] = [
-  { key: "number", label: "N°" },
+  { key: "number",    label: "N°" },
+  { key: "tabName",   label: "Synoptique" },
   { key: "cableType", label: "Type de câble" },
 ];
 
 function downloadFile(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -30,25 +31,19 @@ function downloadFile(filename: string, content: string, mime: string) {
 function LabelCell({ id, label, readOnly }: { id: string; label: string; readOnly: boolean }) {
   const updateCable = useAppStore((s) => s.updateCable);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(label);
+  const [draft, setDraft]     = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const startEdit = () => {
     if (readOnly) return;
-    setDraft(label);
-    setEditing(true);
+    setDraft(label); setEditing(true);
     setTimeout(() => inputRef.current?.select(), 0);
   };
-
   const commit = () => {
     setEditing(false);
     if (draft !== label) updateCable(id, { label: draft });
   };
-
-  const cancel = () => {
-    setEditing(false);
-    setDraft(label);
-  };
+  const cancel = () => { setEditing(false); setDraft(label); };
 
   if (editing) {
     return (
@@ -58,15 +53,11 @@ function LabelCell({ id, label, readOnly }: { id: string; label: string; readOnl
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") cancel();
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") cancel(); }}
         autoFocus
       />
     );
   }
-
   return (
     <span
       className={`etiquette-label-cell${readOnly ? "" : " editable"}`}
@@ -78,23 +69,11 @@ function LabelCell({ id, label, readOnly }: { id: string; label: string; readOnl
   );
 }
 
-/** Cellule longueur éditable en double-clic.
- *
- * Vide tant qu'aucune longueur n'a été saisie. Affiche les mètres en
- * lecture, accepte décimales et chaîne vide en édition.
- */
-function LengthCell({
-  id,
-  length,
-  readOnly,
-}: {
-  id: string;
-  length: number | undefined;
-  readOnly: boolean;
-}) {
+/** Cellule longueur éditable en double-clic. */
+function LengthCell({ id, length, readOnly }: { id: string; length: number | undefined; readOnly: boolean }) {
   const updateCable = useAppStore((s) => s.updateCable);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(length === undefined ? "" : String(length));
+  const [draft, setDraft]     = useState(length === undefined ? "" : String(length));
   const inputRef = useRef<HTMLInputElement>(null);
 
   const startEdit = () => {
@@ -103,39 +82,27 @@ function LengthCell({
     setEditing(true);
     setTimeout(() => inputRef.current?.select(), 0);
   };
-
   const commit = () => {
     setEditing(false);
     const next = draft.trim() === "" ? undefined : Number(draft.replace(",", "."));
-    if (next !== undefined && Number.isNaN(next)) return; // saisie invalide → on ignore
+    if (next !== undefined && Number.isNaN(next)) return;
     if (next !== length) updateCable(id, { lengthMeters: next });
   };
-
-  const cancel = () => {
-    setEditing(false);
-    setDraft(length === undefined ? "" : String(length));
-  };
+  const cancel = () => { setEditing(false); setDraft(length === undefined ? "" : String(length)); };
 
   if (editing) {
     return (
       <input
-        ref={inputRef}
-        type="number"
-        min={0}
-        step={0.5}
+        ref={inputRef} type="number" min={0} step={0.5}
         className="etiquette-label-input etiquette-len-input"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") cancel();
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") cancel(); }}
         autoFocus
       />
     );
   }
-
   return (
     <span
       className={`etiquette-label-cell${readOnly ? "" : " editable"}`}
@@ -148,28 +115,48 @@ function LengthCell({
 }
 
 export function EtiquettesList() {
-  const cables = useAppStore((s) => s.cables);
-  const readOnly = useEditorState((s) => s.readOnly);
-  const cableView = useEditorState((s) => s.cableView);
+  const tabs         = useAppStore((s) => s.tabs);
+  const activeTabId  = useAppStore((s) => s.activeTabId);
+  const activeCables = useAppStore((s) => s.cables);
+  const readOnly     = useEditorState((s) => s.readOnly);
+  const cableView    = useEditorState((s) => s.cableView);
   const setCableView = useEditorState((s) => s.setCableView);
-  const detailed = cableView === "detailed";
+  const detailed     = cableView === "detailed";
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const COLUMNS = detailed ? COLUMNS_DETAIL : COLUMNS_SIMPLE;
 
+  /** Agrégation depuis tous les synoptiques. */
   const rows = useMemo(() => {
-    const list = cables.map((c) => ({
-      id: c.id,
-      number: c.number ?? "",
-      label: c.label ?? "",
-      cableType: c.cableType,
-      lengthMeters: c.lengthMeters,
-    }));
+    const list: {
+      id: string; number: string; label: string;
+      cableType: string; lengthMeters: number | undefined;
+      tabId: string; tabName: string; editable: boolean;
+    }[] = [];
+
+    for (const t of tabs) {
+      if (!isSynopticTab(t)) continue;
+      const isActive = t.id === activeTabId;
+      const cables   = isActive ? activeCables : (t.cables ?? []);
+
+      for (const c of cables) {
+        list.push({
+          id: c.id,
+          number:      c.number ?? "",
+          label:       c.label  ?? "",
+          cableType:   c.cableType,
+          lengthMeters: c.lengthMeters,
+          tabId:   t.id,
+          tabName: t.name,
+          editable: isActive,
+        });
+      }
+    }
+
     list.sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
-      // Gestion des valeurs vides (undefined) : toujours en bas en asc
       const aEmpty = av === undefined || av === "";
       const bEmpty = bv === undefined || bv === "";
       if (aEmpty && bEmpty) return 0;
@@ -180,57 +167,37 @@ export function EtiquettesList() {
       else cmp = String(av).localeCompare(String(bv), "fr", { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
     });
+
     return list;
-  }, [cables, sortKey, sortDir]);
+  }, [tabs, activeTabId, activeCables, sortKey, sortDir]);
 
   const onHeaderClick = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
   const cellValue = (r: (typeof rows)[number], key: SortKey): string => {
-    const v = r[key];
+    const v = r[key as keyof typeof r];
     return v === undefined || v === null ? "" : String(v);
   };
 
   const exportCsv = () => {
     const header = COLUMNS.map((c) => c.label).join(";");
-    const lines = rows.map((r) =>
-      COLUMNS.map((c) => {
-        const v = cellValue(r, c.key).replace(/"/g, '""');
-        return `"${v}"`;
-      }).join(";"),
+    const lines  = rows.map((r) =>
+      COLUMNS.map((c) => `"${cellValue(r, c.key).replace(/"/g, '""')}"`).join(";"),
     );
-    downloadFile(
-      "etiquettes-cables.csv",
-      "﻿" + [header, ...lines].join("\n"),
-      "text/csv;charset=utf-8",
-    );
+    downloadFile("etiquettes-cables.csv", "﻿" + [header, ...lines].join("\n"), "text/csv;charset=utf-8");
   };
 
   const exportXls = () => {
-    const escape = (v: unknown) =>
-      String(v ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+    const escape = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const headerRow = COLUMNS.map((c) => `<th>${escape(c.label)}</th>`).join("");
-    const bodyRows = rows
-      .map(
-        (r) =>
-          "<tr>" +
-          COLUMNS.map((c) => `<td>${escape(cellValue(r, c.key))}</td>`).join("") +
-          "</tr>",
-      )
-      .join("");
+    const bodyRows  = rows.map((r) =>
+      "<tr>" + COLUMNS.map((c) => `<td>${escape(cellValue(r, c.key))}</td>`).join("") + "</tr>",
+    ).join("");
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8" /></head>
-<body><table border="1"><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table></body>
-</html>`;
+<body><table border="1"><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows}</tbody></table></body></html>`;
     downloadFile("etiquettes-cables.xls", html, "application/vnd.ms-excel");
   };
 
@@ -252,7 +219,7 @@ export function EtiquettesList() {
       </div>
       {!readOnly && detailed && (
         <p className="etiquettes-hint">
-          Double-clic sur une étiquette ou une longueur pour la modifier.
+          Double-clic sur une étiquette ou une longueur pour la modifier (synoptique actif uniquement).
         </p>
       )}
       <div className="etiquettes-table-wrap">
@@ -267,31 +234,40 @@ export function EtiquettesList() {
                 >
                   {c.label}
                   {sortKey === c.key && (
-                    <span className="sort-indicator">
-                      {sortDir === "asc" ? "▲" : "▼"}
-                    </span>
+                    <span className="sort-indicator">{sortDir === "asc" ? "▲" : "▼"}</span>
                   )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.number}</td>
-                {detailed && (
-                  <td className="etiquette-label-td">
-                    <LabelCell id={r.id} label={r.label} readOnly={readOnly} />
+            {rows.map((r) => {
+              const cellReadOnly = readOnly || !r.editable;
+              return (
+                <tr key={r.id} className={!r.editable ? "etiquette-row-other-tab" : ""}>
+                  <td>{r.number}</td>
+                  {detailed && (
+                    <td className="etiquette-label-td">
+                      <LabelCell id={r.id} label={r.label} readOnly={cellReadOnly} />
+                    </td>
+                  )}
+                  <td>
+                    <span
+                      className={`etiquette-tab-chip${r.editable ? " active" : ""}`}
+                      title={r.tabName}
+                    >
+                      {r.tabName}
+                    </span>
                   </td>
-                )}
-                <td>{r.cableType}</td>
-                {detailed && (
-                  <td className="right etiquette-len-td">
-                    <LengthCell id={r.id} length={r.lengthMeters} readOnly={readOnly} />
-                  </td>
-                )}
-              </tr>
-            ))}
+                  <td>{r.cableType}</td>
+                  {detailed && (
+                    <td className="right etiquette-len-td">
+                      <LengthCell id={r.id} length={r.lengthMeters} readOnly={cellReadOnly} />
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={COLUMNS.length} className="muted center">

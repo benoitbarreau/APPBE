@@ -1060,6 +1060,84 @@ select {
   font-size: 11px;
 }
 
+/* ── CableList / EtiquettesList — multi-synoptique ──────────────────────── */
+.cable-tab-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 2px;
+  margin-top: 4px;
+}
+.cable-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #e8ecf4;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.cable-tab-badge.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.cable-tab-hint {
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+}
+.cable-row-readonly {
+  opacity: 0.72;
+}
+.cable-row-readonly .cable-number {
+  opacity: 0.85;
+}
+.cable-ro {
+  display: inline-block;
+  padding: 4px 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Chip synoptique dans les tableaux étiquettes */
+.etiquette-tab-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #e8ecf4;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.etiquette-tab-chip.active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+/* Ligne appartenant à un autre synoptique */
+.etiquette-row-other-tab td {
+  background: #fafbfc;
+  color: #777;
+}
+.etiquettes-hint {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 10px;
+  margin: 0;
+}
+
 .etiquettes-list {
   display: flex;
   flex-direction: column;
