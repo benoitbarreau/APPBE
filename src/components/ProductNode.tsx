@@ -126,16 +126,26 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         )}
       </div>
       <div className="product-node-body">
-        <div className="port-col">
-          {inputs.map((p) => (
-            <PortRow key={p.id} port={p} side="in" nodeId={node.id} />
-          ))}
-        </div>
-        <div className="port-col port-col-out">
-          {outputs.map((p) => (
-            <PortRow key={p.id} port={p} side="out" nodeId={node.id} />
-          ))}
-        </div>
+        {buildPortRows(inputs, outputs).map((row, idx) =>
+          row.kind === "separator" ? (
+            <div key={`sep-${idx}`} className="port-pair-separator">
+              <hr className="port-separator" />
+            </div>
+          ) : (
+            <div key={row.key} className="port-pair-row">
+              <div className="port-half port-half-in">
+                {row.input && (
+                  <PortRow port={row.input} side="in" nodeId={node.id} />
+                )}
+              </div>
+              <div className="port-half port-half-out">
+                {row.output && (
+                  <PortRow port={row.output} side="out" nodeId={node.id} />
+                )}
+              </div>
+            </div>
+          ),
+        )}
       </div>
       {middle.length > 0 && (
         <div className="middle-rows">
@@ -269,4 +279,51 @@ function MiddlePortRow({
       />
     </div>
   );
+}
+
+/**
+ * Construit la liste de lignes à afficher dans le corps du bloc produit en
+ * appariant chaque entrée avec une sortie. Les séparateurs présents dans l'une
+ * ou l'autre des listes consomment une ligne complète (pleine largeur) et
+ * décalent vers le bas tout ce qui suit dans LES DEUX colonnes — cela permet
+ * d'obtenir une ligne de coupure visuelle nette.
+ *
+ * Quand un séparateur est présent au MÊME index dans les deux listes, il
+ * n'est dessiné qu'une seule fois.
+ */
+type PortPairRow =
+  | { kind: "pair"; key: string; input?: Port; output?: Port }
+  | { kind: "separator" };
+
+function buildPortRows(inputs: Port[], outputs: Port[]): PortPairRow[] {
+  const rows: PortPairRow[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < inputs.length || j < outputs.length) {
+    const inSep = inputs[i]?.kind === "separator";
+    const outSep = outputs[j]?.kind === "separator";
+    if (inSep && outSep) {
+      rows.push({ kind: "separator" });
+      i++;
+      j++;
+    } else if (inSep) {
+      rows.push({ kind: "separator" });
+      i++;
+    } else if (outSep) {
+      rows.push({ kind: "separator" });
+      j++;
+    } else {
+      const input  = i < inputs.length  ? inputs[i]  : undefined;
+      const output = j < outputs.length ? outputs[j] : undefined;
+      rows.push({
+        kind: "pair",
+        key: `${input?.id ?? "_"}:${output?.id ?? "_"}:${i}:${j}`,
+        input,
+        output,
+      });
+      if (i < inputs.length)  i++;
+      if (j < outputs.length) j++;
+    }
+  }
+  return rows;
 }

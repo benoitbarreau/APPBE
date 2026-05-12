@@ -74,16 +74,26 @@ export function ProductPreview({
         </div>
       </div>
       <div className="product-node-body">
-        <div className="port-col">
-          {inputs.map((p) => (
-            <PreviewRow key={p.id} port={p} side="in" dotStyle={dotStyle} signals={signals} />
-          ))}
-        </div>
-        <div className="port-col port-col-out">
-          {outputs.map((p) => (
-            <PreviewRow key={p.id} port={p} side="out" dotStyle={dotStyle} signals={signals} />
-          ))}
-        </div>
+        {buildPortRows(inputs, outputs).map((row, idx) =>
+          row.kind === "separator" ? (
+            <div key={`sep-${idx}`} className="port-pair-separator">
+              <hr className="port-separator" />
+            </div>
+          ) : (
+            <div key={row.key} className="port-pair-row">
+              <div className="port-half port-half-in">
+                {row.input && (
+                  <PreviewRow port={row.input} side="in" dotStyle={dotStyle} signals={signals} />
+                )}
+              </div>
+              <div className="port-half port-half-out">
+                {row.output && (
+                  <PreviewRow port={row.output} side="out" dotStyle={dotStyle} signals={signals} />
+                )}
+              </div>
+            </div>
+          ),
+        )}
       </div>
       {middle.length > 0 && (
         <div className="middle-rows">
@@ -135,4 +145,43 @@ function PreviewRow({
       <span className="port-label">{port.label}</span>
     </div>
   );
+}
+
+/** Apparie chaque entrée avec une sortie ; les séparateurs consomment une
+ *  ligne pleine largeur. Cf. ProductNode pour la spec détaillée. */
+type PortPairRow =
+  | { kind: "pair"; key: string; input?: Port; output?: Port }
+  | { kind: "separator" };
+
+function buildPortRows(inputs: Port[], outputs: Port[]): PortPairRow[] {
+  const rows: PortPairRow[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < inputs.length || j < outputs.length) {
+    const inSep = inputs[i]?.kind === "separator";
+    const outSep = outputs[j]?.kind === "separator";
+    if (inSep && outSep) {
+      rows.push({ kind: "separator" });
+      i++;
+      j++;
+    } else if (inSep) {
+      rows.push({ kind: "separator" });
+      i++;
+    } else if (outSep) {
+      rows.push({ kind: "separator" });
+      j++;
+    } else {
+      const input  = i < inputs.length  ? inputs[i]  : undefined;
+      const output = j < outputs.length ? outputs[j] : undefined;
+      rows.push({
+        kind: "pair",
+        key: `${input?.id ?? "_"}:${output?.id ?? "_"}:${i}:${j}`,
+        input,
+        output,
+      });
+      if (i < inputs.length)  i++;
+      if (j < outputs.length) j++;
+    }
+  }
+  return rows;
 }

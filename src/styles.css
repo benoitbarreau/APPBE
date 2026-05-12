@@ -1527,16 +1527,43 @@ select {
 }
 .product-node-body {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 3px 0;
-  gap: 6px;
+  gap: 1px;
 }
+/* Conservé pour compatibilité (utilisé par d'autres composants si besoin) */
 .port-col {
   display: flex;
   flex-direction: column;
   gap: 1px;
   flex: 1;
   min-width: 0;
+}
+/* Nouvelle structure : chaque « ligne » du bloc contient une entrée à gauche
+   et une sortie à droite côte à côte. Les séparateurs s'intercalent au niveau
+   du corps et couvrent toute la largeur du bloc. */
+.port-pair-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.port-half {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.port-half-in {
+  align-items: stretch;
+}
+.port-half-out {
+  align-items: stretch;
+}
+.port-pair-separator {
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  min-height: 12px;
 }
 .port-row {
   position: relative;

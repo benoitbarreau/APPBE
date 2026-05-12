@@ -108,18 +108,22 @@ export function ProductEditor({
     });
   };
 
-  /** Ajoute un séparateur (ligne pointillée pleine largeur). Milieu uniquement. */
-  const addSeparator = () => {
+  /** Ajoute un séparateur (ligne pointillée pleine largeur).
+   *  Disponible dans les trois sections — quel que soit l'endroit où il est
+   *  inséré, il s'affiche sur toute la largeur du bloc produit. */
+  const addSeparator = (side: PortListKey) => {
     setDraft((d) => {
-      const list = getList(d, "middle");
+      const list = getList(d, side);
+      const direction: PortDirection =
+        side === "inputs" ? "in" : side === "outputs" ? "out" : "bi";
       const separator: Port = {
-        id: `separator-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `separator-${side}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         label: "",
         signal: "",
-        direction: "bi",
+        direction,
         kind: "separator",
       };
-      return { ...d, middle: [...list, separator] };
+      return { ...d, [side]: [...list, separator] };
     });
   };
 
@@ -136,9 +140,6 @@ export function ProductEditor({
       const fromList = getList(d, from);
       const port = fromList[idx];
       if (!port) return d;
-      // Séparateurs : réservés au milieu, on ignore tout déplacement vers
-      // entrées/sorties.
-      if (port.kind === "separator" && to !== "middle") return d;
       const newDirection: PortDirection =
         to === "inputs" ? "in" : to === "outputs" ? "out" : "bi";
       const moved: Port = { ...port, direction: newDirection };
@@ -430,6 +431,7 @@ export function ProductEditor({
             section="inputs"
             onAdd={() => addPort("inputs")}
             onAddSpacer={() => addSpacer("inputs")}
+            onAddSeparator={() => addSeparator("inputs")}
             onChange={(i, patch) => setPort("inputs", i, patch)}
             onRemove={(i) => removePort("inputs", i)}
             onDuplicate={(i) => duplicatePort("inputs", i)}
@@ -443,6 +445,7 @@ export function ProductEditor({
             section="outputs"
             onAdd={() => addPort("outputs")}
             onAddSpacer={() => addSpacer("outputs")}
+            onAddSeparator={() => addSeparator("outputs")}
             onChange={(i, patch) => setPort("outputs", i, patch)}
             onRemove={(i) => removePort("outputs", i)}
             onDuplicate={(i) => duplicatePort("outputs", i)}
@@ -456,7 +459,7 @@ export function ProductEditor({
             section="middle"
             onAdd={() => addPort("middle")}
             onAddSpacer={() => addSpacer("middle")}
-            onAddSeparator={addSeparator}
+            onAddSeparator={() => addSeparator("middle")}
             onChange={(i, patch) => setPort("middle", i, patch)}
             onRemove={(i) => removePort("middle", i)}
             onDuplicate={(i) => duplicatePort("middle", i)}
@@ -648,22 +651,18 @@ function PortsEditor({
                 <span className="port-decorative-label">
                   {isSpacer ? "— Espace —" : "— Séparateur —"}
                 </span>
-                {/* Pour un espace : possibilité de changer de section (réordonner globalement).
-                    Pour un séparateur : verrouillé en milieu uniquement. */}
-                {isSpacer && (
-                  <select
-                    value={section}
-                    title="Déplacer dans une autre section"
-                    onChange={(e) => onMove(i, e.target.value as PortListKey)}
-                    className="port-section-select"
-                  >
-                    {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
-                      <option key={s} value={s}>
-                        {SECTION_LABELS[s]}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <select
+                  value={section}
+                  title="Déplacer dans une autre section"
+                  onChange={(e) => onMove(i, e.target.value as PortListKey)}
+                  className="port-section-select"
+                >
+                  {(Object.keys(SECTION_LABELS) as PortListKey[]).map((s) => (
+                    <option key={s} value={s}>
+                      {SECTION_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
                 <button onClick={() => onRemove(i)} title="Supprimer">
                   ✕
                 </button>
