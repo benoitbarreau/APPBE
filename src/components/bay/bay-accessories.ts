@@ -9,6 +9,8 @@ export interface BayAccessory {
   heightU: number;
   widthCols: 1 | 2 | 4;
   color?: string;
+  /** Logo affiché en haut à droite dans le visuel rack (data URL base64 ou URL). */
+  logoUrl?: string;
 }
 
 export const BAY_ACCESSORIES: BayAccessory[] = [

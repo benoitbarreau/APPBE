@@ -310,6 +310,15 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
       onDragEnd={onDragEnd}
       title={`${item.manufacturer ?? ""} ${item.reference ?? ""} — U${item.uStart} (${item.heightU}U)`}
     >
+      {/* Logo en haut à droite */}
+      {item.logoUrl && (
+        <img
+          src={item.logoUrl}
+          alt=""
+          className="rack-item-logo"
+          draggable={false}
+        />
+      )}
       <div className="rack-item-inner">
         <div className="rack-item-name">
           {item.label || item.reference || "—"}

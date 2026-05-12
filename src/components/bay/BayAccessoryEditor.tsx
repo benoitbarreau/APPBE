@@ -20,6 +20,7 @@ export function BayAccessoryEditor({ initial, onSave, onCancel, onDelete }: BayA
     heightU: initial?.heightU ?? 1,
     widthCols: initial?.widthCols ?? 4,
     color: initial?.color ?? "#3a3d44",
+    logoUrl: initial?.logoUrl,
   });
 
   useEffect(() => {
@@ -113,6 +114,39 @@ export function BayAccessoryEditor({ initial, onSave, onCancel, onDelete }: BayA
             value={form.color ?? "#3a3d44"}
             onChange={(e) => patch("color", e.target.value)}
           />
+        </div>
+
+        <div className="bay-prop-group">
+          <label>Logo (PNG affiché en haut à droite)</label>
+          <div className="bay-acc-logo-row">
+            {form.logoUrl && (
+              <img src={form.logoUrl} alt="logo" className="bay-acc-logo-preview" />
+            )}
+            <label className="bay-acc-logo-file-btn">
+              {form.logoUrl ? "Changer…" : "Choisir un fichier…"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => patch("logoUrl", ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {form.logoUrl && (
+              <button
+                type="button"
+                className="bay-acc-logo-clear"
+                title="Supprimer le logo"
+                onClick={() => patch("logoUrl", undefined)}
+              >✕</button>
+            )}
+          </div>
         </div>
 
         <div className="bay-acc-editor-actions">

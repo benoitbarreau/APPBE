@@ -155,6 +155,8 @@ export interface RackItem {
   color?: string
   locked?: boolean
   annotations?: RackAnnotations
+  /** Logo affiché en haut à droite dans le visuel rack (data URL base64 ou URL). */
+  logoUrl?: string
 }
 
 /** Un onglet au sein d'un projet. Type discriminé par `kind`.

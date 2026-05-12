@@ -283,6 +283,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
                   widthCols: acc.widthCols,
                   colStart: 0,
                   color: acc.color,
+                  logoUrl: acc.logoUrl,
                 };
                 return (
                   <div
