@@ -25,6 +25,8 @@ const DEFAULT_ZONES: Zone[] = [
   { id: "regie", label: "Régie", color: "#3D8AFF" },
 ];
 import { BUILTIN_CATALOG } from "./catalog";
+import type { BayAccessory } from "./components/bay/bay-accessories";
+import { BAY_ACCESSORIES } from "./components/bay/bay-accessories";
 
 const DEFAULT_PROJECT_META: ProjectMeta = {
   campus: "",
@@ -44,6 +46,11 @@ const DEFAULT_PROJECT_META: ProjectMeta = {
 
 interface State {
   products: Product[];
+  // ── Accessoires baie (éditables) ──────────────────────────────────────
+  accessories: BayAccessory[];
+  addBayAccessory: (acc: Omit<BayAccessory, "id">) => void;
+  updateBayAccessory: (id: string, patch: Partial<Omit<BayAccessory, "id">>) => void;
+  removeBayAccessory: (id: string) => void;
   // ── Onglets ────────────────────────────────────────────────────────────
   tabs: Tab[];
   activeTabId: string;
@@ -272,6 +279,19 @@ export const useAppStore = create<State>()(
 
       return {
         products: BUILTIN_CATALOG,
+        accessories: [...BAY_ACCESSORIES],
+
+        addBayAccessory: (acc) =>
+          set((s) => ({ accessories: [...s.accessories, { ...acc, id: `acc-${uid()}` }] })),
+
+        updateBayAccessory: (id, patch) =>
+          set((s) => ({
+            accessories: s.accessories.map((a) => a.id === id ? { ...a, ...patch } : a),
+          })),
+
+        removeBayAccessory: (id) =>
+          set((s) => ({ accessories: s.accessories.filter((a) => a.id !== id) })),
+
         tabs: [firstTab],
         activeTabId: firstTab.id,
         nodes: [],

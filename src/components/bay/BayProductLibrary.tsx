@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useAppStore } from "../../store";
 import type { RackItem } from "../../types";
 import { isBayTab, isSynopticTab } from "../../types";
-import { BAY_ACCESSORIES } from "./bay-accessories";
+import type { BayAccessory } from "./bay-accessories";
+import { BayAccessoryEditor } from "./BayAccessoryEditor";
 
 interface BayProductLibraryProps {
   tabId: string;
@@ -37,9 +38,14 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
   const [libTab, setLibTab] = useState<LibTab>("synoptic");
   const [search, setSearch] = useState("");
   const [warnMsg, setWarnMsg] = useState<string | null>(null);
+  const [editingAcc, setEditingAcc] = useState<BayAccessory | null | "new">(null);
   const products = useAppStore((s) => s.products);
   const tabs = useAppStore((s) => s.tabs);
   const addRackItem = useAppStore((s) => s.addRackItem);
+  const accessories = useAppStore((s) => s.accessories);
+  const addBayAccessory = useAppStore((s) => s.addBayAccessory);
+  const updateBayAccessory = useAppStore((s) => s.updateBayAccessory);
+  const removeBayAccessory = useAppStore((s) => s.removeBayAccessory);
 
   // nodeIds déjà présents dans N'IMPORTE QUELLE baie → Map<nodeId, nomDeLaBaie>
   const alreadyInRack = useMemo(() => {
@@ -108,7 +114,7 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
     p.category.toLowerCase().includes(q),
   );
 
-  const filteredAccessories = BAY_ACCESSORIES.filter((a) =>
+  const filteredAccessories = accessories.filter((a) =>
     !q ||
     a.label.toLowerCase().includes(q) ||
     a.category.toLowerCase().includes(q) ||
@@ -252,40 +258,82 @@ export function BayProductLibrary({ tabId }: BayProductLibraryProps) {
 
         {/* ── Onglet Accessoires ────────────────────────────────────────── */}
         {libTab === "accessories" && (
-          filteredAccessories.length === 0 ? (
-            <div className="bay-lib-empty">Aucun résultat.</div>
-          ) : (
-            filteredAccessories.map((acc) => {
-              const item: Omit<RackItem, "id" | "uStart"> = {
-                sourceType: "accessory",
-                productId: acc.id,
-                manufacturer: acc.manufacturer,
-                reference: acc.reference,
-                category: acc.category,
-                label: acc.label,
-                heightU: acc.heightU,
-                widthCols: acc.widthCols,
-                colStart: 0,
-                color: acc.color,
-              };
-              return (
-                <div
-                  key={acc.id}
-                  className="bay-lib-item"
-                  draggable
-                  onDragStart={() => handleDragStart(item)}
-                  onDragEnd={clearDragItem}
-                  onClick={() => quickAdd(item)}
-                  title={`${acc.label} — ${acc.heightU}U — Cliquer pour ajouter`}
-                >
-                  <span className="bay-lib-item-label">{acc.label}</span>
-                  <span className="bay-lib-item-sub">{acc.category} · {acc.heightU}U</span>
-                </div>
-              );
-            })
-          )
+          <>
+            {/* Bouton ajouter */}
+            <div className="bay-lib-acc-toolbar">
+              <button className="bay-lib-acc-add-btn" onClick={() => setEditingAcc("new")}>
+                + Ajouter
+              </button>
+            </div>
+
+            {filteredAccessories.length === 0 ? (
+              <div className="bay-lib-empty">
+                {search ? "Aucun résultat." : "Aucun accessoire. Cliquez sur + Ajouter."}
+              </div>
+            ) : (
+              filteredAccessories.map((acc) => {
+                const item: Omit<RackItem, "id" | "uStart"> = {
+                  sourceType: "accessory",
+                  productId: acc.id,
+                  manufacturer: acc.manufacturer,
+                  reference: acc.reference,
+                  category: acc.category,
+                  label: acc.label,
+                  heightU: acc.heightU,
+                  widthCols: acc.widthCols,
+                  colStart: 0,
+                  color: acc.color,
+                };
+                return (
+                  <div
+                    key={acc.id}
+                    className="bay-lib-item bay-lib-item-acc"
+                    draggable
+                    onDragStart={() => handleDragStart(item)}
+                    onDragEnd={clearDragItem}
+                    onClick={() => quickAdd(item)}
+                    title={`${acc.label} — ${acc.heightU}U — Cliquer pour ajouter`}
+                  >
+                    <div className="bay-lib-item-acc-row">
+                      <span className="bay-lib-item-label">{acc.label}</span>
+                      <div className="bay-lib-item-acc-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="bay-lib-acc-btn"
+                          title="Modifier"
+                          onClick={() => setEditingAcc(acc)}
+                        >✏</button>
+                        <button
+                          className="bay-lib-acc-btn bay-lib-acc-btn-del"
+                          title="Supprimer"
+                          onClick={() => removeBayAccessory(acc.id)}
+                        >×</button>
+                      </div>
+                    </div>
+                    <span className="bay-lib-item-sub">{acc.category} · {acc.heightU}U</span>
+                  </div>
+                );
+              })
+            )}
+          </>
         )}
       </div>
+
+      {/* Modal édition / création d'accessoire */}
+      {editingAcc !== null && (
+        <BayAccessoryEditor
+          initial={editingAcc === "new" ? undefined : editingAcc}
+          onSave={(data) => {
+            if (editingAcc === "new") addBayAccessory(data);
+            else updateBayAccessory(editingAcc.id, data);
+            setEditingAcc(null);
+          }}
+          onCancel={() => setEditingAcc(null)}
+          onDelete={editingAcc !== "new" ? () => {
+            removeBayAccessory(editingAcc.id);
+            setEditingAcc(null);
+          } : undefined}
+        />
+      )}
     </div>
   );
 }

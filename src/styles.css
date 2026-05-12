@@ -4253,6 +4253,94 @@ select {
   text-align: center;
 }
 
+/* Toolbar accessoires (bouton + Ajouter) */
+.bay-lib-acc-toolbar {
+  padding: 6px 10px 2px;
+  flex-shrink: 0;
+}
+.bay-lib-acc-add-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px dashed var(--primary);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+}
+.bay-lib-acc-add-btn:hover {
+  background: #eef3ff;
+}
+
+/* Ligne accessoire avec boutons d'action */
+.bay-lib-item-acc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bay-lib-item-acc-row .bay-lib-item-label {
+  flex: 1;
+  min-width: 0;
+}
+.bay-lib-item-acc-actions {
+  display: none;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.bay-lib-item-acc:hover .bay-lib-item-acc-actions {
+  display: flex;
+}
+.bay-lib-acc-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--muted);
+  line-height: 1;
+}
+.bay-lib-acc-btn:hover {
+  background: rgba(0,0,0,0.08);
+  color: var(--text);
+}
+.bay-lib-acc-btn-del:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Bouton Enregistrer dans le modal accessoire */
+.bay-acc-editor-actions {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+.bay-acc-save-btn {
+  flex: 1;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.bay-acc-save-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.bay-acc-save-btn:not(:disabled):hover {
+  opacity: 0.88;
+}
+.bay-acc-delete-btn {
+  flex: 1;
+}
+
 /* ── Center (rack view area) ─────────────────────────────────────────────── */
 
 .bay-center {
