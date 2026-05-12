@@ -4049,6 +4049,9 @@ select {
   background: #e8f0fe;
   border-style: solid;
 }
+.ip-sync-row-btn {
+  margin-left: 8px;
+}
 
 /* Modale d'export Tableau IP */
 .ip-export-columns {

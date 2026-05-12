@@ -379,7 +379,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 </td>
               </tr>
             )}
-            {/* Pied de tableau : bouton « + Ligne » sous la dernière ligne, à gauche */}
+            {/* Pied de tableau : boutons « + Ligne » et « ⟳ Synchroniser » */}
             {!readOnly && (
               <tr className="ip-add-row-tr">
                 <td colSpan={COLUMNS.length + 1} className="ip-add-row-cell">
@@ -389,6 +389,13 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                     title="Ajouter une ligne manuelle"
                   >
                     + Ligne
+                  </button>
+                  <button
+                    className="ip-add-row-btn ip-sync-row-btn"
+                    onClick={() => syncIPTable(tabId)}
+                    title="Recharger depuis les synoptiques"
+                  >
+                    ⟳ Synchroniser
                   </button>
                 </td>
               </tr>
