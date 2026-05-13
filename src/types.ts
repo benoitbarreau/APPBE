@@ -246,21 +246,27 @@ export interface SignalDef {
   numberPrefix: string;
 }
 
+/**
+ * Légende des types de câbles utilisée par défaut pour un nouveau projet.
+ *
+ * L'ORDRE des entrées est significatif : il détermine l'ordre d'affichage
+ * dans le panneau Légende. ES2015+ préserve l'ordre d'insertion des clés
+ * string dans un objet.
+ *
+ * Modifier cette liste impacte uniquement les NOUVEAUX projets (et les
+ * utilisateurs sans signal personnalisé). Pour qu'un utilisateur existant
+ * retrouve cette liste, il doit utiliser le bouton « Réinitialiser la
+ * légende » dans le panneau Légende.
+ */
 export const DEFAULT_SIGNAL_DEFS: Record<string, SignalDef> = {
-  HDMI: { id: "HDMI", label: "HDMI / DP", color: "#8B4FBA", defaultCable: "HDMI 2.0", numberPrefix: "HDMI" },
-  RJ45: { id: "RJ45", label: "RJ45 / IP", color: "#7FC97F", defaultCable: "RJ45 Cat6", numberPrefix: "IP" },
-  USB: { id: "USB", label: "USB", color: "#A0522D", defaultCable: "USB 2.0 A/A", numberPrefix: "USB" },
-  "USB-C": { id: "USB-C", label: "USB-C", color: "#A0522D", defaultCable: "USB-C 3.0", numberPrefix: "USBC" },
-  RS232: { id: "RS232", label: "RS232", color: "#00BFD8", defaultCable: "RS232 DB9", numberPrefix: "COM" },
-  DTP: { id: "DTP", label: "DTP / XTP / HDBaseT", color: "#5BC0EB", defaultCable: "STP22-2", numberPrefix: "DTP" },
-  EBUS: { id: "EBUS", label: "eBUS / Cresnet", color: "#1F4E96", defaultCable: "STP22-2", numberPrefix: "EB" },
-  AUDIO: { id: "AUDIO", label: "Audio", color: "#F5C432", defaultCable: "Mini-Jack 3.5", numberPrefix: "AU" },
-  HP: { id: "HP", label: "HP", color: "#E63946", defaultCable: "HP 2x2.5mm²", numberPrefix: "HP" },
-  DANTE: { id: "DANTE", label: "Dante", color: "#7FC97F", defaultCable: "RJ45 Cat6 Dante", numberPrefix: "DA" },
-  POE: { id: "POE", label: "PoE", color: "#7FC97F", defaultCable: "RJ45 Cat6 PoE+", numberPrefix: "POE" },
-  POWER: { id: "POWER", label: "Secteur", color: "#000000", defaultCable: "Cordon secteur", numberPrefix: "P" },
-  DP: { id: "DP", label: "DisplayPort", color: "#8B4FBA", defaultCable: "DisplayPort", numberPrefix: "DP" },
-  JACK: { id: "JACK", label: "Jack", color: "#F5C432", defaultCable: "Mini-Jack 3.5", numberPrefix: "JK" },
-  XLR: { id: "XLR", label: "XLR", color: "#F5C432", defaultCable: "XLR 3 broches", numberPrefix: "XLR" },
-  FIBER: { id: "FIBER", label: "Fibre", color: "#FF6F00", defaultCable: "Fibre OM4", numberPrefix: "FB" },
+  HDMI:  { id: "HDMI",  label: "HDMI",                color: "#8B4FBA", defaultCable: "HDMI",           numberPrefix: "HDMI" },
+  RJ45:  { id: "RJ45",  label: "RJ45 / IP",           color: "#934d2f", defaultCable: "RJ45",           numberPrefix: "IP" },
+  USB:   { id: "USB",   label: "USB",                 color: "#66d95e", defaultCable: "USB",            numberPrefix: "USB" },
+  RS232: { id: "RS232", label: "RS232",               color: "#00BFD8", defaultCable: "RS232 DB9",      numberPrefix: "COM" },
+  DTP:   { id: "DTP",   label: "DTP/XTP/HDBaseT",     color: "#000000", defaultCable: "DTP",            numberPrefix: "DTP" },
+  EBUS:  { id: "EBUS",  label: "eBUS/Cresnet",        color: "#1F4E96", defaultCable: "STP22-2",        numberPrefix: "EB" },
+  AUDIO: { id: "AUDIO", label: "Audio",               color: "#F5C432", defaultCable: "Audio",          numberPrefix: "AU" },
+  HP:    { id: "HP",    label: "HP",                  color: "#E63946", defaultCable: "HP",             numberPrefix: "HP" },
+  POWER: { id: "POWER", label: "Secteur",             color: "#6B7280", defaultCable: "Cordon secteur", numberPrefix: "P" },
+  FIBER: { id: "FIBER", label: "SFP/Fibre",           color: "#FF6F00", defaultCable: "Fibre",          numberPrefix: "FB" },
 };

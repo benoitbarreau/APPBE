@@ -150,6 +150,10 @@ interface State {
 
   upsertSignal: (def: SignalDef) => void;
   removeSignal: (id: string) => void;
+  /** Réinitialise la légende des types de câbles à la liste par défaut.
+   *  Remplace intégralement `signals` par DEFAULT_SIGNAL_DEFS. La sync cloud
+   *  (suppression des entrées user_signals) est gérée par l'appelant. */
+  resetSignalsToDefaults: () => void;
 
   upsertZone: (z: Zone) => void;
   removeZone: (id: string) => void;
@@ -987,6 +991,8 @@ export const useAppStore = create<State>()(
             delete next[id];
             return { signals: next };
           }),
+        resetSignalsToDefaults: () =>
+          set(() => ({ signals: { ...DEFAULT_SIGNAL_DEFS } })),
 
         upsertZone: (z) =>
           set((s) => {
