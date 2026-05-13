@@ -58,12 +58,18 @@ function LabelCell({
     if (draft !== label) updateNode(id, { label: draft });
   };
 
+  // Largeur de l'input calée sur le contenu (en `ch`) avec un minimum pour
+  // les labels courts ou vides. Évite l'espace blanc à droite dû à la
+  // largeur intrinsèque par défaut d'un <input>.
+  const width = `${Math.max(draft.length, 4) + 1}ch`;
+
   return (
     <input
       className="product-label-input"
       value={draft}
       placeholder="—"
       readOnly={readOnly}
+      style={{ width }}
       onChange={(e) => setDraft(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={commit}
