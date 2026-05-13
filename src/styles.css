@@ -3219,6 +3219,32 @@ select {
   margin-bottom: 4px;
 }
 
+/* ── Intervention admin sur le projet d'un autre utilisateur ────────────── */
+
+/* Bordure bleue distinctive sur la carte */
+.project-card-admin {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary) inset;
+}
+
+/* Chip "Admin" — contour fin avec icône, à côté du nom du créateur */
+.project-admin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--primary);
+  background: transparent;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  padding: 1px 7px;
+  vertical-align: middle;
+  user-select: none;
+}
+
 /* ── Colonne versions (droite) ──────────────────────────────────────────── */
 .project-card-versions {
   display: flex;

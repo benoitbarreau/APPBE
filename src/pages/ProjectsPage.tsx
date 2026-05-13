@@ -65,8 +65,23 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     }
   }, [showNewDialog])
 
+  const isAdmin = profile?.role === 'admin'
+
   /** Vrai si le projet appartient à l'utilisateur connecté */
   const isOwned = (p: ProjectRow) => p.user_id === profile?.id
+
+  /** Vrai si l'utilisateur peut gérer (archiver, supprimer, partager) le projet.
+   *  L'admin peut gérer tous les projets ; les utilisateurs standards
+   *  uniquement les leurs. */
+  const canManage = (p: ProjectRow) => isOwned(p) || isAdmin
+
+  /** Vrai si l'utilisateur intervient en tant qu'admin sur le projet d'un autre
+   *  (≠ projet partagé via le module Partage). Utilisé pour décorer la carte. */
+  const isAdminIntervention = (p: ProjectRow) => !isOwned(p) && isAdmin
+
+  /** Libellé propriétaire pour la confirmation et l'affichage */
+  const ownerLabel = (p: ProjectRow) =>
+    p.profiles?.full_name?.trim() || p.profiles?.email || 'un autre utilisateur'
 
   const handleOpen = async (row: ProjectRow) => {
     setLoadingId(row.id)
@@ -121,13 +136,17 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce projet définitivement ? Cette action est irréversible.')) return
-    setDeletingId(id)
+  const handleDelete = async (p: ProjectRow) => {
+    // Confirmation enrichie quand un admin agit sur le projet d'un autre user
+    const msg = isAdminIntervention(p)
+      ? `⚠ Action admin\n\nSupprimer DÉFINITIVEMENT le projet « ${p.name} » de ${ownerLabel(p)} ?\n\nCette action est irréversible et le propriétaire n'en sera pas averti.`
+      : `Supprimer le projet « ${p.name} » définitivement ? Cette action est irréversible.`
+    if (!confirm(msg)) return
+    setDeletingId(p.id)
     setError(null)
     try {
-      await deleteProject(id)
-      setProjects(p => p.filter(x => x.id !== id))
+      await deleteProject(p.id)
+      setProjects(prev => prev.filter(x => x.id !== p.id))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur lors de la suppression')
     } finally {
@@ -136,8 +155,12 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   }
 
   const handleArchive = async (p: ProjectRow) => {
+    const verb = p.archived ? 'Désarchiver' : 'Archiver'
     const action = p.archived ? 'désarchiver' : 'archiver'
-    if (!confirm(`${p.archived ? 'Désarchiver' : 'Archiver'} le projet "${p.name}" ?`)) return
+    const msg = isAdminIntervention(p)
+      ? `⚠ Action admin\n\n${verb} le projet « ${p.name} » de ${ownerLabel(p)} ?`
+      : `${verb} le projet « ${p.name} » ?`
+    if (!confirm(msg)) return
     setArchivingId(p.id)
     try {
       await setProjectArchived(p.id, !p.archived)
@@ -269,9 +292,16 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
           {filteredProjects.length > 0 && (
             <div className="projects-grid">
               {filteredProjects.map(p => {
-                const owned = isOwned(p)
+                const owned       = isOwned(p)
+                const manage      = canManage(p)
+                const adminMode   = isAdminIntervention(p)
+                const cardClass   = adminMode
+                  ? 'project-card project-card-admin'
+                  : owned
+                    ? 'project-card'
+                    : 'project-card project-card-shared'
                 return (
-                  <div key={p.id} className={`project-card${owned ? '' : ' project-card-shared'}`}>
+                  <div key={p.id} className={cardClass}>
                     {/* ── Contenu principal ── */}
                     <div className="project-card-main">
                       <div className="project-card-body">
@@ -284,16 +314,27 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                           </div>
                         )}
                         <div className="project-card-name" title={p.name}>{p.name}</div>
-                        {profile?.role === 'admin' && p.profiles && (
-                          <div className="project-card-owner">{p.profiles.full_name ?? p.profiles.email}</div>
+                        {/* Affichage du créateur :
+                            - admin sur projet d'un autre : nom + chip "Admin"
+                            - non-admin sur projet partagé : "Par <nom>"
+                            - admin sur son propre projet : rien (c'est lui)
+                            - non-admin sur son propre projet : rien */}
+                        {adminMode && p.profiles && (
+                          <div className="project-card-owner">
+                            Créé par {p.profiles.full_name ?? p.profiles.email}
+                            <span className="project-admin-chip" title="Vous intervenez en tant qu'administrateur sur ce projet">
+                              🛡 Admin
+                            </span>
+                          </div>
                         )}
-                        {!owned && p.profiles && (
+                        {!owned && !adminMode && p.profiles && (
                           <div className="project-card-owner">Par {p.profiles.full_name ?? p.profiles.email}</div>
                         )}
                         <div className="project-card-date">Modifié le {fmt(p.updated_at)}</div>
                       </div>
-                      {/* 3 boutons secondaires sur toute la largeur gauche */}
-                      {owned && (
+                      {/* Boutons d'action — visibles dès que l'utilisateur peut gérer.
+                          L'admin voit donc ces boutons sur les projets d'autres utilisateurs. */}
+                      {manage && (
                         <div className="project-card-actions">
                           {!p.archived && (
                             <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
@@ -308,7 +349,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
                           >
                             {archivingId === p.id ? '…' : p.archived ? 'Désarchiver' : 'Archiver'}
                           </button>
-                          <button className="danger" onClick={() => void handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer ce projet">
+                          <button className="danger" onClick={() => void handleDelete(p)} disabled={deletingId === p.id} title="Supprimer ce projet">
                             {deletingId === p.id ? '…' : '🗑'}
                           </button>
                         </div>
@@ -317,7 +358,9 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
 
                     {/* ── Colonne droite : versions + Ouvrir en bas ── */}
                     <div className="project-card-versions">
-                      {!owned && <span className="project-shared-badge">PARTAGÉ</span>}
+                      {/* Badge "PARTAGÉ" uniquement pour les vrais partages
+                          (non-admin recevant un projet d'un autre via le module Partage). */}
+                      {!owned && !adminMode && <span className="project-shared-badge">PARTAGÉ</span>}
 
                       {/* Versions archivées */}
                       {!p.archived && (p.versions_meta ?? []).map((vm) => (
