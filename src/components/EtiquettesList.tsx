@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
 import { isSynopticTab } from "../types";
 
@@ -118,12 +118,28 @@ export function EtiquettesList() {
   const tabs         = useAppStore((s) => s.tabs);
   const activeTabId  = useAppStore((s) => s.activeTabId);
   const activeCables = useAppStore((s) => s.cables);
-  const readOnly     = useEditorState((s) => s.readOnly);
-  const cableView    = useEditorState((s) => s.cableView);
-  const setCableView = useEditorState((s) => s.setCableView);
-  const detailed     = cableView === "detailed";
+  const readOnly             = useEditorState((s) => s.readOnly);
+  const cableView            = useEditorState((s) => s.cableView);
+  const setCableView         = useEditorState((s) => s.setCableView);
+  const cableLabelsHidden    = useEditorState((s) => s.cableLabelsHidden);
+  const setCableLabelsHidden = useEditorState((s) => s.setCableLabelsHidden);
+  const detailed             = cableView === "detailed";
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fermeture du menu Export au clic extérieur
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
 
   const COLUMNS = detailed ? COLUMNS_DETAIL : COLUMNS_SIMPLE;
 
@@ -201,11 +217,23 @@ export function EtiquettesList() {
     downloadFile("etiquettes-cables.xls", html, "application/vnd.ms-excel");
   };
 
+  const handleExportCsv = () => { setExportMenuOpen(false); exportCsv(); };
+  const handleExportXls = () => { setExportMenuOpen(false); exportXls(); };
+
   return (
     <div className="etiquettes-list">
       <div className="etiquettes-header">
         <h3>Etiquettes câbles ({rows.length})</h3>
         <div className="etiquettes-actions">
+          <button
+            className={`etiquettes-hide-toggle${cableLabelsHidden ? " active" : ""}`}
+            onClick={() => setCableLabelsHidden(!cableLabelsHidden)}
+            title={cableLabelsHidden
+              ? "Afficher les blocs textes sur les câbles dans les synoptiques"
+              : "Masquer les blocs textes sur les câbles dans les synoptiques"}
+          >
+            {cableLabelsHidden ? "Affiché" : "Masquer"}
+          </button>
           <button
             className={`etiquettes-view-toggle${detailed ? " active" : ""}`}
             onClick={() => setCableView(detailed ? "simple" : "detailed")}
@@ -213,8 +241,21 @@ export function EtiquettesList() {
           >
             {detailed ? "Vue simple" : "Vue détaillée"}
           </button>
-          <button onClick={exportCsv} disabled={!rows.length}>CSV</button>
-          <button onClick={exportXls} disabled={!rows.length}>XLS</button>
+          <div className="etiquettes-export-menu" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={!rows.length}
+              title="Exporter la liste des étiquettes"
+            >
+              Export ▾
+            </button>
+            {exportMenuOpen && (
+              <div className="etiquettes-export-dropdown">
+                <button onClick={handleExportCsv}>CSV</button>
+                <button onClick={handleExportXls}>XLS (Excel)</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {!readOnly && detailed && (

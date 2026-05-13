@@ -1493,6 +1493,11 @@ interface EditorState {
   setReadOnly: (v: boolean) => void;
   cableView: "simple" | "detailed";
   setCableView: (v: "simple" | "detailed") => void;
+  /** Masque les blocs textes (type, longueur, étiquette) sur tous les câbles
+   *  de tous les synoptiques. État visuel uniquement, non persisté : revient
+   *  à false au rechargement. */
+  cableLabelsHidden: boolean;
+  setCableLabelsHidden: (v: boolean) => void;
 }
 
 export const useEditorState = create<EditorState>()((set) => ({
@@ -1500,4 +1505,6 @@ export const useEditorState = create<EditorState>()((set) => ({
   setReadOnly: (readOnly) => set({ readOnly }),
   cableView: "detailed",
   setCableView: (cableView) => set({ cableView }),
+  cableLabelsHidden: false,
+  setCableLabelsHidden: (cableLabelsHidden) => set({ cableLabelsHidden }),
 }));

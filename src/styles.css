@@ -1221,6 +1221,61 @@ select {
   border-color: var(--primary);
 }
 
+/* Bouton Masquer (blocs textes sur câbles) */
+.etiquettes-hide-toggle {
+  font-size: 11px;
+  padding: 4px 8px;
+  background: #fff;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+.etiquettes-hide-toggle:hover {
+  background: #fef2f2;
+  border-color: var(--danger);
+}
+.etiquettes-hide-toggle.active {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+.etiquettes-hide-toggle.active:hover {
+  background: #b32b2b;
+  border-color: #b32b2b;
+}
+
+/* Menu Export (regroupe CSV / XLS) */
+.etiquettes-export-menu {
+  position: relative;
+  display: inline-block;
+}
+.etiquettes-export-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  min-width: 120px;
+}
+.etiquettes-export-dropdown button {
+  width: 100%;
+  text-align: left;
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.etiquettes-export-dropdown button:hover {
+  background: #f0f3f8;
+  border-color: var(--border);
+}
+
 /* Cellule étiquette éditable */
 .etiquette-label-td {
   min-width: 120px;

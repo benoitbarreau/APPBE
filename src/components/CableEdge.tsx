@@ -287,6 +287,7 @@ const allNodes = useAppStore((s) => s.nodes);
   const allProducts = useAppStore((s) => s.products);
   const readOnly = useEditorState((s) => s.readOnly);
   const cableView = useEditorState((s) => s.cableView);
+  const cableLabelsHidden = useEditorState((s) => s.cableLabelsHidden);
   const zoom = useStore((s) => s.transform[2]);
   const nodeLookup = useStore((s) => s.nodeLookup);
 
@@ -763,6 +764,7 @@ const allNodes = useAppStore((s) => s.nodes);
         </>
       )}
 
+      {!cableLabelsHidden && (
       <EdgeLabelRenderer>
         <div
           className={"cable-edge-label" + (selected ? " selected" : "")}
@@ -814,6 +816,7 @@ const allNodes = useAppStore((s) => s.nodes);
           )}
         </div>
       </EdgeLabelRenderer>
+      )}
     </>
   );
 }
