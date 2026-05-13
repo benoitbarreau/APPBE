@@ -1356,10 +1356,17 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 140px;
+}
+/* La colonne Label s'étire selon le contenu pour afficher le label en entier */
+.product-labels-table td:nth-child(2),
+.product-labels-table th:nth-child(2) {
+  width: auto;
+  white-space: nowrap;
 }
 .product-label-input {
-  width: 100%;
+  width: auto;
+  min-width: 80px;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 2px 4px;
@@ -1367,6 +1374,7 @@ select {
   font-family: inherit;
   outline: none;
   background: transparent;
+  white-space: nowrap;
 }
 .product-label-input:hover:not([readonly]) {
   border-color: var(--border);
@@ -1387,6 +1395,92 @@ select {
 }
 .product-zone-select:disabled {
   background: #f5f5f5;
+}
+
+/* ── Sélecteur de zone par pastille colorée ────────────────────────────── */
+.zone-swatch-wrap {
+  position: relative;
+  display: inline-block;
+}
+.zone-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  background: #fff;
+  vertical-align: middle;
+}
+.zone-swatch:hover:not(.disabled) {
+  filter: brightness(0.9);
+}
+.zone-swatch.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.zone-swatch.zone-swatch-empty {
+  background: #fff;
+  border: 1px dashed var(--muted);
+}
+.zone-swatch-empty-mark {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+}
+.zone-swatch-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  min-width: 140px;
+}
+.zone-swatch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.zone-swatch-menu-item:hover {
+  background: #f0f3f8;
+  border-color: var(--border);
+}
+.zone-swatch-menu-item .zone-swatch {
+  width: 14px;
+  height: 14px;
+  cursor: default;
+  flex-shrink: 0;
+}
+.zone-swatch-menu-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* Colonnes Zone et SYNO étroites */
+.product-labels-table td:nth-child(4),
+.product-labels-table th:nth-child(4) {
+  width: 32px;
+  text-align: center;
+}
+.product-labels-table td:nth-child(5),
+.product-labels-table th:nth-child(5) {
+  width: 60px;
 }
 .drag-handle-inline {
   display: inline-block;

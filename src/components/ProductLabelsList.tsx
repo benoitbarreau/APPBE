@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
 import { isSynopticTab } from "../types";
 
@@ -9,7 +9,7 @@ const COLUMNS: { key: Exclude<SortKey, "manual">; label: string }[] = [
   { key: "label",     label: "Label" },
   { key: "reference", label: "Référence produit" },
   { key: "zone",      label: "Zone" },
-  { key: "tabName",   label: "Synoptique" },
+  { key: "tabName",   label: "SYNO" },
 ];
 
 interface Row {
@@ -78,25 +78,71 @@ function LabelCell({
   );
 }
 
-/** Sélecteur de zone éditable. */
+/** Sélecteur de zone éditable — affiche uniquement la pastille colorée.
+ *  Au clic, ouvre un petit menu listant les zones (carré coloré + nom).
+ *  Tooltip natif affichant le nom de la zone au survol. */
 function ZoneCell({ id, zoneId, readOnly }: { id: string; zoneId: string; readOnly: boolean }) {
   const zones = useAppStore((s) => s.zones);
   const setNodeZone = useAppStore((s) => s.setNodeZone);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const current = zones.find((z) => z.id === zoneId);
+  const currentLabel = current?.label ?? "Aucune zone";
+  const currentColor = current?.color;
+
+  const choose = (newZoneId: string | undefined) => {
+    setOpen(false);
+    setNodeZone(id, newZoneId);
+  };
 
   return (
-    <select
-      className="product-zone-select"
-      value={zoneId}
-      disabled={readOnly}
-      onChange={(e) => setNodeZone(id, e.target.value || undefined)}
-    >
-      <option value="">— Aucune —</option>
-      {zones.map((z) => (
-        <option key={z.id} value={z.id}>
-          {z.label}
-        </option>
-      ))}
-    </select>
+    <div className="zone-swatch-wrap" ref={ref}>
+      <button
+        type="button"
+        className={`zone-swatch${readOnly ? " disabled" : ""}${!current ? " zone-swatch-empty" : ""}`}
+        style={currentColor ? { background: currentColor, borderColor: currentColor } : undefined}
+        title={currentLabel}
+        disabled={readOnly}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {!current && <span className="zone-swatch-empty-mark">—</span>}
+      </button>
+      {open && (
+        <div className="zone-swatch-menu">
+          <button
+            type="button"
+            className="zone-swatch-menu-item"
+            onClick={() => choose(undefined)}
+          >
+            <span className="zone-swatch zone-swatch-empty">
+              <span className="zone-swatch-empty-mark">—</span>
+            </span>
+            <span className="zone-swatch-menu-label">Aucune zone</span>
+          </button>
+          {zones.map((z) => (
+            <button
+              key={z.id}
+              type="button"
+              className="zone-swatch-menu-item"
+              onClick={() => choose(z.id)}
+            >
+              <span className="zone-swatch" style={{ background: z.color, borderColor: z.color }} />
+              <span className="zone-swatch-menu-label">{z.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -228,6 +274,22 @@ export function ProductLabelsList() {
   const sortActive = sortKey !== "manual";
   const totalRows  = rows.length;
 
+  // ── Menu Export (regroupe CSV / XLS) ──────────────────────────────────
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
+  const handleExportCsv = () => { setExportMenuOpen(false); exportCsv(); };
+  const handleExportXls = () => { setExportMenuOpen(false); exportXls(); };
+
   return (
     <div className="etiquettes-list product-labels-list">
       <div className="etiquettes-header">
@@ -238,8 +300,21 @@ export function ProductLabelsList() {
               Ordre manuel
             </button>
           )}
-          <button onClick={exportCsv} disabled={!totalRows}>CSV</button>
-          <button onClick={exportXls} disabled={!totalRows}>XLS</button>
+          <div className="etiquettes-export-menu" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={!totalRows}
+              title="Exporter la liste des labels"
+            >
+              Export ▾
+            </button>
+            {exportMenuOpen && (
+              <div className="etiquettes-export-dropdown">
+                <button onClick={handleExportCsv}>CSV</button>
+                <button onClick={handleExportXls}>XLS (Excel)</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {!readOnly && (
