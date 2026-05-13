@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>Guide utilisateur — SynoX</title>
+<title>Guide utilisateur — SynoX-AV</title>
 <style>
   /* ─────────────────────────────────────────────────────────────
      Réglages d'impression : A4 portrait, marges propres,
@@ -66,41 +66,43 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     text-align: center;
-    background: linear-gradient(135deg, #2f6fed 0%, #6b3fb5 100%);
-    color: #fff;
+    background: #fff;
+    color: var(--text);
     margin: -24px -28px 0;
     padding: 60px 40px;
     position: relative;
   }
-  .cover::after {
-    content: "";
-    position: absolute; inset: 0;
-    background-image:
-      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0, transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08) 0, transparent 35%);
-    pointer-events: none;
-  }
-  .cover-logo {
-    font-size: 64pt; font-weight: 900;
-    letter-spacing: -2px;
-    margin: 0 0 6px;
-    text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  .cover-brand {
+    font-size: 56pt; font-weight: 900;
+    letter-spacing: -1.5px;
+    margin: 0 0 10px;
+    color: var(--primary);
   }
   .cover-tag {
-    font-size: 14pt; opacity: 0.9; margin: 0 0 80px;
-    font-weight: 300; letter-spacing: 0.5px;
-  }
-  .cover-title {
-    font-size: 36pt; font-weight: 800;
-    margin: 0; line-height: 1.1;
+    font-size: 18pt;
+    margin: 0 0 16px;
+    font-weight: 400;
+    color: var(--text);
+    max-width: 600px;
+    line-height: 1.3;
   }
   .cover-sub {
-    font-size: 16pt; opacity: 0.92; margin: 16px 0 0;
-    font-weight: 300;
+    font-size: 13pt;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0;
+    font-weight: 400;
   }
   .cover-meta {
     margin-top: auto; padding-top: 60px;
-    font-size: 10pt; opacity: 0.75;
+    font-size: 10pt; color: var(--muted);
+  }
+  .cover-divider {
+    width: 80px;
+    height: 3px;
+    background: var(--primary);
+    margin: 30px 0;
+    border-radius: 2px;
   }
 
   /* ── Sommaire ─────────────────────────────────────────────── */
@@ -232,6 +234,35 @@
   .btn-mock.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
   .btn-mock.danger { color: var(--accent); border-color: var(--accent); }
 
+  /* ── Emplacements réservés pour captures d'écran ─────────── */
+  .screenshot {
+    margin: 18px 0;
+    padding: 28px 20px;
+    border: 2px dashed var(--primary);
+    border-radius: 8px;
+    background: var(--primary-soft);
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .screenshot-icon {
+    font-size: 28pt;
+    line-height: 1;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .screenshot-title {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 11pt;
+    margin: 0 0 4px;
+  }
+  .screenshot-hint {
+    font-size: 10pt;
+    color: var(--muted);
+    margin: 0;
+    font-style: italic;
+  }
+
   /* ── Visuels SVG ─────────────────────────────────────────── */
   .figure {
     margin: 18px 0;
@@ -313,11 +344,11 @@
 <div class="container">
 
 <section class="cover">
-  <h1 class="cover-logo">SynoX</h1>
-  <p class="cover-tag">Synoptiques audiovisuels — Vidéo Synergie</p>
-  <h2 class="cover-title">Guide utilisateur</h2>
-  <p class="cover-sub">Tout ce qu'il faut savoir, expliqué simplement</p>
-  <p class="cover-meta">Version du guide — Mai 2026 (mise à jour Tableau IP)</p>
+  <h1 class="cover-brand">SynoX-AV</h1>
+  <div class="cover-divider"></div>
+  <p class="cover-tag">Conception et schématisation de solutions audiovisuelles</p>
+  <p class="cover-sub">par Benoit Barreau</p>
+  <p class="cover-meta">Guide utilisateur — Mai 2026</p>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -327,25 +358,31 @@
 <h1>Sommaire</h1>
 <div class="toc">
   <ol>
-    <li><span>Bienvenue dans SynoX</span><span>p. 3</span></li>
+    <li><span>Bienvenue dans SynoX-AV</span><span>p. 3</span></li>
     <li><span>Premiers pas — Se connecter</span><span>p. 4</span></li>
-    <li><span>Mes projets</span><span>p. 5</span></li>
-    <li><span>L'écran principal</span><span>p. 6</span></li>
+    <li><span>Mes projets — la page d'accueil</span><span>p. 5</span></li>
+    <li><span>L'écran principal du projet</span><span>p. 6</span></li>
     <li><span>Ajouter un produit sur le synoptique</span><span>p. 8</span></li>
     <li><span>Relier les produits avec des câbles</span><span>p. 10</span></li>
     <li><span>Modifier l'apparence d'un câble</span><span>p. 12</span></li>
     <li><span>Les zones — colorer des groupes de produits</span><span>p. 14</span></li>
     <li><span>Les labels — étiqueter chaque produit</span><span>p. 16</span></li>
     <li><span>Le panneau « Outils » à droite</span><span>p. 18</span></li>
-    <li><span>Plusieurs synoptiques dans un projet (onglets)</span><span>p. 20</span></li>
-    <li><span>Le Tableau IP <span class="pill green">nouveau</span></span><span>p. 21</span></li>
-    <li><span>Importer / exporter le catalogue produits</span><span>p. 25</span></li>
-    <li><span>Le cartouche du document</span><span>p. 26</span></li>
-    <li><span>Sauvegarder son travail</span><span>p. 27</span></li>
-    <li><span>Exporter et imprimer en A3</span><span>p. 28</span></li>
-    <li><span>Mode lecture seule (versions archivées)</span><span>p. 30</span></li>
-    <li><span>Mon compte</span><span>p. 31</span></li>
-    <li><span>Raccourcis et astuces</span><span>p. 32</span></li>
+    <li><span>Plusieurs synoptiques et baies dans un projet</span><span>p. 20</span></li>
+    <li><span>Le module Baie (rack) <span class="pill green">nouveau</span></span><span>p. 21</span></li>
+    <li><span>Le Tableau IP</span><span>p. 24</span></li>
+    <li><span>Le catalogue produits et sa modération <span class="pill green">nouveau</span></span><span>p. 28</span></li>
+    <li><span>Les espaces et séparateurs dans une fiche produit <span class="pill green">nouveau</span></span><span>p. 31</span></li>
+    <li><span>La légende des types de câbles</span><span>p. 32</span></li>
+    <li><span>Importer / exporter le catalogue produits</span><span>p. 33</span></li>
+    <li><span>Le cartouche du document</span><span>p. 34</span></li>
+    <li><span>Sauvegarder son travail</span><span>p. 35</span></li>
+    <li><span>Partager un projet avec un collègue</span><span>p. 36</span></li>
+    <li><span>Exporter et imprimer en A3</span><span>p. 37</span></li>
+    <li><span>Mode lecture seule (versions archivées)</span><span>p. 38</span></li>
+    <li><span>Tableau de bord administrateur</span><span>p. 39</span></li>
+    <li><span>Mon compte</span><span>p. 40</span></li>
+    <li><span>Raccourcis et astuces</span><span>p. 41</span></li>
   </ol>
 </div>
 
@@ -353,27 +390,32 @@
      1. BIENVENUE
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>1. Bienvenue dans SynoX</h1>
+<h1>1. Bienvenue dans SynoX-AV</h1>
 
-<p>SynoX est une application web qui vous aide à créer rapidement des <strong>synoptiques audiovisuels</strong> : ces plans qui représentent les équipements et leurs raccordements (câbles, signaux, alimentations) dans une salle, une régie, un campus.</p>
+<p>SynoX-AV est une application web qui vous aide à concevoir et schématiser des <strong>solutions audiovisuelles</strong> : produire des plans qui représentent les équipements et leurs raccordements (câbles, signaux, alimentations) dans une salle, une régie, un campus ou un bâtiment entier.</p>
 
-<h3>Ce que vous pouvez faire avec SynoX</h3>
+<h3>Ce que vous pouvez faire avec SynoX-AV</h3>
 <ul>
-  <li>Glisser-déposer des produits depuis un catalogue.</li>
-  <li>Tracer des câbles entre les ports d'entrée et de sortie.</li>
-  <li>Étiqueter chaque produit, chaque câble, chaque zone.</li>
-  <li>Organiser plusieurs synoptiques dans un même projet (un par lot, par salle, etc.).</li>
-  <li>Exporter en PNG, JPEG, SVG, PDF, ou imprimer en format A3.</li>
-  <li>Sauvegarder dans le cloud avec un historique automatique des versions.</li>
+  <li>Glisser-déposer des produits depuis un catalogue partagé (équipements Extron, Kramer, Netgear, Shure, etc.) ou créer vos propres fiches.</li>
+  <li>Tracer des câbles entre les ports d'entrée et de sortie ; les couleurs et préfixes (HDMI1, IP1, AU1…) sont gérés automatiquement.</li>
+  <li>Étiqueter chaque produit (label auto-numéroté DSP-01, MAT-02, …), chaque câble (longueur, type, libellé) et chaque zone (Baie, Régie…).</li>
+  <li>Organiser plusieurs synoptiques, plusieurs baies (rack) et un Tableau IP dans un même projet — un onglet par lot ou par salle.</li>
+  <li>Concevoir l'implantation rack en glisser-déposer (module Baie) avec accessoires personnalisables.</li>
+  <li>Tenir à jour un Tableau IP synchronisé avec les synoptiques pour le PV de recette.</li>
+  <li>Exporter en PNG, JPEG, SVG, PDF (A3) ou CSV, et imprimer.</li>
+  <li>Sauvegarder dans le cloud avec un historique des versions, et partager le projet avec un collègue.</li>
 </ul>
 
 <div class="box tip">
   <p class="box-title">💡 Pas besoin d'installer quoi que ce soit</p>
-  <p>SynoX fonctionne dans votre navigateur. Tous vos projets sont sauvegardés en ligne et accessibles depuis n'importe quel ordinateur.</p>
+  <p>SynoX-AV fonctionne dans votre navigateur. Tous vos projets sont sauvegardés en ligne et accessibles depuis n'importe quel ordinateur. Chrome ou Edge sont recommandés.</p>
 </div>
 
 <h3>Pour qui ?</h3>
-<p>Pour les bureaux d'études audiovisuels, les intégrateurs, les chefs de projet, et toute personne qui doit produire un synoptique propre et lisible.</p>
+<p>Pour les bureaux d'études audiovisuels, les intégrateurs, les chefs de projet et toute personne qui doit produire un dossier de synoptiques propre, à jour et partageable.</p>
+
+<h3>Comment lire ce guide</h3>
+<p>Chaque chapitre couvre une fonctionnalité. Vous pouvez le lire d'une traite (~1h) ou ne consulter que les sections qui vous intéressent — les chapitres sont indépendants. Les encadrés <span class="pill green">verts</span> donnent des astuces, les <span class="pill orange">orange</span> attirent l'attention sur un point à connaître, les <span class="pill red">rouges</span> signalent une action irréversible.</p>
 
 <!-- ═══════════════════════════════════════════════════════════
      2. SE CONNECTER
@@ -840,34 +882,42 @@
   </tr>
   <tr>
     <td><strong>Étiquettes</strong></td>
-    <td>Tableau des étiquettes câbles à apposer sur les vrais cordons. Modifiez le libellé personnalisé en double-cliquant. Export CSV / XLS.</td>
+    <td>Tableau des étiquettes câbles à apposer sur les vrais cordons. Modifiez le libellé personnalisé et la longueur en double-cliquant (synoptique actif uniquement). Bouton <span class="btn-mock" style="color:#cc0000;border-color:#cc0000">Masquer</span> pour cacher les blocs textes sur les câbles dans le canvas. Bouton <span class="btn-mock">Export ▾</span> (CSV / XLS).</td>
   </tr>
   <tr>
-    <td><strong>Label</strong> <span class="pill green">nouveau</span></td>
-    <td>Tableau des produits placés avec leur label, leur référence, leur zone. Triable, drag & drop pour réordonner. Export CSV / XLS.</td>
+    <td><strong>Label</strong></td>
+    <td>Tableau des produits placés avec leur label, leur référence, leur zone (pastille colorée) et le synoptique d'origine. Triable, glisser-déposer pour réordonner. Bouton <span class="btn-mock">Export ▾</span> (CSV / XLS).</td>
   </tr>
   <tr>
     <td><strong>Zones</strong></td>
-    <td>Création / édition des zones (nom + couleur). Voir page précédente.</td>
+    <td>Création / édition des zones (nom + couleur).</td>
   </tr>
   <tr>
     <td><strong>Légende</strong></td>
-    <td>Définition des signaux disponibles : couleur, libellé, type de câble par défaut, préfixe de numérotation.</td>
+    <td>Définition des types de câbles (signaux) : couleur, libellé, câble par défaut, préfixe de numérotation. Bouton <span class="btn-mock">↻ Réinitialiser</span> pour revenir aux 10 types standards.</td>
   </tr>
 </table>
 
-<h3>La légende des signaux</h3>
-<p>Chaque type de signal a une couleur et un type de câble par défaut. Vous pouvez les personnaliser :</p>
+<div class="box tip">
+  <p class="box-title">💡 Outils communs à tous les synoptiques</p>
+  <p>Les trois premiers onglets (Câbles, Étiquettes, Label) agrègent les données de tous les synoptiques du projet. Vous voyez tout d'un coup d'œil, mais l'édition n'est possible que sur l'onglet synoptique actuellement sélectionné. Les autres lignes apparaissent avec un badge indiquant leur synoptique d'origine.</p>
+</div>
+
+<h3>La légende des types de câbles (10 par défaut)</h3>
+<p>Chaque type de signal a une couleur, un préfixe de numérotation auto et un câble par défaut. Vous pouvez tout personnaliser dans l'onglet <strong>Légende</strong>.</p>
 
 <table>
-  <tr><th>Signal</th><th>Couleur</th><th>Câble par défaut</th></tr>
-  <tr><td>HDMI / DP</td><td><span class="pill" style="background:#8b4fba;color:#fff;">violet</span></td><td>HDMI 2.0</td></tr>
-  <tr><td>RJ45 / IP</td><td><span class="pill green">vert</span></td><td>RJ45 Cat6</td></tr>
-  <tr><td>USB</td><td><span class="pill orange">marron</span></td><td>USB 2.0 A/A</td></tr>
-  <tr><td>Audio</td><td><span class="pill" style="background:#f5c432;color:#000;">jaune</span></td><td>Mini-Jack 3.5</td></tr>
-  <tr><td>HP</td><td><span class="pill red">rouge</span></td><td>HP 2x2.5mm²</td></tr>
-  <tr><td>Secteur</td><td><span class="pill" style="background:#000;color:#fff;">noir</span></td><td>Cordon secteur</td></tr>
-  <tr><td>Fibre</td><td><span class="pill" style="background:#ff6f00;color:#fff;">orange</span></td><td>Fibre OM4</td></tr>
+  <tr><th>Type</th><th>Couleur</th><th>Préfixe</th><th>Câble par défaut</th></tr>
+  <tr><td>HDMI</td><td><span class="pill" style="background:#8b4fba;color:#fff;">violet</span></td><td>HDMI</td><td>HDMI</td></tr>
+  <tr><td>RJ45 / IP</td><td><span class="pill" style="background:#934d2f;color:#fff;">marron</span></td><td>IP</td><td>RJ45</td></tr>
+  <tr><td>USB</td><td><span class="pill" style="background:#66d95e;color:#000;">vert</span></td><td>USB</td><td>USB</td></tr>
+  <tr><td>RS232</td><td><span class="pill" style="background:#00bfd8;color:#fff;">turquoise</span></td><td>COM</td><td>RS232 DB9</td></tr>
+  <tr><td>DTP/XTP/HDBaseT</td><td><span class="pill" style="background:#000;color:#fff;">noir</span></td><td>DTP</td><td>DTP</td></tr>
+  <tr><td>eBUS/Cresnet</td><td><span class="pill" style="background:#1f4e96;color:#fff;">bleu</span></td><td>EB</td><td>STP22-2</td></tr>
+  <tr><td>Audio</td><td><span class="pill" style="background:#f5c432;color:#000;">jaune</span></td><td>AU</td><td>Audio</td></tr>
+  <tr><td>HP</td><td><span class="pill red">rouge</span></td><td>HP</td><td>HP</td></tr>
+  <tr><td>Secteur</td><td><span class="pill" style="background:#6b7280;color:#fff;">gris</span></td><td>P</td><td>Cordon secteur</td></tr>
+  <tr><td>SFP/Fibre</td><td><span class="pill" style="background:#ff6f00;color:#fff;">orange</span></td><td>FB</td><td>Fibre</td></tr>
 </table>
 
 <div class="box">
@@ -879,9 +929,16 @@
      11. ONGLETS / SYNOPTIQUES MULTIPLES
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>11. Plusieurs synoptiques dans un projet</h1>
+<h1>11. Plusieurs synoptiques et baies dans un projet</h1>
 
-<p>Un projet peut contenir plusieurs synoptiques (= plusieurs onglets). C'est utile pour :</p>
+<p>Un projet peut contenir plusieurs onglets, de trois types différents :</p>
+<ul>
+  <li><strong>Synoptique</strong> — le canvas câblé classique (un par lot ou par salle).</li>
+  <li><strong>Baie</strong> — la vue rack 19" / 10" pour positionner les équipements en U (cf. chapitre 12).</li>
+  <li><strong>Tableau IP</strong> — la fiche IP synchronisée avec les synoptiques (cf. chapitre 13).</li>
+</ul>
+
+<p>Utiliser plusieurs onglets est utile pour :</p>
 <ul>
   <li>Séparer un projet en lots (lot Vidéo, lot Audio, lot Réseau...).</li>
   <li>Faire un synoptique par salle.</li>
@@ -913,10 +970,84 @@
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════
-     12. TABLEAU IP
+     12. MODULE BAIE (RACK)
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>12. Le Tableau IP <span class="pill green" style="vertical-align: middle; font-size: 11pt;">nouveau</span></h1>
+<h1>12. Le module Baie (rack) <span class="pill green" style="vertical-align: middle; font-size: 11pt;">nouveau</span></h1>
+
+<p>Un onglet de type <strong>Baie</strong> représente une ou plusieurs baies physiques (rack 19" ou 10") avec leur implantation en U. Idéal pour produire le dossier d'implantation rack en parallèle du synoptique.</p>
+
+<div class="screenshot">
+  <span class="screenshot-icon">📸</span>
+  <p class="screenshot-title">Capture : vue d'ensemble d'un onglet Baie</p>
+  <p class="screenshot-hint">Montrer la barre d'info en haut, la bibliothèque à gauche, une baie ouverte au centre avec quelques équipements, et le bouton « + Ajouter une baie ».</p>
+</div>
+
+<h3>Créer un onglet Baie</h3>
+<ol class="steps">
+  <li>Dans la barre d'onglets, cliquez sur le menu <span class="btn-mock">+ ▾</span> puis choisissez <em>Baie</em>.</li>
+  <li>Saisissez un nom (ex. « Baie principale »), la largeur (19" ou 10") et la hauteur en U (par défaut 42U).</li>
+  <li>Validez : l'onglet s'ouvre, vide.</li>
+</ol>
+
+<h3>Ajouter un équipement</h3>
+<p>À gauche de l'onglet Baie, vous avez une bibliothèque à 3 sous-onglets :</p>
+<table>
+  <tr><th>Sous-onglet</th><th>Contenu</th></tr>
+  <tr>
+    <td><strong>Synoptique</strong></td>
+    <td>Liste des produits déjà placés sur les synoptiques du projet (label, marque, référence, hauteur en U, zone, nom du synoptique d'origine). Glissez-déposez dans la baie ou cliquez pour ajouter en bas. Une fois placé dans la baie, le produit est marqué « ✓ déjà dans la baie X » pour éviter les doublons.</td>
+  </tr>
+  <tr>
+    <td><strong>Catalogue</strong></td>
+    <td>Liste de tous les produits du catalogue ayant une hauteur en U renseignée. Permet d'ajouter un équipement « libre » qui n'est pas (encore) sur un synoptique.</td>
+  </tr>
+  <tr>
+    <td><strong>Accessoires</strong></td>
+    <td>Vos accessoires personnalisés (panneaux vierges, cordons de brassage, cornières, etc.) — éditables et cumulables d'un projet à l'autre. Possibilité d'ajouter un logo PNG affiché en haut à droite dans le visuel rack.</td>
+  </tr>
+</table>
+
+<h3>Manipuler un équipement dans la baie</h3>
+<ul>
+  <li><strong>Déplacer</strong> : glisser-déposer l'équipement vers la nouvelle position. Les collisions sont détectées et empêchent la pose.</li>
+  <li><strong>Sélectionner</strong> : cliquez sur l'équipement → la modal Propriétés s'ouvre (label, position, hauteur, largeur, colonne, couleur, verrouillage).</li>
+  <li><strong>Supprimer</strong> : modal Propriétés → bouton <span class="btn-mock danger">🗑 Supprimer</span> en bas.</li>
+  <li><strong>Verrouiller</strong> : case à cocher <em>Verrouillé</em> dans la modal — empêche tout déplacement accidentel.</li>
+</ul>
+
+<div class="screenshot">
+  <span class="screenshot-icon">📸</span>
+  <p class="screenshot-title">Capture : modal « Propriétés » d'un équipement rack</p>
+  <p class="screenshot-hint">Capturer la modal complète : label, fabricant, référence, position/hauteur, largeur/colonne, couleur, verrouillé, et les 5 champs d'annotations (Commentaire, Adresse IP, Port Switch, VLAN, N° Série).</p>
+</div>
+
+<h3>Les annotations d'un équipement</h3>
+<p>Dans la modal Propriétés, la rubrique <strong>Annotations</strong> contient 5 champs dans cet ordre :</p>
+<ol>
+  <li><strong>Commentaire</strong> — libre, propre à la baie.</li>
+  <li><strong>Adresse IP</strong> — <strong>liée au Tableau IP</strong> si l'équipement provient d'un synoptique inscrit dans une ligne du Tableau IP. Toute modification dans la modal se répercute dans le Tableau IP, et inversement. Un badge 📋 indique cette liaison.</li>
+  <li><strong>Port Switch</strong> — libre.</li>
+  <li><strong>VLAN</strong> — libre.</li>
+  <li><strong>N° Série</strong> — <strong>lié au Tableau IP</strong> (idem que l'adresse IP).</li>
+</ol>
+
+<h3>Plusieurs baies dans un même onglet</h3>
+<p>Vous pouvez aligner plusieurs baies côte à côte dans le même onglet — utile pour une régie comportant deux ou trois racks. Bouton <span class="btn-mock">+ Ajouter une baie</span> à droite des baies existantes. Chaque baie porte un nom modifiable en haut, et un bouton × pour la supprimer (si plus d'une baie présente).</p>
+
+<h3>Synchroniser depuis les synoptiques</h3>
+<p>Le bouton <span class="btn-mock">⟳ Synchroniser</span> en haut de l'onglet recharge les labels et références depuis les synoptiques pour les équipements liés. Utile si vous avez modifié des labels sur le synoptique et voulez que la baie soit à jour.</p>
+
+<div class="box tip">
+  <p class="box-title">💡 Astuce d'ergonomie</p>
+  <p>Pour positionner un équipement précisément, ouvrez sa modal Propriétés puis saisissez la position en U et la hauteur en U directement. Plus rapide qu'un drag pour de petits ajustements.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     13. TABLEAU IP
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>13. Le Tableau IP</h1>
 
 <p>Le Tableau IP est un type d'onglet spécial, dédié au recensement des équipements <strong>réseau</strong> du projet : adresses IP, MAC, identifiants, mots de passe, numéros de série. Il fonctionne comme un tableur Excel intégré, et il se synchronise automatiquement avec les produits placés dans vos synoptiques.</p>
 
@@ -1110,10 +1241,137 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     13. CATALOGUE IMPORT/EXPORT
+     14. CATALOGUE PRODUITS — MODÉRATION
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>13. Importer / exporter le catalogue produits</h1>
+<h1>14. Le catalogue produits et sa modération <span class="pill green" style="vertical-align: middle; font-size: 11pt;">nouveau</span></h1>
+
+<p>Le catalogue produits est partagé entre tous les utilisateurs de SynoX-AV. Pour garantir sa qualité, les nouvelles fiches passent par un cycle de validation administrateur.</p>
+
+<h3>Structure du catalogue dans la palette (à gauche)</h3>
+<p>La palette est séparée en deux sections par un trait horizontal :</p>
+<ul>
+  <li><strong>Catalogue commun</strong> (en haut) — les fiches validées, visibles par tous. Seuls les administrateurs peuvent les modifier ou les archiver.</li>
+  <li><strong>Mon catalogue</strong> / <strong>Catalogue utilisateur</strong> (en bas, sous le séparateur) — les fiches en attente de validation :
+    <ul>
+      <li><em>Côté utilisateur</em> : « Mon catalogue » → seulement <strong>ses propres</strong> fiches en attente, repérées par une pastille orange ●.</li>
+      <li><em>Côté admin</em> : « Catalogue utilisateur » → <strong>toutes</strong> les fiches en attente de tous les utilisateurs, regroupées par créateur (nom complet ou email).</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="screenshot">
+  <span class="screenshot-icon">📸</span>
+  <p class="screenshot-title">Capture : palette catalogue avec les deux sections</p>
+  <p class="screenshot-hint">Capturer la palette montrant le catalogue commun en haut, le séparateur, et la section « Mon catalogue » avec une fiche en attente (pastille orange).</p>
+</div>
+
+<h3>Créer une fiche produit</h3>
+<ol class="steps">
+  <li>Dans la palette, cliquez <span class="btn-mock">+ Nouveau</span>.</li>
+  <li>Renseignez marque, référence, catégorie, ports (entrées, sorties, milieu) — voir chapitre 15 pour les ports particuliers (espaces, séparateurs).</li>
+  <li>Cliquez <span class="btn-mock primary">Enregistrer</span>.</li>
+  <li>La fiche apparaît dans <strong>Mon catalogue</strong> avec la pastille orange ● : elle est en attente de validation et invisible des autres utilisateurs.</li>
+</ol>
+
+<div class="box">
+  <p class="box-title">ℹ️ Si vous êtes administrateur</p>
+  <p>Les fiches que vous créez vont <strong>directement</strong> dans le catalogue commun (validées d'office).</p>
+</div>
+
+<h3>Valider une fiche en attente (admin)</h3>
+<ol class="steps">
+  <li>Ouvrez la palette catalogue, descendez à la section <strong>Catalogue utilisateur</strong>.</li>
+  <li>Repérez la fiche à valider. Vous pouvez l'ouvrir et la modifier avant validation (corriger la marque, ajouter un port manquant, etc.).</li>
+  <li>Cliquez sur le bouton vert <span class="btn-mock" style="background:#10b981;color:#fff;border-color:#10b981">✓</span> à droite de la fiche.</li>
+  <li>La fiche passe au catalogue commun et devient visible de tous.</li>
+</ol>
+
+<h3>Archiver une fiche du catalogue commun (admin)</h3>
+<p>Quand un admin clique <span class="btn-mock danger">Archiver</span> dans la fiche d'un produit du catalogue commun, la fiche est <strong>archivée</strong> (et non supprimée) :</p>
+<ul>
+  <li>Elle disparaît de la palette et n'est plus utilisable pour de nouveaux placements.</li>
+  <li>Les blocs déjà placés dans les projets existants restent fonctionnels (rétention de l'historique).</li>
+  <li>L'archive est récupérable depuis le tableau de bord administrateur (cf. chapitre 23).</li>
+</ul>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Suppression définitive vs archivage</p>
+  <p>Une fiche en attente supprimée par son créateur ou un admin est <strong>réellement supprimée</strong> (irréversible). Seules les fiches déjà validées passent par l'archivage. La suppression définitive d'une archive ne se fait que depuis le tableau de bord admin avec confirmation.</p>
+</div>
+
+<h3>Droits des utilisateurs</h3>
+<table>
+  <tr><th>Action</th><th>Utilisateur sur ses propres fiches en attente</th><th>Utilisateur sur les fiches du catalogue commun</th><th>Admin</th></tr>
+  <tr><td>Voir / utiliser</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Modifier</td><td>✓</td><td>—</td><td>✓ (toutes)</td></tr>
+  <tr><td>Supprimer</td><td>✓</td><td>—</td><td>✓ (archive si déjà validée)</td></tr>
+  <tr><td>Valider</td><td>—</td><td>—</td><td>✓</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════
+     15. ESPACES ET SÉPARATEURS DANS UNE FICHE PRODUIT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>15. Les espaces et séparateurs dans une fiche produit <span class="pill green" style="vertical-align: middle; font-size: 11pt;">nouveau</span></h1>
+
+<p>Pour aérer ou structurer visuellement la liste des ports d'un produit, deux éléments décoratifs sont disponibles dans l'éditeur de fiche, à côté du bouton <span class="btn-mock">+ Ajouter</span> habituel :</p>
+
+<table>
+  <tr><th>Bouton</th><th>Effet sur le bloc produit dans le synoptique</th><th>Sections où disponible</th></tr>
+  <tr>
+    <td><span class="btn-mock">+ Espace</span></td>
+    <td>Ligne vide sans pastille de connexion, comme un saut de ligne pour aérer une liste longue.</td>
+    <td>Gauche, Droite, Milieu</td>
+  </tr>
+  <tr>
+    <td><span class="btn-mock">+ Séparateur</span></td>
+    <td>Trait pointillé gris foncé qui couvre <strong>toute la largeur</strong> du bloc — utile pour séparer deux familles de ports (ex. signaux vs alimentation).</td>
+    <td>Gauche, Droite, Milieu (toujours pleine largeur)</td>
+  </tr>
+</table>
+
+<div class="screenshot">
+  <span class="screenshot-icon">📸</span>
+  <p class="screenshot-title">Capture : éditeur de fiche produit avec les boutons « + Espace » et « + Séparateur »</p>
+  <p class="screenshot-hint">Capturer l'éditeur de fiche produit avec les 3 sections Gauche/Droite/Milieu et leurs boutons « + Ajouter », « + Espace », « + Séparateur ».</p>
+</div>
+
+<h3>Comportement</h3>
+<ul>
+  <li>Les espaces et séparateurs <strong>ne sont pas connectables</strong> (aucune pastille de connexion sur le bloc).</li>
+  <li>Ils sont <strong>réordonnables</strong> par glisser-déposer comme les ports normaux, et peuvent être déplacés d'une section à l'autre.</li>
+  <li>Un séparateur dans la section Gauche ou Droite reste toujours dessiné sur la pleine largeur du bloc — il « pousse » vers le bas tout ce qui suit dans les deux colonnes pour créer une coupure visuelle nette.</li>
+  <li>Les anciens produits sans espace ni séparateur continuent de s'afficher comme avant — rétrocompatible.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════
+     16. LÉGENDE DES TYPES DE CÂBLES
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>16. La légende des types de câbles</h1>
+
+<p>L'onglet <strong>Légende</strong> dans le panneau Outils (à droite) liste tous les types de signaux disponibles. Chaque ligne définit :</p>
+<ul>
+  <li><strong>La couleur</strong> appliquée aux pastilles sur les blocs produits et aux câbles tirés.</li>
+  <li><strong>Le nom affiché</strong> (ex. « RJ45 / IP »).</li>
+  <li><strong>Le préfixe</strong> utilisé pour la numérotation auto des câbles (ex. <code>IP</code> → IP1, IP2…).</li>
+  <li><strong>Le câble par défaut</strong> proposé à la création (ex. « RJ45 », « STP22-2 »).</li>
+</ul>
+
+<h3>Réinitialiser la légende</h3>
+<p>Le bouton <span class="btn-mock">↻ Réinitialiser</span> en haut du panneau remplace votre légende actuelle par la liste standard de 10 types (HDMI, RJ45/IP, USB, RS232, DTP/XTP/HDBaseT, eBUS/Cresnet, Audio, HP, Secteur, SFP/Fibre). Une confirmation s'affiche et signale les éventuels câbles existants utilisant des types qui vont disparaître — ces câbles perdront leur couleur et leur préfixe (à réassigner manuellement).</p>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Avant de réinitialiser</p>
+  <p>Si vous avez créé des types personnalisés (ex. CAT6A, fibre SM), ils seront <strong>supprimés</strong> par la réinitialisation. Pensez à exporter le projet en JSON au préalable si vous voulez garder une trace.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     17. CATALOGUE IMPORT/EXPORT
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>17. Importer / exporter le catalogue produits</h1>
 
 <p>Le catalogue de produits (à gauche dans l'éditeur) peut être <strong>partagé</strong> avec un collègue, sauvegardé localement, ou alimenté par un fichier maître. Trois formats sont disponibles : CSV, XLS (Excel), JSON.</p>
 
@@ -1152,7 +1410,7 @@
      14. CARTOUCHE
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>14. Le cartouche du document</h1>
+<h1>18. Le cartouche du document</h1>
 
 <p>Le cartouche, c'est le bandeau d'identification en bas du synoptique. Il apparaît automatiquement dans tous les exports et impressions.</p>
 
@@ -1203,7 +1461,7 @@
      15. SAUVEGARDER
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>15. Sauvegarder son travail</h1>
+<h1>19. Sauvegarder son travail</h1>
 
 <p>Tout passe par le bouton <span class="btn-mock primary">Sauvegarder</span> en haut à gauche.</p>
 
@@ -1239,10 +1497,40 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     16. EXPORTER / IMPRIMER
+     20. PARTAGER UN PROJET
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>16. Exporter et imprimer en A3</h1>
+<h1>20. Partager un projet avec un collègue</h1>
+
+<p>Vous pouvez donner accès à votre projet à un autre utilisateur de SynoX-AV.</p>
+
+<h3>Procédure</h3>
+<ol class="steps">
+  <li>Retournez sur la page <strong>Mes projets</strong> via <span class="btn-mock">Tableau de bord</span> ou la page d'accueil.</li>
+  <li>Sur la carte du projet à partager, cliquez sur <span class="btn-mock">Partager</span>.</li>
+  <li>Saisissez l'email du collègue (il doit déjà avoir un compte approuvé sur SynoX-AV).</li>
+  <li>Choisissez son rôle :
+    <ul>
+      <li><strong>Lecteur</strong> : peut consulter, exporter, mais pas modifier.</li>
+      <li><strong>Éditeur</strong> : peut modifier le projet comme vous.</li>
+    </ul>
+  </li>
+  <li>Validez. Le collègue verra immédiatement le projet dans sa liste avec un badge <span class="pill red">PARTAGÉ</span>.</li>
+</ol>
+
+<h3>Gérer ou retirer un partage</h3>
+<p>Cliquez à nouveau sur <span class="btn-mock">Partager</span> sur la carte : la liste des personnes avec accès s'affiche, vous pouvez changer leur rôle ou retirer un accès.</p>
+
+<div class="box tip">
+  <p class="box-title">💡 Côté collègue</p>
+  <p>Sur ses cartes de projet « partagé », un libellé indique le nom du propriétaire d'origine (« Par … »). Le projet reste la propriété de son créateur — même si le collègue en mode Éditeur peut le modifier.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     21. EXPORTER / IMPRIMER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>21. Exporter et imprimer en A3</h1>
 
 <p>SynoX produit des documents professionnels au format <strong>A3 paysage</strong>, prêts à diffuser.</p>
 
@@ -1299,7 +1587,7 @@
      17. LECTURE SEULE
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>17. Mode lecture seule (versions archivées)</h1>
+<h1>22. Mode lecture seule (versions archivées)</h1>
 
 <p>Quand vous ouvrez une version archivée, l'application bascule en mode <strong>lecture seule</strong>. Une bannière jaune s'affiche en haut.</p>
 
@@ -1335,10 +1623,49 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     18. MON COMPTE
+     23. TABLEAU DE BORD ADMINISTRATEUR
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>18. Mon compte</h1>
+<h1>23. Tableau de bord administrateur <span class="pill green" style="vertical-align: middle; font-size: 11pt;">admin</span></h1>
+
+<p>Si vous avez le rôle <em>admin</em>, le bouton <span class="btn-mock">Tableau de bord</span> apparaît en haut à droite de l'app. Il ouvre une modal à trois onglets :</p>
+
+<table>
+  <tr><th>Onglet</th><th>Contenu</th></tr>
+  <tr>
+    <td><strong>Utilisateurs</strong></td>
+    <td>Liste des comptes (filtrable par statut : en attente, approuvés, refusés). Permet d'approuver / refuser / promouvoir admin un compte.</td>
+  </tr>
+  <tr>
+    <td><strong>Catalogue</strong></td>
+    <td>Gestion des <strong>marques</strong> et des <strong>catégories</strong> (avec leur couleur). Bouton <em>Sync depuis produits</em> qui importe automatiquement les valeurs déjà utilisées dans les fiches existantes.</td>
+  </tr>
+  <tr>
+    <td><strong>Archives produits</strong></td>
+    <td>Fiches du catalogue commun qui ont été archivées (cf. chapitre 14). Pour chaque fiche : référence, marque, catégorie, créateur, date d'archivage. Boutons <span class="btn-mock primary">↻ Restaurer</span> (remet la fiche dans le catalogue commun) et <span class="btn-mock danger">🗑 Supprimer</span> (suppression définitive, avec confirmation).</td>
+  </tr>
+</table>
+
+<div class="screenshot">
+  <span class="screenshot-icon">📸</span>
+  <p class="screenshot-title">Capture : tableau de bord admin, onglet Archives produits</p>
+  <p class="screenshot-hint">Capturer l'onglet Archives avec quelques fiches archivées et les boutons Restaurer / Supprimer.</p>
+</div>
+
+<h3>Intervention de l'admin sur les projets d'autres utilisateurs</h3>
+<p>Sur la page <strong>Tous les projets</strong>, un admin voit tous les projets du parc, y compris ceux des autres utilisateurs. Il peut les ouvrir, modifier, sauvegarder, partager, archiver et supprimer <em>comme s'il en était le propriétaire</em> — la propriété d'origine du projet est conservée.</p>
+
+<ul>
+  <li>Les cartes des projets d'un autre utilisateur sont entourées d'une <strong>bordure bleue</strong>.</li>
+  <li>Un chip <span class="pill" style="background:transparent;color:#2f6fed;border:1px solid #2f6fed">🛡 Admin</span> apparaît à côté du nom du créateur pour rappeler le mode d'intervention.</li>
+  <li>Les confirmations de suppression / archivage mentionnent explicitement le nom du créateur et signalent qu'il ne sera pas averti.</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════
+     24. MON COMPTE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>24. Mon compte</h1>
 
 <p>Le bouton <span class="btn-mock primary">Mon compte</span> en haut à droite donne accès aux paramètres personnels.</p>
 
@@ -1365,7 +1692,7 @@
      19. RACCOURCIS ET ASTUCES
      ═══════════════════════════════════════════════════════════ -->
 <div class="page-break"></div>
-<h1>19. Raccourcis et astuces</h1>
+<h1>25. Raccourcis et astuces</h1>
 
 <h3>Raccourcis clavier</h3>
 <table>
@@ -1413,7 +1740,8 @@
 </div>
 
 <div class="footer-note">
-  Guide utilisateur SynoX — Mai 2026 (révision Tableau IP) — Vidéo Synergie<br>
+  Guide utilisateur SynoX-AV — Mai 2026<br>
+  Conception et schématisation de solutions audiovisuelles — par Benoit Barreau<br>
   Pour toute question : <strong>contact@videosynergie.com</strong>
 </div>
 
