@@ -1356,17 +1356,23 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
 }
-/* La colonne Label s'étire selon le contenu pour afficher le label en entier */
+/* La colonne Label se réduit à la taille du contenu (trick CSS : width:1% +
+   white-space:nowrap force le navigateur à shrink-to-content). */
 .product-labels-table td:nth-child(2),
 .product-labels-table th:nth-child(2) {
-  width: auto;
+  width: 1%;
   white-space: nowrap;
+}
+/* La colonne Référence est élastique : prend tout l'espace restant et
+   tronque avec ellipsis si trop long. */
+.product-labels-table td:nth-child(3),
+.product-labels-table th:nth-child(3) {
+  width: auto;
 }
 .product-label-input {
   width: auto;
-  min-width: 80px;
+  min-width: 60px;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 2px 4px;
@@ -1472,15 +1478,17 @@ select {
   white-space: nowrap;
 }
 
-/* Colonnes Zone et SYNO étroites */
+/* Colonne Zone : pastille colorée — largeur étroite et centrée */
 .product-labels-table td:nth-child(4),
 .product-labels-table th:nth-child(4) {
   width: 32px;
   text-align: center;
 }
+/* Colonne SYNO : largeur auto selon le contenu (shrink-to-content) */
 .product-labels-table td:nth-child(5),
 .product-labels-table th:nth-child(5) {
-  width: 60px;
+  width: 1%;
+  white-space: nowrap;
 }
 .drag-handle-inline {
   display: inline-block;
