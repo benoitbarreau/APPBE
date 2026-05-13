@@ -1356,6 +1356,10 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Trick CSS : max-width:0 + width:100% sur un <td> permet la troncature
+     ellipsis dynamique. Sans ça, la cellule garde la largeur intrinsèque de
+     son texte et empêche le tableau de tenir dans le panneau. */
+  max-width: 0;
 }
 /* La colonne Label se réduit à la taille du contenu (trick CSS : width:1% +
    white-space:nowrap force le navigateur à shrink-to-content). */
@@ -1365,10 +1369,11 @@ select {
   white-space: nowrap;
 }
 /* La colonne Référence est élastique : prend tout l'espace restant et
-   tronque avec ellipsis si trop long. */
+   tronque avec ellipsis si trop long. width:100% + max-width:0 (sur td) =
+   shrink-to-fit obligatoire. */
 .product-labels-table td:nth-child(3),
 .product-labels-table th:nth-child(3) {
-  width: auto;
+  width: 100%;
 }
 .product-label-input {
   /* La largeur est définie inline en `ch` selon le contenu */
