@@ -1,7 +1,18 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore, useEditorState } from "../store";
 import { getEffectivePorts } from "../ports";
-import { type Port } from "../types";
+import { isDecorativePort, type Port } from "../types";
+
+// Catégories qui utilisent le rendu « bloc rond »
+const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
+
+// Les 4 positions orthogonales dans l'ordre N→E→S→W
+const SPEAKER_POSITIONS: Position[] = [
+  Position.Top,
+  Position.Right,
+  Position.Bottom,
+  Position.Left,
+];
 
 type ProductNodeType = Node<{ nodeId: string }, "product">;
 
@@ -27,6 +38,20 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const updateNode = useAppStore((s) => s.updateNode);
   const readOnly = useEditorState((s) => s.readOnly);
   if (!node || !product) return null;
+
+  // ── Bloc rond pour Enceintes / Caissons de basse ──────────────────────
+  if (SPEAKER_CATEGORIES.has(product.category)) {
+    return (
+      <SpeakerNode
+        node={node}
+        product={product}
+        selected={!!selected}
+        readOnly={readOnly}
+        zones={zones}
+        setNodeZone={setNodeZone}
+      />
+    );
+  }
 
   const { inputs, outputs, middle } = getEffectivePorts(product, node);
   const zone = zones.find((z) => z.id === node.zoneId);
@@ -159,6 +184,108 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bloc rond Enceinte / Caisson de basse ─────────────────────────────────
+
+function SpeakerNode({
+  node,
+  product,
+  selected,
+  readOnly,
+  zones,
+  setNodeZone,
+}: {
+  node: ReturnType<typeof useAppStore.getState>["nodes"][number];
+  product: ReturnType<typeof useAppStore.getState>["products"][number];
+  selected: boolean;
+  readOnly: boolean;
+  zones: ReturnType<typeof useAppStore.getState>["zones"];
+  setNodeZone: (nodeId: string, zoneId: string | undefined) => void;
+}) {
+  const signals = useAppStore((s) => s.signals);
+  const { inputs, outputs, middle } = getEffectivePorts(product, node);
+
+  // Aplatit tous les ports non-décoratifs dans l'ordre inputs → outputs → middle
+  const allPorts: { port: Port; side: "in" | "out" | "midL" }[] = [
+    ...inputs.filter((p) => !isDecorativePort(p)).map((p) => ({ port: p, side: "in" as const })),
+    ...outputs.filter((p) => !isDecorativePort(p)).map((p) => ({ port: p, side: "out" as const })),
+    ...middle.filter((p) => !isDecorativePort(p)).map((p) => ({ port: p, side: "midL" as const })),
+  ];
+
+  const zone = zones.find((z) => z.id === node.zoneId);
+
+  // Styles inline du cercle pour la couleur de zone
+  const ringColor = zone?.color;
+
+  return (
+    <div
+      className={[
+        "speaker-node",
+        selected ? "selected" : "",
+      ].filter(Boolean).join(" ")}
+      style={ringColor ? { "--speaker-zone-color": ringColor } as React.CSSProperties : undefined}
+      title={`${product.manufacturer} ${product.reference} — ${product.category}`}
+    >
+      {/* ── Handles aux 4 positions orthogonales ── */}
+      {allPorts.map(({ port, side }, idx) => {
+        const pos = SPEAKER_POSITIONS[idx % 4];
+        const color = signals[port.signal]?.color ?? "#888";
+        const handleId = `${side}:${port.id}`;
+
+        // Centrage précis sur le bord du cercle selon la position
+        const posStyle: React.CSSProperties =
+          pos === Position.Top    ? { left: "50%", top: 0,    transform: "translate(-50%, -50%)" } :
+          pos === Position.Right  ? { left: "100%", top: "50%", transform: "translate(-50%, -50%)" } :
+          pos === Position.Bottom ? { left: "50%", top: "100%", transform: "translate(-50%, -50%)" } :
+                                    { left: 0,    top: "50%", transform: "translate(-50%, -50%)" };
+
+        return (
+          <Handle
+            key={handleId}
+            id={handleId}
+            type="source"
+            position={pos}
+            style={{
+              background: color,
+              width: 10,
+              height: 10,
+              border: "2px solid #fff",
+              borderRadius: "50%",
+              boxShadow: "0 0 0 1px rgba(0,0,0,0.2)",
+              ...posStyle,
+            }}
+            isConnectable
+            data-nodeid={node.id}
+            title={`${port.label} (${port.signal})`}
+          />
+        );
+      })}
+
+      {/* ── Contenu centré dans le disque ── */}
+      <div className="speaker-node-inner">
+        <div className="speaker-node-brand">{product.manufacturer}</div>
+        <div className="speaker-node-ref">{product.reference}</div>
+      </div>
+
+      {/* ── Sélecteur de zone (affiché en survol/sélection) ── */}
+      {selected && !readOnly && (
+        <select
+          className="speaker-node-zone-select"
+          value={node.zoneId ?? ""}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onChange={(e) => setNodeZone(node.id, e.target.value || undefined)}
+          title="Zone du produit"
+        >
+          <option value="">— Aucune zone —</option>
+          {zones.map((z) => (
+            <option key={z.id} value={z.id}>{z.label}</option>
+          ))}
+        </select>
       )}
     </div>
   );

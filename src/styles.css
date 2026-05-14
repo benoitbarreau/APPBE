@@ -5803,3 +5803,101 @@ select {
   padding: 4px 8px;
 }
 
+/* ── Bloc rond Enceinte / Caisson de basse ──────────────────────────────── */
+.speaker-node {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #4a5568, #1a202c);
+  border: 2px solid #2d3748;
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+/* Anneau de zone coloré */
+.speaker-node[style*="--speaker-zone-color"] {
+  border-color: var(--speaker-zone-color);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.35),
+    0 0 0 3px color-mix(in srgb, var(--speaker-zone-color) 40%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+/* Anneau de sélection */
+.speaker-node.selected {
+  border-color: var(--primary);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.35),
+    0 0 0 3px rgba(47,111,237,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+/* Cercle décoratif intérieur (cône de haut-parleur stylisé) */
+.speaker-node::before {
+  content: "";
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: radial-gradient(circle at 40% 40%, #374151, #111827);
+  pointer-events: none;
+}
+
+/* Contenu texte */
+.speaker-node-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px 4px;
+  gap: 1px;
+  pointer-events: none;
+}
+.speaker-node-brand {
+  font-size: 7px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.speaker-node-ref {
+  font-size: 6px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.2;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sélecteur de zone (affiché en dessous du cercle quand sélectionné) */
+.speaker-node-zone-select {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
