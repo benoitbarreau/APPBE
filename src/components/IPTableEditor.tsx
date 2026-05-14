@@ -1,98 +1,145 @@
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
 import {
-  applyRowFilters,
   applySort,
   dedupeRowsById,
   detectIPDuplicates,
   filterDuplicateIpRows,
   type IPColumn,
 } from "../lib/ipTableSync";
-import type { IPTableRow } from "../types";
-import { isIPTableTab } from "../types";
+import type { IPTableColumnConfig, IPTableRow } from "../types";
+import { DEFAULT_IP_TABLE_COLUMNS, isIPTableTab } from "../types";
 import { IPTableExportModal } from "./IPTableExportModal";
 import { IPTableImportModal } from "./IPTableImportModal";
 
-type ColumnKey =
-  | "product"
-  | "label"
-  | "deviceId"
-  | "ip"
-  | "ipDante"
-  | "ipDanteSec"
-  | "login"
-  | "password"
-  | "serialNumber"
-  | "mac"
-  | "macDante";
-
-interface ColumnDef {
-  key: ColumnKey;
-  label: string;
-  width?: string;
-}
-
-const COLUMNS: ColumnDef[] = [
-  { key: "product", label: "PRODUIT", width: "180px" },
-  { key: "label", label: "LABEL", width: "120px" },
-  { key: "deviceId", label: "ID", width: "80px" },
-  { key: "ip", label: "IP", width: "130px" },
-  { key: "ipDante", label: "IP DANTE", width: "130px" },
-  { key: "ipDanteSec", label: "IP DANTE SEC", width: "130px" },
-  { key: "login", label: "LOGIN", width: "100px" },
-  { key: "password", label: "MOT DE PASSE", width: "120px" },
-  { key: "serialNumber", label: "N° SERIE", width: "120px" },
-  { key: "mac", label: "MAC", width: "140px" },
-  { key: "macDante", label: "MAC DANTE", width: "140px" },
-];
-
-interface NetworkField {
-  key: keyof typeof NET_FIELDS;
-  label: string;
-}
-const NET_FIELDS = {
-  plageIp: "PLAGE IP",
-  dhcp: "DHCP",
-  dns: "DNS",
-  passerelle: "PASSERELLE",
-  ntp: "NTP",
-} as const;
-const NET_LIST: NetworkField[] = [
-  { key: "plageIp", label: "PLAGE IP" },
-  { key: "dhcp", label: "DHCP" },
-  { key: "dns", label: "DNS" },
-  { key: "passerelle", label: "PASSERELLE" },
-  { key: "ntp", label: "NTP" },
-];
+// ── Types ──────────────────────────────────────────────────────────────────
 
 type SortDir = "asc" | "desc";
 
+// Colonnes fixes (ID = clé de IPTableRow)
+const FIXED_IDS = new Set([
+  "product", "label", "deviceId", "ip", "ipDante",
+  "ipDanteSec", "login", "password", "serialNumber", "mac", "macDante",
+]);
+
+// Colonnes "doublon IP" (mise en évidence)
+const IP_DUP_COLS = new Set(["ip", "ipDante", "ipDanteSec"]);
+
+interface NetworkField { key: keyof typeof NET_FIELDS; label: string }
+const NET_FIELDS = {
+  plageIp: "PLAGE IP", dhcp: "DHCP", dns: "DNS",
+  passerelle: "PASSERELLE", ntp: "NTP",
+} as const;
+const NET_LIST: NetworkField[] = [
+  { key: "plageIp", label: "PLAGE IP" }, { key: "dhcp",      label: "DHCP" },
+  { key: "dns",     label: "DNS" },      { key: "passerelle", label: "PASSERELLE" },
+  { key: "ntp",     label: "NTP" },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function getCellValue(row: IPTableRow, colId: string): string {
+  if (FIXED_IDS.has(colId)) return (row as unknown as Record<string, string>)[colId] ?? "";
+  return row.customFields?.[colId] ?? "";
+}
+
+// ── Composant principal ────────────────────────────────────────────────────
+
 export function IPTableEditor({ tabId }: { tabId: string }) {
-  const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
-  const allTabs = useAppStore((s) => s.tabs);
-  // Zones globales au projet : source unique = s.zones.
-  // Les zones ne sont plus stockées par onglet (t.zones est vestigiel).
-  const allZones = useAppStore((s) => s.zones);
-  const syncIPTable = useAppStore((s) => s.syncIPTable);
-  const updateIPRow = useAppStore((s) => s.updateIPRow);
-  const addIPRow = useAppStore((s) => s.addIPRow);
-  const removeIPRow = useAppStore((s) => s.removeIPRow);
+  const tab        = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
+  const allTabs    = useAppStore((s) => s.tabs);
+  const allZones   = useAppStore((s) => s.zones);
+  const ipTableColumns   = useAppStore((s) => s.ipTableColumns);
+  const setIPTableColumns = useAppStore((s) => s.setIPTableColumns);
+  const addIPTableColumn  = useAppStore((s) => s.addIPTableColumn);
+  const syncIPTable  = useAppStore((s) => s.syncIPTable);
+  const updateIPRow  = useAppStore((s) => s.updateIPRow);
+  const addIPRow     = useAppStore((s) => s.addIPRow);
+  const removeIPRow  = useAppStore((s) => s.removeIPRow);
   const updateIPNetwork = useAppStore((s) => s.updateIPNetwork);
-  const updateIPTitle = useAppStore((s) => s.updateIPTitle);
+  const updateIPTitle   = useAppStore((s) => s.updateIPTitle);
   const readOnly = useEditorState((s) => s.readOnly);
 
-  const [filters, setFilters] = useState<Record<ColumnKey, string>>(
-    () =>
-      Object.fromEntries(COLUMNS.map((c) => [c.key, ""])) as Record<
-        ColumnKey,
-        string
-      >,
+  // ── UI état local ────────────────────────────────────────────────────────
+  const visibleCols = useMemo(
+    () => ipTableColumns.filter((c) => c.visible),
+    [ipTableColumns],
   );
-  const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const hiddenCols = useMemo(
+    () => ipTableColumns.filter((c) => !c.visible),
+    [ipTableColumns],
+  );
+
+  const [filters, setFilters] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ipTableColumns.map((c) => [c.id, ""])),
+  );
+  const [sortKey,  setSortKey]  = useState<string | null>(null);
+  const [sortDir,  setSortDir]  = useState<SortDir>("asc");
   const [onlyDuplicates, setOnlyDuplicates] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  // ── Gestionnaire de colonnes ─────────────────────────────────────────────
+  const [colMgrOpen, setColMgrOpen] = useState(false);
+  const [addingCol,  setAddingCol]  = useState(false);
+  const [newColLabel, setNewColLabel] = useState("");
+  const newColInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Drag & drop colonnes ─────────────────────────────────────────────────
+  const draggedColId  = useRef<string | null>(null);
+  const [dragOverId,  setDragOverId]  = useState<string | null>(null);
+
+  const onColDragStart = (e: React.DragEvent, id: string) => {
+    draggedColId.current = id;
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onColDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id !== draggedColId.current) setDragOverId(id);
+  };
+  const onColDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const srcId = draggedColId.current;
+    if (!srcId || srcId === targetId) { setDragOverId(null); return; }
+    const cols = [...ipTableColumns];
+    const srcIdx = cols.findIndex((c) => c.id === srcId);
+    const tgtIdx = cols.findIndex((c) => c.id === targetId);
+    if (srcIdx < 0 || tgtIdx < 0) { setDragOverId(null); return; }
+    const [moved] = cols.splice(srcIdx, 1);
+    cols.splice(tgtIdx, 0, moved);
+    setIPTableColumns(cols);
+    setDragOverId(null);
+    draggedColId.current = null;
+  };
+  const onColDragEnd = () => {
+    draggedColId.current = null;
+    setDragOverId(null);
+  };
+
+  // ── Masquer / afficher une colonne ───────────────────────────────────────
+  const hideColumn = (id: string) =>
+    setIPTableColumns(ipTableColumns.map((c) => c.id === id ? { ...c, visible: false } : c));
+  const showColumn = (id: string) =>
+    setIPTableColumns(ipTableColumns.map((c) => c.id === id ? { ...c, visible: true } : c));
+  const deleteCustomColumn = (id: string) =>
+    setIPTableColumns(ipTableColumns.filter((c) => c.id !== id));
+
+  // ── Ajout d'une colonne ──────────────────────────────────────────────────
+  const commitAddCol = () => {
+    const lbl = newColLabel.trim();
+    if (lbl) {
+      addIPTableColumn(lbl);
+      setFilters((f) => ({ ...f })); // on laissera le filtre vide par défaut
+    }
+    setNewColLabel("");
+    setAddingCol(false);
+  };
+
+  // ── Réinitialiser les colonnes ───────────────────────────────────────────
+  const resetColumns = () => {
+    if (!confirm("Réinitialiser les colonnes à la structure par défaut ?\nLes colonnes personnalisées et leur contenu seront perdus.")) return;
+    setIPTableColumns([...DEFAULT_IP_TABLE_COLUMNS]);
+  };
 
   if (!tab || !isIPTableTab(tab)) {
     return (
@@ -103,118 +150,76 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   }
 
   const rawRows = tab.rows ?? [];
-  const network = tab.network ?? {
-    plageIp: "",
-    dhcp: "",
-    dns: "",
-    passerelle: "",
-    ntp: "",
-  };
+  const network = tab.network ?? { plageIp: "", dhcp: "", dns: "", passerelle: "", ntp: "" };
   const documentTitle = tab.documentTitle ?? "";
 
-  // ── Source unique : lignes du tableau, dédupliquées défensivement ───
-  // Si pour une raison quelconque deux lignes partagent le même id (bug
-  // d'import ou de migration), on n'en garde qu'une — sinon React
-  // afficherait des doublons visuels et le tri pourrait sembler fautif.
   const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
 
-  // ── Map nodeId → zoneId à travers tous les onglets synoptiques ──────
-  // Permet d'afficher le fond de la ligne à la couleur de la zone du
-  // produit auquel elle est liée (via productInstanceIds).
+  // Couleurs de zones
   const nodeIdToZoneId = useMemo(() => {
     const m = new Map<string, string | undefined>();
     for (const t of allTabs) {
       if (isIPTableTab(t)) continue;
-      for (const node of t.nodes ?? []) {
-        m.set(node.id, node.zoneId);
-      }
+      for (const node of t.nodes ?? []) m.set(node.id, node.zoneId);
     }
     return m;
   }, [allTabs]);
-
   const zoneColorById = useMemo(() => {
     const m = new Map<string, string>();
     for (const z of allZones) m.set(z.id, z.color);
     return m;
   }, [allZones]);
-
-  /** Pour une ligne donnée, retourne la couleur de zone du premier
-   *  PlacedProduct lié qui en a une. undefined sinon (ligne manuelle ou
-   *  produits sans zone). */
   const zoneColorForRow = (row: IPTableRow): string | undefined => {
     for (const iid of row.productInstanceIds) {
       const zid = nodeIdToZoneId.get(iid);
-      if (zid) {
-        const c = zoneColorById.get(zid);
-        if (c) return c;
-      }
+      if (zid) { const c = zoneColorById.get(zid); if (c) return c; }
     }
     return undefined;
   };
 
-  // ── Détection des doublons IP — pure, sans side-effect ──────────────
   const duplicateMap = useMemo(() => detectIPDuplicates(rows), [rows]);
   const hasDuplicates = duplicateMap.size > 0;
 
-  // ── Vue dérivée : filtres → option doublons → tri ───────────────────
-  // Toutes les étapes sont des fonctions pures qui retournent une nouvelle
-  // référence ; `rows` (source) n'est JAMAIS muté. Cliquer sur un en-tête
-  // pour trier change uniquement `sortKey` / `sortDir`, recalcule cette
-  // useMemo, et n'invoque AUCUNE action du store.
-  const columnKeys = useMemo(() => COLUMNS.map((c) => c.key), []);
   const visibleRows = useMemo<IPTableRow[]>(() => {
     let list: IPTableRow[] = rows;
-    list = applyRowFilters(list, filters, columnKeys);
+    // Filtrer uniquement sur les colonnes visibles
+    for (const col of visibleCols) {
+      const f = (filters[col.id] ?? "").trim().toLowerCase();
+      if (!f) continue;
+      list = list.filter((r) => getCellValue(r, col.id).toLowerCase().includes(f));
+    }
     if (onlyDuplicates) list = filterDuplicateIpRows(list, duplicateMap);
     list = applySort(list, sortKey, sortDir);
     return list;
-  }, [rows, filters, columnKeys, onlyDuplicates, duplicateMap, sortKey, sortDir]);
+  }, [rows, filters, visibleCols, onlyDuplicates, duplicateMap, sortKey, sortDir]);
 
-  const onHeaderClick = (key: ColumnKey) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+  const onHeaderClick = (id: string) => {
+    if (sortKey === id) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(id); setSortDir("asc"); }
   };
 
   const clearAllFilters = () => {
-    setFilters(
-      Object.fromEntries(COLUMNS.map((c) => [c.key, ""])) as Record<
-        ColumnKey,
-        string
-      >,
-    );
+    setFilters(Object.fromEntries(ipTableColumns.map((c) => [c.id, ""])));
     setOnlyDuplicates(false);
   };
 
-  /** Suppression d'une ligne — bloquée si l'IP (et non-doublon) ou le N° de
-   *  série est renseigné. L'utilisateur doit d'abord vider ces champs pour
-   *  confirmer son intention. Les IP en doublon restent supprimables. */
   const handleRemoveRow = (row: IPTableRow) => {
-    const ipValue = (row.ip ?? "").trim();
+    const ipValue    = (row.ip ?? "").trim();
     const serialValue = (row.serialNumber ?? "").trim();
-    const ipDup = duplicateMap.get(row.id)?.has("ip") ?? false;
-    const ipBlocks = ipValue !== "" && !ipDup;
+    const ipDup  = duplicateMap.get(row.id)?.has("ip") ?? false;
+    const ipBlocks  = ipValue !== "" && !ipDup;
     const serialBlocks = serialValue !== "";
-
     if (ipBlocks || serialBlocks) {
       const filled: string[] = [];
-      if (ipBlocks) filled.push(`   • IP : ${ipValue}`);
+      if (ipBlocks)    filled.push(`   • IP : ${ipValue}`);
       if (serialBlocks) filled.push(`   • N° SERIE : ${serialValue}`);
-      const fieldsLabel =
-        ipBlocks && serialBlocks
-          ? "les champs IP et N° SERIE"
-          : ipBlocks
-            ? "le champ IP"
-            : "le champ N° SERIE";
+      const fieldsLabel = ipBlocks && serialBlocks ? "les champs IP et N° SERIE"
+        : ipBlocks ? "le champ IP" : "le champ N° SERIE";
       alert(
-        `Suppression bloquée.\n\n` +
-          `Cette ligne contient des données importantes :\n` +
-          filled.join("\n") +
-          `\n\nPour supprimer la ligne, videz d'abord ${fieldsLabel}.\n` +
-          `Cette protection évite la perte accidentelle de données uniques.`,
+        `Suppression bloquée.\n\nCette ligne contient des données importantes :\n` +
+        filled.join("\n") +
+        `\n\nPour supprimer la ligne, videz d'abord ${fieldsLabel}.\n` +
+        `Cette protection évite la perte accidentelle de données uniques.`,
       );
       return;
     }
@@ -222,11 +227,11 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   };
 
   const hasActiveFilter =
-    onlyDuplicates || COLUMNS.some((c) => filters[c.key].trim() !== "");
+    onlyDuplicates || visibleCols.some((c) => (filters[c.id] ?? "").trim() !== "");
 
   return (
     <div className="ip-table-editor">
-      {/* ── Barre d'actions ────────────────────────────────────── */}
+      {/* ── Barre d'actions ─────────────────────────────────────────── */}
       <div className="ip-table-toolbar">
         <input
           className="ip-table-title-input"
@@ -236,6 +241,80 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
           readOnly={readOnly}
         />
         <div className="ip-table-toolbar-actions">
+          {/* ── Gestionnaire de colonnes ───────────────────────────── */}
+          <div className="ip-col-mgr-wrap">
+            <button
+              className={`ip-col-mgr-btn${colMgrOpen ? " active" : ""}`}
+              onClick={() => setColMgrOpen((v) => !v)}
+              title="Gérer les colonnes"
+            >
+              ⚙ Colonnes{hiddenCols.length > 0 && (
+                <span className="ip-col-hidden-badge">{hiddenCols.length}</span>
+              )}
+            </button>
+            {colMgrOpen && (
+              <div className="ip-col-mgr-panel">
+                <div className="ip-col-mgr-header">
+                  <span>Colonnes du tableau</span>
+                  <button className="ip-col-mgr-reset" onClick={resetColumns} title="Remettre les colonnes par défaut">↻</button>
+                </div>
+                <div className="ip-col-mgr-hint muted">
+                  Glissez les en-têtes pour réorganiser. Cliquez ✕ pour masquer.
+                </div>
+                {/* Toutes les colonnes (visibles + masquées) */}
+                {ipTableColumns.map((col) => (
+                  <div key={col.id} className={`ip-col-mgr-row${col.visible ? "" : " hidden"}`}>
+                    <label className="ip-col-mgr-label">
+                      <input
+                        type="checkbox"
+                        checked={col.visible}
+                        onChange={() => col.visible ? hideColumn(col.id) : showColumn(col.id)}
+                      />
+                      <span>{col.label}</span>
+                      {col.custom && <span className="ip-col-custom-chip">perso</span>}
+                    </label>
+                    {col.custom && (
+                      <button
+                        className="ip-col-mgr-delete danger"
+                        onClick={() => {
+                          if (confirm(`Supprimer définitivement la colonne "${col.label}" ? Les données seront perdues.`))
+                            deleteCustomColumn(col.id);
+                        }}
+                        title="Supprimer définitivement"
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+                {/* Ajout d'une colonne */}
+                {!readOnly && (
+                  <div className="ip-col-mgr-add">
+                    {addingCol ? (
+                      <div className="ip-col-add-form">
+                        <input
+                          ref={newColInputRef}
+                          value={newColLabel}
+                          onChange={(e) => setNewColLabel(e.target.value)}
+                          placeholder="Nom de la colonne"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitAddCol();
+                            if (e.key === "Escape") { setAddingCol(false); setNewColLabel(""); }
+                          }}
+                        />
+                        <button onClick={commitAddCol} className="primary">OK</button>
+                        <button onClick={() => { setAddingCol(false); setNewColLabel(""); }}>Annuler</button>
+                      </div>
+                    ) : (
+                      <button className="ip-col-add-btn" onClick={() => setAddingCol(true)}>
+                        + Ajouter une colonne
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {!readOnly && (
             <>
               <button onClick={() => syncIPTable(tabId)} title="Recharger depuis les synoptiques">
@@ -260,27 +339,17 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
         </div>
       </div>
 
-      {/* ── Cartouche réseau ──────────────────────────────────── */}
+      {/* ── Cartouche réseau ──────────────────────────────────────────── */}
       <div className="ip-network-block">
         <table className="ip-network-table">
-          <thead>
-            <tr>
-              {NET_LIST.map((f) => (
-                <th key={f.key}>{f.label}</th>
-              ))}
-            </tr>
-          </thead>
+          <thead><tr>{NET_LIST.map((f) => <th key={f.key}>{f.label}</th>)}</tr></thead>
           <tbody>
             <tr>
               {NET_LIST.map((f) => (
                 <td key={f.key}>
                   <input
-                    value={network[f.key]}
-                    placeholder="—"
-                    readOnly={readOnly}
-                    onChange={(e) =>
-                      updateIPNetwork(tabId, { [f.key]: e.target.value })
-                    }
+                    value={network[f.key]} placeholder="—" readOnly={readOnly}
+                    onChange={(e) => updateIPNetwork(tabId, { [f.key]: e.target.value })}
                   />
                 </td>
               ))}
@@ -289,11 +358,10 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
         </table>
       </div>
 
-      {/* ── Bandeau de doublons / filtres ─────────────────────── */}
+      {/* ── Bandeau de doublons / filtres ─────────────────────────────── */}
       <div className="ip-table-status-bar">
         <div>
-          <strong>{visibleRows.length}</strong> ligne(s) affichée(s) sur{" "}
-          {rows.length}
+          <strong>{visibleRows.length}</strong> ligne(s) affichée(s) sur {rows.length}
           {hasDuplicates && (
             <span className="ip-dup-badge" title="Au moins une IP est en doublon">
               ⚠ {duplicateMap.size} ligne(s) avec IP en doublon
@@ -303,37 +371,47 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
         <div className="ip-table-status-actions">
           {hasDuplicates && (
             <label className="ip-only-dups">
-              <input
-                type="checkbox"
-                checked={onlyDuplicates}
-                onChange={(e) => setOnlyDuplicates(e.target.checked)}
-              />
+              <input type="checkbox" checked={onlyDuplicates}
+                onChange={(e) => setOnlyDuplicates(e.target.checked)} />
               Afficher uniquement les doublons
             </label>
           )}
-          {hasActiveFilter && (
-            <button onClick={clearAllFilters}>Effacer les filtres</button>
-          )}
+          {hasActiveFilter && <button onClick={clearAllFilters}>Effacer les filtres</button>}
         </div>
       </div>
 
-      {/* ── Tableau principal ─────────────────────────────────── */}
+      {/* ── Tableau principal ──────────────────────────────────────────── */}
       <div className="ip-table-wrap">
         <table className="ip-table">
           <thead>
+            {/* Ligne d'en-têtes (draggable) */}
             <tr>
-              {COLUMNS.map((c) => (
+              {visibleCols.map((col) => (
                 <th
-                  key={c.key}
-                  style={{ width: c.width, minWidth: c.width }}
-                  className="sortable"
-                  onClick={() => onHeaderClick(c.key)}
+                  key={col.id}
+                  style={{ width: col.width, minWidth: col.width }}
+                  className={[
+                    "sortable",
+                    "ip-th-draggable",
+                    dragOverId === col.id ? "ip-th-drag-over" : "",
+                  ].filter(Boolean).join(" ")}
+                  draggable={!readOnly}
+                  onDragStart={(e) => !readOnly && onColDragStart(e, col.id)}
+                  onDragOver={(e) => !readOnly && onColDragOver(e, col.id)}
+                  onDrop={(e) => !readOnly && onColDrop(e, col.id)}
+                  onDragEnd={onColDragEnd}
+                  onClick={() => onHeaderClick(col.id)}
                 >
-                  {c.label}
-                  {sortKey === c.key && (
-                    <span className="sort-indicator">
-                      {sortDir === "asc" ? "▲" : "▼"}
-                    </span>
+                  <span className="ip-th-label">{col.label}</span>
+                  {sortKey === col.id && (
+                    <span className="sort-indicator">{sortDir === "asc" ? "▲" : "▼"}</span>
+                  )}
+                  {!readOnly && (
+                    <button
+                      className="ip-th-hide-btn"
+                      title={`Masquer la colonne "${col.label}"`}
+                      onClick={(e) => { e.stopPropagation(); hideColumn(col.id); }}
+                    >✕</button>
                   )}
                 </th>
               ))}
@@ -341,16 +419,14 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
             </tr>
             {/* Ligne de filtres */}
             <tr className="ip-filter-row">
-              {COLUMNS.map((c) => (
-                <th key={c.key}>
+              {visibleCols.map((col) => (
+                <th key={col.id}>
                   <input
                     className="ip-filter-input"
-                    value={filters[c.key]}
+                    value={filters[col.id] ?? ""}
                     placeholder="🔍"
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      setFilters({ ...filters, [c.key]: e.target.value })
-                    }
+                    onChange={(e) => setFilters({ ...filters, [col.id]: e.target.value })}
                   />
                 </th>
               ))}
@@ -363,6 +439,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 key={row.id}
                 tabId={tabId}
                 row={row}
+                columns={visibleCols}
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
                 zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
@@ -372,31 +449,20 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
             ))}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={COLUMNS.length + 1} className="ip-table-empty-row">
+                <td colSpan={visibleCols.length + 1} className="ip-table-empty-row">
                   {rows.length === 0
                     ? "Aucune ligne. Ajoutez-en avec « + Ligne » ou « ⟳ Synchroniser »."
                     : "Aucune ligne ne correspond aux filtres."}
                 </td>
               </tr>
             )}
-            {/* Pied de tableau : boutons « + Ligne » et « ⟳ Synchroniser » */}
             {!readOnly && (
               <tr className="ip-add-row-tr">
-                <td colSpan={COLUMNS.length + 1} className="ip-add-row-cell">
-                  <button
-                    className="ip-add-row-btn"
-                    onClick={() => addIPRow(tabId)}
-                    title="Ajouter une ligne manuelle"
-                  >
-                    + Ligne
-                  </button>
-                  <button
-                    className="ip-add-row-btn ip-sync-row-btn"
-                    onClick={() => syncIPTable(tabId)}
-                    title="Recharger depuis les synoptiques"
-                  >
-                    ⟳ Synchroniser
-                  </button>
+                <td colSpan={visibleCols.length + 1} className="ip-add-row-cell">
+                  <button className="ip-add-row-btn" onClick={() => addIPRow(tabId)}
+                    title="Ajouter une ligne manuelle">+ Ligne</button>
+                  <button className="ip-add-row-btn ip-sync-row-btn" onClick={() => syncIPTable(tabId)}
+                    title="Recharger depuis les synoptiques">⟳ Synchroniser</button>
                 </td>
               </tr>
             )}
@@ -406,26 +472,20 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 
       {exportOpen && (
         <IPTableExportModal
-          tabId={tabId}
-          rows={rows}
-          visibleRows={visibleRows}
-          columns={COLUMNS}
-          network={network}
-          documentTitle={documentTitle}
+          tabId={tabId} rows={rows} visibleRows={visibleRows}
+          columns={visibleCols}
+          network={network} documentTitle={documentTitle}
           onClose={() => setExportOpen(false)}
         />
       )}
       {importOpen && (
-        <IPTableImportModal
-          tabId={tabId}
-          onClose={() => setImportOpen(false)}
-        />
+        <IPTableImportModal tabId={tabId} onClose={() => setImportOpen(false)} />
       )}
     </div>
   );
 }
 
-/** Convertit un code hex (#rrggbb) en rgba(r,g,b,alpha). */
+// ── Conversion hex → rgba ──────────────────────────────────────────────────
 function hexToRgba(hex: string, alpha: number): string {
   const c = hex.replace("#", "");
   if (c.length !== 6) return "transparent";
@@ -435,26 +495,19 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/** Une ligne du tableau IP — extrait pour limiter les re-renders. */
+// ── IPRow ──────────────────────────────────────────────────────────────────
 function IPRow({
-  row,
-  duplicates,
-  zoneColor,
-  readOnly,
-  onChange,
-  onRemove,
+  row, columns, duplicates, zoneColor, readOnly, onChange, onRemove,
 }: {
   tabId: string;
   row: IPTableRow;
+  columns: IPTableColumnConfig[];
   duplicates: Set<IPColumn>;
   zoneColor?: string;
   readOnly: boolean;
   onChange: (patch: Partial<IPTableRow>) => void;
   onRemove: () => void;
 }) {
-  // Fond de la ligne teinté par la couleur de la zone du produit lié.
-  // On utilise une variable CSS pour permettre au :hover de garder l'effet
-  // tout en assombrissant légèrement la teinte.
   const trStyle: React.CSSProperties | undefined = zoneColor
     ? ({
         "--row-zone-color": zoneColor,
@@ -463,51 +516,50 @@ function IPRow({
       } as React.CSSProperties)
     : undefined;
   const className =
-    (row.manual ? "ip-row-manual" : "ip-row-auto") +
-    (zoneColor ? " ip-row-zone" : "");
+    (row.manual ? "ip-row-manual" : "ip-row-auto") + (zoneColor ? " ip-row-zone" : "");
+
   return (
     <tr className={className} style={trStyle}>
-      {COLUMNS.map((col) => {
-        const isDup =
-          (col.key === "ip" || col.key === "ipDante" || col.key === "ipDanteSec") &&
-          duplicates.has(col.key as IPColumn);
+      {columns.map((col) => {
+        const isDup = IP_DUP_COLS.has(col.id) && duplicates.has(col.id as IPColumn);
+        const value = getCellValue(row, col.id);
+
+        const handleChange = (val: string) => {
+          if (FIXED_IDS.has(col.id)) {
+            onChange({ [col.id]: val });
+          } else {
+            // Colonne custom → met à jour customFields
+            onChange({ customFields: { ...(row.customFields ?? {}), [col.id]: val } });
+          }
+        };
+
         return (
           <td
-            key={col.key}
+            key={col.id}
             className={isDup ? "ip-cell-dup" : undefined}
             title={isDup ? "Cette IP est en doublon avec une autre cellule." : undefined}
           >
             <input
-              value={row[col.key] ?? ""}
-              readOnly={readOnly}
-              placeholder=""
-              onChange={(e) => onChange({ [col.key]: e.target.value })}
+              value={value} readOnly={readOnly} placeholder=""
+              onChange={(e) => handleChange(e.target.value)}
             />
           </td>
         );
       })}
       <td className="ip-col-actions">
         {!readOnly && (() => {
-          const ipFilled = (row.ip ?? "").trim() !== "";
-          const ipDup = duplicates.has("ip");
-          const ipBlocks = ipFilled && !ipDup;
+          const ipFilled  = (row.ip ?? "").trim() !== "";
+          const ipDup     = duplicates.has("ip");
+          const ipBlocks  = ipFilled && !ipDup;
           const serialBlocks = (row.serialNumber ?? "").trim() !== "";
-          const blocked = ipBlocks || serialBlocks;
-          const fields =
-            ipBlocks && serialBlocks
-              ? "les champs IP et N° SERIE"
-              : ipBlocks
-                ? "le champ IP"
-                : "le champ N° SERIE";
+          const blocked   = ipBlocks || serialBlocks;
+          const fields = ipBlocks && serialBlocks ? "les champs IP et N° SERIE"
+            : ipBlocks ? "le champ IP" : "le champ N° SERIE";
           return (
             <button
               className={`danger ip-remove-btn${blocked ? " ip-remove-btn-blocked" : ""}`}
               onClick={onRemove}
-              title={
-                blocked
-                  ? `Suppression bloquée — videz d'abord ${fields}`
-                  : "Supprimer cette ligne"
-              }
+              title={blocked ? `Suppression bloquée — videz d'abord ${fields}` : "Supprimer cette ligne"}
             >
               {blocked ? "🔒" : "✕"}
             </button>
@@ -518,5 +570,6 @@ function IPRow({
   );
 }
 
-export { COLUMNS as IP_TABLE_COLUMNS };
-export type { ColumnKey as IPColumnKey, ColumnDef as IPColumnDef };
+// ── Exports rétrocompatibilité ─────────────────────────────────────────────
+export { DEFAULT_IP_TABLE_COLUMNS as IP_TABLE_COLUMNS };
+export type { IPTableColumnConfig as IPColumnDef };

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Cable, PlacedProduct, Product, ProjectMeta, SignalDef, Tab, Zone } from '../types'
+import type { Cable, IPTableColumnConfig, PlacedProduct, Product, ProjectMeta, SignalDef, Tab, Zone } from '../types'
 import type { BayAccessory } from '../components/bay/bay-accessories'
 
 export interface ProjectData {
@@ -16,6 +16,9 @@ export interface ProjectData {
   products: Product[]
   /** Accessoires baie personnalisés (ajoutés / modifiés par l'utilisateur). */
   accessories?: BayAccessory[]
+  /** Configuration des colonnes du Tableau IP (ordre, visibilité, colonnes custom).
+   *  Absente dans les anciens projets → on utilise DEFAULT_IP_TABLE_COLUMNS. */
+  ipTableColumns?: IPTableColumnConfig[]
 }
 
 // ── Versionning ────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type {
   Cable,
   IPNetworkInfo,
+  IPTableColumnConfig,
   IPTableRow,
   PlacedProduct,
   Port,
@@ -19,7 +20,7 @@ import type {
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
 import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
-import { DEFAULT_IP_NETWORK, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
+import { DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
 const DEFAULT_ZONES: Zone[] = [
@@ -70,6 +71,9 @@ interface State {
   zones: Zone[];
   // ── Données partagées entre onglets ───────────────────────────────────
   signals: Record<string, SignalDef>;
+  /** Configuration des colonnes du Tableau IP (ordre, visibilité, custom).
+   *  Partagée entre tous les onglets IP du projet. */
+  ipTableColumns: IPTableColumnConfig[];
   projectMeta: ProjectMeta;
   selectedNodeId: string | null;
   selectedCableId: string | null;
@@ -125,6 +129,11 @@ interface State {
   updateIPNetwork: (tabId: string, patch: Partial<IPNetworkInfo>) => void;
   /** Met à jour le titre de document du Tableau IP. */
   updateIPTitle: (tabId: string, title: string) => void;
+  /** Remplace entièrement la liste des colonnes (utilisé pour le drag & drop,
+   *  masquage, réinitialisation). */
+  setIPTableColumns: (cols: IPTableColumnConfig[]) => void;
+  /** Ajoute une colonne personnalisée texte libre. */
+  addIPTableColumn: (label: string) => void;
 
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -336,6 +345,7 @@ export const useAppStore = create<State>()(
         nodes: [],
         cables: [],
         signals: { ...DEFAULT_SIGNAL_DEFS },
+        ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
         zones: [...DEFAULT_ZONES],
         projectMeta: DEFAULT_PROJECT_META,
         selectedNodeId: null,
@@ -747,6 +757,21 @@ export const useAppStore = create<State>()(
               t.id === tabId && isIPTableTab(t) ? { ...t, documentTitle: title } : t,
             ),
           })),
+
+        setIPTableColumns: (cols) => set({ ipTableColumns: cols }),
+
+        addIPTableColumn: (label) =>
+          set((s) => {
+            const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+            const newCol: IPTableColumnConfig = {
+              id,
+              label: label.trim() || "Nouvelle colonne",
+              width: "140px",
+              visible: true,
+              custom: true,
+            };
+            return { ipTableColumns: [...s.ipTableColumns, newCol] };
+          }),
 
         duplicateTab: (tabId) =>
           set((s) => {
@@ -1207,6 +1232,11 @@ export const useAppStore = create<State>()(
             ...(data.accessories && data.accessories.length > 0
               ? { accessories: data.accessories }
               : {}),
+            // Colonnes Tableau IP : restaurer depuis le projet si présentes,
+            // sinon revenir aux colonnes par défaut (anciens projets).
+            ipTableColumns: data.ipTableColumns && data.ipTableColumns.length > 0
+              ? data.ipTableColumns
+              : [...DEFAULT_IP_TABLE_COLUMNS],
             selectedNodeId: null,
             selectedCableId: null,
           });
@@ -1220,6 +1250,7 @@ export const useAppStore = create<State>()(
             nodes: [],
             cables: [],
             zones: [...DEFAULT_ZONES],
+            ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
             currentProjectName: "Sans titre",
             currentVersionsMeta: [],
@@ -1450,6 +1481,11 @@ export const useAppStore = create<State>()(
               }],
             };
           });
+        }
+
+        // vX : migration vers les colonnes Tableau IP configurables
+        if (!state.ipTableColumns || state.ipTableColumns.length === 0) {
+          state.ipTableColumns = [...DEFAULT_IP_TABLE_COLUMNS];
         }
 
         return state as unknown as State;

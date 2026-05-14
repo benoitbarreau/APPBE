@@ -200,6 +200,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             signals: state.signals,
             products: state.products,
             accessories: state.accessories,
+            ipTableColumns: state.ipTableColumns,
           });
           // Conserver les 3 derniers snapshots archivés max
           versionsMeta = [...versionsMeta, archived].slice(-3);
@@ -226,6 +227,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           signals: state.signals,
           products: state.products,
           accessories: state.accessories,
+          ipTableColumns: state.ipTableColumns,
         },
       );
 

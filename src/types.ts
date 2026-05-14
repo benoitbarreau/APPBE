@@ -121,7 +121,39 @@ export interface IPTableRow {
   serialNumber: string
   mac: string
   macDante: string
+  /** Valeurs des colonnes personnalisées (clé = IPTableColumnConfig.id). */
+  customFields?: Record<string, string>
 }
+
+/** Définition d'une colonne du Tableau IP (colonnes fixes + colonnes custom). */
+export interface IPTableColumnConfig {
+  /** Identifiant stable : clé de IPTableRow pour les colonnes fixes,
+   *  ou 'custom_xxxx' pour les colonnes ajoutées par l'utilisateur. */
+  id: string
+  /** Intitulé affiché dans l'en-tête. */
+  label: string
+  /** Largeur CSS (ex. "130px"). */
+  width?: string
+  /** True = colonne affichée dans le tableau. */
+  visible: boolean
+  /** True = colonne ajoutée manuellement par l'utilisateur (texte libre). */
+  custom?: boolean
+}
+
+/** Structure par défaut des colonnes du Tableau IP pour un nouveau projet. */
+export const DEFAULT_IP_TABLE_COLUMNS: IPTableColumnConfig[] = [
+  { id: "product",      label: "PRODUIT",       width: "180px", visible: true },
+  { id: "label",        label: "LABEL",         width: "120px", visible: true },
+  { id: "deviceId",     label: "ID",            width: "80px",  visible: true },
+  { id: "ip",           label: "IP",            width: "130px", visible: true },
+  { id: "ipDante",      label: "IP DANTE",      width: "130px", visible: true },
+  { id: "ipDanteSec",   label: "IP DANTE SEC",  width: "130px", visible: true },
+  { id: "login",        label: "LOGIN",         width: "100px", visible: true },
+  { id: "password",     label: "MOT DE PASSE",  width: "120px", visible: true },
+  { id: "serialNumber", label: "N° SERIE",      width: "120px", visible: true },
+  { id: "mac",          label: "MAC",           width: "140px", visible: true },
+  { id: "macDante",     label: "MAC DANTE",     width: "140px", visible: true },
+]
 
 /** Cartouche réseau du Tableau IP. */
 export interface IPNetworkInfo {

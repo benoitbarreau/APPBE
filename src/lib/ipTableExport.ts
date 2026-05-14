@@ -6,7 +6,8 @@ import type { IPNetworkInfo, IPTableRow } from "../types";
 // ─────────────────────────────────────────────────────────────────────
 
 export interface IPExportColumn {
-  key: keyof IPTableRow;
+  /** Clé de IPTableRow (colonnes fixes) ou ID de colonne custom (customFields). */
+  key: string;
   label: string;
 }
 
@@ -88,8 +89,12 @@ export function exportIPTableXls(payload: IPExportPayload, logoUrl?: string) {
         "<tr>" +
         columns
           .map(
-            (c) =>
-              `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(String(r[c.key] ?? ""))}</td>`,
+            (c) => {
+              const val = c.key.startsWith("custom_")
+                ? (r.customFields?.[c.key] ?? "")
+                : String((r as unknown as Record<string, unknown>)[c.key] ?? "");
+              return `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(val)}</td>`;
+            },
           )
           .join("") +
         "</tr>",
@@ -243,7 +248,10 @@ export async function exportIPTablePdf(
     pdf.setFontSize(8);
     for (let i = 0; i < cols.length; i++) {
       pdf.rect(x, y, colWidths[i], rowH, "S");
-      const raw = String(row[cols[i].key] ?? "");
+      const colKey = cols[i].key;
+      const raw = colKey.startsWith("custom_")
+        ? (row.customFields?.[colKey] ?? "")
+        : String((row as unknown as Record<string, unknown>)[colKey] ?? "");
       const text = pdf.splitTextToSize(raw, colWidths[i] - 2)[0] ?? "";
       pdf.text(text, x + 1.5, y + 4);
       x += colWidths[i];
@@ -255,7 +263,7 @@ export async function exportIPTablePdf(
 }
 
 /** Largeur indicative en "unités" pour répartir l'espace sur la page. */
-function widthHintFor(key: keyof IPTableRow): number {
+function widthHintFor(key: string): number {
   switch (key) {
     case "product":
       return 28;
@@ -306,7 +314,12 @@ export function printIPTable(payload: IPExportPayload, logoUrl?: string) {
       (r) =>
         "<tr>" +
         columns
-          .map((c) => `<td>${escapeHtml(String(r[c.key] ?? ""))}</td>`)
+          .map((c) => {
+            const val = c.key.startsWith("custom_")
+              ? (r.customFields?.[c.key] ?? "")
+              : String((r as unknown as Record<string, unknown>)[c.key] ?? "");
+            return `<td>${escapeHtml(val)}</td>`;
+          })
           .join("") +
         "</tr>",
     )
