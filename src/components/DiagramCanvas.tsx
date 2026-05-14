@@ -85,19 +85,26 @@ export function DiagramCanvas({
     if (compatTimerRef.current) clearTimeout(compatTimerRef.current);
   }, []);
 
+  const SPEAKER_CATS = new Set(["Enceintes", "Caisson de basse"]);
+
   const rfNodes: Node[] = useMemo(() => {
     // Compute the grid of A3 pages large enough to cover the diagram.
     // Each page is PAGE_BOUNDS.width x PAGE_BOUNDS.height in flow units;
     // tile starting from (0, 0).
     const NODE_W = 240;
     const NODE_H = 220;
+    const SPEAKER_SIZE = 60;
     let maxRight = PAGE_BOUNDS.width;
     let maxBottom = PAGE_BOUNDS.height;
     let minLeft = 0;
     let minTop = 0;
     for (const n of nodes) {
-      if (n.position.x + NODE_W > maxRight) maxRight = n.position.x + NODE_W;
-      if (n.position.y + NODE_H > maxBottom) maxBottom = n.position.y + NODE_H;
+      const product = products.find((p) => p.id === n.productId);
+      const isSpeaker = product && SPEAKER_CATS.has(product.category);
+      const nw = isSpeaker ? SPEAKER_SIZE : NODE_W;
+      const nh = isSpeaker ? SPEAKER_SIZE : NODE_H;
+      if (n.position.x + nw > maxRight) maxRight = n.position.x + nw;
+      if (n.position.y + nh > maxBottom) maxBottom = n.position.y + nh;
       if (n.position.x < minLeft) minLeft = n.position.x;
       if (n.position.y < minTop) minTop = n.position.y;
     }
@@ -132,7 +139,7 @@ export function DiagramCanvas({
         selected: n.id === selectedNodeId,
       })),
     ];
-  }, [nodes, selectedNodeId]);
+  }, [nodes, selectedNodeId, products]);
 
   const rfEdges: Edge[] = useMemo(
     () =>
