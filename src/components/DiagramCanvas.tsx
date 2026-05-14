@@ -594,12 +594,8 @@ export function DiagramCanvas({
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
-        // Lasso de sélection au clic gauche + drag sur le fond du canvas
-        selectionOnDrag={!readOnly}
-        // Pas de pan via drag clic gauche (le drag fait du lasso) ;
-        // l'utilisateur peut panner avec Espace+drag ou via les Controls.
-        panOnDrag={false}
-        panActivationKeyCode="Space"
+        // Clic gauche maintenu sur le fond = pan du canvas (défaut React Flow)
+        panOnDrag={!readOnly}
         // Zoom au double-clic DÉSACTIVÉ — sinon double-clic sur un bloc ou
         // sur le fond zoome au lieu d'ouvrir l'éditeur d'instance/texte.
         zoomOnDoubleClick={false}
