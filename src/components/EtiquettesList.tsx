@@ -6,10 +6,10 @@ type SortKey = "number" | "label" | "cableType" | "lengthMeters" | "tabName";
 type SortDir = "asc" | "desc";
 
 const COLUMNS_DETAIL: { key: SortKey; label: string; align?: "right" }[] = [
-  { key: "number",      label: "N°" },
-  { key: "tabName",     label: "Synoptique" },
-  { key: "label",       label: "Etiquette câble" },
-  { key: "cableType",   label: "Type de câble" },
+  { key: "number",       label: "N°" },
+  { key: "label",        label: "Etiquette câble" },
+  { key: "tabName",      label: "Synoptique" },
+  { key: "cableType",    label: "Type de câble" },
   { key: "lengthMeters", label: "Longueur (m)", align: "right" },
 ];
 
