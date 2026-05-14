@@ -33,11 +33,16 @@ export function TextNodeComponent({ id, data, selected }: {
     setEditing(true);
   };
 
-  // Focus auto quand on entre en édition
+  // Focus auto quand on entre en édition — curseur placé à la fin du texte
+  // (PAS de select() qui sélectionnerait tout et ferait perdre le contenu
+  // à la première frappe).
   useEffect(() => {
     if (editing) {
-      textareaRef.current?.focus();
-      textareaRef.current?.select();
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      const len = ta.value.length;
+      ta.setSelectionRange(len, len);
     }
   }, [editing]);
 
@@ -90,9 +95,19 @@ export function TextNodeComponent({ id, data, selected }: {
         onResize={handleResize}
       />
 
-      {/* Barre de formatage flottante (Figma-style) */}
-      <NodeToolbar isVisible={selected} position={Position.Top} offset={6}>
-        <div className="text-toolbar">
+      {/* Barre de formatage flottante (Figma-style).
+          - Visible quand le bloc est sélectionné OU en cours d'édition.
+          - onMouseDown(preventDefault) sur le wrapper : empêche le textarea
+            de perdre le focus quand on clique sur un bouton/select/color de
+            la barre — sinon on sort de l'édition à chaque clic. */}
+      <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={6}>
+        <div
+          className="text-toolbar"
+          onMouseDown={(e) => {
+            // Ne préserve le focus que si on est en édition active.
+            if (editing) e.preventDefault();
+          }}
+        >
           {/* Famille de police */}
           <select
             className="text-toolbar-select"
