@@ -994,10 +994,21 @@ select {
   border-bottom: 1px solid var(--border);
   background: #fafbfc;
 }
-.cable-summary h4 {
-  margin: 0 0 4px;
+.cable-summary-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0 0 4px;
+  margin: 0;
   font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
 }
+.cable-summary-toggle:hover { color: var(--primary); }
+.cable-summary-arrow { font-size: 9px; }
 .cable-summary table {
   width: 100%;
   font-size: 11px;

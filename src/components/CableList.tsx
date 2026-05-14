@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { jsPDF } from "jspdf";
 import { useAppStore } from "../store";
 import { isSynopticTab, type Cable } from "../types";
 
@@ -66,6 +67,22 @@ export function CableList() {
 
   const totalCables = groups.reduce((n, g) => n + g.rows.length, 0);
 
+  // ── Récapitulatif plié par défaut ─────────────────────────────────────────
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // ── Menu Export ───────────────────────────────────────────────────────────
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node))
+        setExportMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
+
   // ── Scroll automatique vers le câble sélectionné ──────────────────────────
   const rowsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -95,30 +112,130 @@ export function CableList() {
     URL.revokeObjectURL(url);
   };
 
+  const exportXls = () => {
+    const cols = ["N°", "Synoptique", "Type de câble", "Signal", "De", "Vers", "Longueur (m)", "Libellé"];
+    const esc  = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const headerRow = cols.map((c) => `<th style="background:#333;color:#fff;border:1px solid #000;padding:4px 8px;">${esc(c)}</th>`).join("");
+    const bodyRows: string[] = [];
+    for (const g of groups) {
+      for (const { cable: c, from, to } of g.rows) {
+        const vals = [c.number ?? "", g.tabName, c.cableType, c.signal, from, to, c.lengthMeters ?? "", c.label ?? ""];
+        bodyRows.push("<tr>" + vals.map((v) => `<td style="border:1px solid #000;padding:4px 8px;">${esc(v)}</td>`).join("") + "</tr>");
+      }
+    }
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"/><style>body{font-family:sans-serif;}</style></head><body><table><thead><tr>${headerRow}</tr></thead><tbody>${bodyRows.join("")}</tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "liste-cables.xls"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = () => {
+    const COLS  = ["N°", "Syno", "Type", "Signal", "De", "Vers", "Long.", "Libellé"];
+    const HINTS = [8, 18, 16, 12, 40, 40, 10, 30];
+    const total = HINTS.reduce((s, v) => s + v, 0);
+    const pdf   = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const tableW = pageW - margin * 2;
+    const colW   = HINTS.map((h) => (h / total) * tableW);
+    let y = margin;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.text("Liste des câbles", margin, y + 6);
+    y += 14;
+
+    const headerH = 7;
+    const rowH    = 6;
+
+    const drawHeader = () => {
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFillColor(51, 51, 51);
+      pdf.setTextColor(255);
+      let x = margin;
+      for (let i = 0; i < COLS.length; i++) {
+        pdf.rect(x, y, colW[i], headerH, "FD");
+        pdf.text(COLS[i], x + 1.5, y + 5);
+        x += colW[i];
+      }
+      y += headerH;
+      pdf.setTextColor(0);
+      pdf.setFont("helvetica", "normal");
+    };
+
+    drawHeader();
+
+    for (const g of groups) {
+      for (const { cable: c, from, to } of g.rows) {
+        if (y + rowH > pageH - margin) { pdf.addPage(); y = margin; drawHeader(); }
+        const vals = [c.number ?? "", g.tabName, c.cableType, c.signal, from, to, c.lengthMeters !== undefined ? String(c.lengthMeters) : "", c.label ?? ""];
+        let x = margin;
+        pdf.setFontSize(7);
+        for (let i = 0; i < COLS.length; i++) {
+          pdf.rect(x, y, colW[i], rowH, "S");
+          const text = pdf.splitTextToSize(vals[i], colW[i] - 2)[0] ?? "";
+          pdf.text(text, x + 1.5, y + 4);
+          x += colW[i];
+        }
+        y += rowH;
+      }
+    }
+    pdf.save("liste-cables.pdf");
+  };
+
+  const handleExport = (fn: () => void) => { setExportMenuOpen(false); fn(); };
+
   return (
     <div className="cable-list">
       <div className="cable-list-header">
         <h3>Liste des câbles ({totalCables})</h3>
-        <button onClick={exportCsv} disabled={!totalCables}>Export CSV</button>
+        <div className="etiquettes-export-menu" ref={exportMenuRef}>
+          <button
+            onClick={() => setExportMenuOpen((v) => !v)}
+            disabled={!totalCables}
+            title="Exporter la liste des câbles"
+          >
+            Export ▾
+          </button>
+          {exportMenuOpen && (
+            <div className="etiquettes-export-dropdown">
+              <button onClick={() => handleExport(exportCsv)}>CSV</button>
+              <button onClick={() => handleExport(exportXls)}>XLS (Excel)</button>
+              <button onClick={() => handleExport(exportPdf)}>PDF</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {summary.length > 0 && (
         <div className="cable-summary">
-          <h4>Récapitulatif</h4>
-          <table>
-            <thead>
-              <tr><th>Type</th><th>Quantité</th><th>Longueur totale</th></tr>
-            </thead>
-            <tbody>
-              {summary.map(([type, s]) => (
-                <tr key={type}>
-                  <td>{type}</td>
-                  <td>{s.count}</td>
-                  <td>{s.meters} m</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <button
+            className="cable-summary-toggle"
+            onClick={() => setSummaryOpen((v) => !v)}
+          >
+            <span className="cable-summary-arrow">{summaryOpen ? "▼" : "▶"}</span>
+            Récapitulatif
+          </button>
+          {summaryOpen && (
+            <table>
+              <thead>
+                <tr><th>Type</th><th>Quantité</th><th>Longueur totale</th></tr>
+              </thead>
+              <tbody>
+                {summary.map(([type, s]) => (
+                  <tr key={type}>
+                    <td>{type}</td>
+                    <td>{s.count}</td>
+                    <td>{s.meters} m</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
