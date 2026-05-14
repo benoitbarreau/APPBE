@@ -286,26 +286,39 @@ export function EtiquettesList() {
               const cellReadOnly = readOnly || !r.editable;
               return (
                 <tr key={r.id} className={!r.editable ? "etiquette-row-other-tab" : ""}>
-                  <td>{r.number}</td>
-                  {detailed && (
-                    <td className="etiquette-label-td">
-                      <LabelCell id={r.id} label={r.label} readOnly={cellReadOnly} />
-                    </td>
-                  )}
-                  <td>
-                    <span
-                      className={`etiquette-tab-chip${r.editable ? " active" : ""}`}
-                      title={r.tabName}
-                    >
-                      {r.tabName}
-                    </span>
-                  </td>
-                  <td>{r.cableType}</td>
-                  {detailed && (
-                    <td className="right etiquette-len-td">
-                      <LengthCell id={r.id} length={r.lengthMeters} readOnly={cellReadOnly} />
-                    </td>
-                  )}
+                  {COLUMNS.map((col) => {
+                    switch (col.key) {
+                      case "number":
+                        return <td key={col.key}>{r.number}</td>;
+                      case "label":
+                        return (
+                          <td key={col.key} className="etiquette-label-td">
+                            <LabelCell id={r.id} label={r.label} readOnly={cellReadOnly} />
+                          </td>
+                        );
+                      case "lengthMeters":
+                        return (
+                          <td key={col.key} className="right etiquette-len-td">
+                            <LengthCell id={r.id} length={r.lengthMeters} readOnly={cellReadOnly} />
+                          </td>
+                        );
+                      case "cableType":
+                        return <td key={col.key}>{r.cableType}</td>;
+                      case "tabName":
+                        return (
+                          <td key={col.key}>
+                            <span
+                              className={`etiquette-tab-chip${r.editable ? " active" : ""}`}
+                              title={r.tabName}
+                            >
+                              {r.tabName}
+                            </span>
+                          </td>
+                        );
+                      default:
+                        return <td key={col.key} />;
+                    }
+                  })}
                 </tr>
               );
             })}
