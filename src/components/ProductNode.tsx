@@ -251,11 +251,10 @@ function SpeakerNode({
             position={pos}
             style={{
               background: color,
-              width: 10,
-              height: 10,
-              border: "2px solid #fff",
+              width: 7,
+              height: 7,
+              border: "none",
               borderRadius: "50%",
-              boxShadow: "0 0 0 1px rgba(0,0,0,0.2)",
               ...posStyle,
             }}
             isConnectable

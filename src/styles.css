@@ -5809,11 +5809,9 @@ select {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #4a5568, #1a202c);
-  border: 2px solid #2d3748;
-  box-shadow:
-    0 2px 8px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+  background: #ffffff;
+  border: 2px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5824,27 +5822,25 @@ select {
 .speaker-node[style*="--speaker-zone-color"] {
   border-color: var(--speaker-zone-color);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.35),
-    0 0 0 3px color-mix(in srgb, var(--speaker-zone-color) 40%, transparent),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+    0 1px 4px rgba(0,0,0,0.10),
+    0 0 0 3px color-mix(in srgb, var(--speaker-zone-color) 35%, transparent);
 }
 /* Anneau de sélection */
 .speaker-node.selected {
   border-color: var(--primary);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.35),
-    0 0 0 3px rgba(47,111,237,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+    0 1px 4px rgba(0,0,0,0.10),
+    0 0 0 3px rgba(47,111,237,0.25);
 }
-/* Cercle décoratif intérieur (cône de haut-parleur stylisé) */
+/* Cercle décoratif intérieur */
 .speaker-node::before {
   content: "";
   position: absolute;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: radial-gradient(circle at 40% 40%, #374151, #111827);
+  border: 1.5px solid var(--border);
+  background: #f5f6f8;
   pointer-events: none;
 }
 
@@ -5864,7 +5860,7 @@ select {
 .speaker-node-brand {
   font-size: 7px;
   font-weight: 700;
-  color: rgba(255,255,255,0.9);
+  color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   line-height: 1.2;
@@ -5876,7 +5872,7 @@ select {
 .speaker-node-ref {
   font-size: 6px;
   font-weight: 500;
-  color: rgba(255,255,255,0.6);
+  color: var(--muted);
   line-height: 1.2;
   max-width: 50px;
   overflow: hidden;
