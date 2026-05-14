@@ -211,6 +211,14 @@ export function DiagramCanvas({
         pageIdx++;
       }
     }
+    // dragHandle pointe vers un sélecteur inexistant pour désactiver le drag
+    // natif clic-gauche de React Flow au niveau du nœud (et non globalement),
+    // tout en conservant :
+    //   - les double-clics (édition produit / texte)
+    //   - le NodeResizer (utilise ses propres handles)
+    //   - la sélection au clic simple
+    const NO_DRAG_HANDLE = "__no_drag__";
+
     const textRfNodes = textNodes.map((tn) => ({
       id: tn.id,
       type: "text" as const,
@@ -221,6 +229,7 @@ export function DiagramCanvas({
       selected: false,
       zIndex: 2000,
       style: { width: tn.width, height: tn.height },
+      dragHandle: NO_DRAG_HANDLE,
     }));
 
     return [
@@ -231,6 +240,7 @@ export function DiagramCanvas({
         position: n.position,
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
+        dragHandle: NO_DRAG_HANDLE,
       })),
       ...textRfNodes,
     ];
@@ -578,9 +588,10 @@ export function DiagramCanvas({
         onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
         reconnectRadius={10}
         connectionMode={ConnectionMode.Loose}
-        // Drag des nœuds DÉSACTIVÉ : le déplacement se fait au clic droit
-        // (handler personnalisé sur le wrapper, voir onCanvasMouseDownCapture).
-        nodesDraggable={false}
+        // Drag clic-gauche désactivé NŒUD PAR NŒUD via dragHandle inexistant
+        // (cf. rfNodes useMemo). nodesDraggable doit rester à true sinon
+        // onNodeDoubleClick et NodeResizer ne fonctionnent plus.
+        nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
         // Lasso de sélection au clic gauche + drag sur le fond du canvas
@@ -589,6 +600,9 @@ export function DiagramCanvas({
         // l'utilisateur peut panner avec Espace+drag ou via les Controls.
         panOnDrag={false}
         panActivationKeyCode="Space"
+        // Zoom au double-clic DÉSACTIVÉ — sinon double-clic sur un bloc ou
+        // sur le fond zoome au lieu d'ouvrir l'éditeur d'instance/texte.
+        zoomOnDoubleClick={false}
         deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

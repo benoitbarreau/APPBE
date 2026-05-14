@@ -46,8 +46,13 @@ export function TextNodeComponent({ id, data, selected }: {
     }
   }, [editing]);
 
-  // Sortir du mode édition au blur ou Escape
-  const handleBlur = () => setEditing(false);
+  // Sortir du mode édition au blur — SAUF si le focus part vers un élément
+  // de la barre d'outils (sinon chaque clic sur un bouton fermerait l'édition).
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    const next = e.relatedTarget as HTMLElement | null;
+    if (next && next.closest(".text-toolbar")) return;
+    setEditing(false);
+  };
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") setEditing(false);
     e.stopPropagation();
@@ -103,10 +108,11 @@ export function TextNodeComponent({ id, data, selected }: {
       <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={6}>
         <div
           className="text-toolbar"
-          onMouseDown={(e) => {
-            // Ne préserve le focus que si on est en édition active.
-            if (editing) e.preventDefault();
-          }}
+          // preventDefault sur mousedown empêche le textarea de perdre le
+          // focus quand on clique sur un bouton/select/color picker de la
+          // toolbar. Combiné au garde relatedTarget dans handleBlur, ça
+          // garantit qu'on reste en édition pendant l'utilisation de la barre.
+          onMouseDown={(e) => e.preventDefault()}
         >
           {/* Famille de police */}
           <select
