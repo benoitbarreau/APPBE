@@ -158,8 +158,24 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   };
 
   const handleAddTextNode = () => {
+    // Position au centre du viewport actuel pour que l'utilisateur voie
+    // immédiatement le bloc texte apparaître.
+    let position = { x: 200, y: 200 };
+    try {
+      const vp = reactFlow.getViewport();
+      const canvas = document.querySelector(".react-flow") as HTMLElement | null;
+      if (canvas) {
+        const cw = canvas.clientWidth;
+        const ch = canvas.clientHeight;
+        position = {
+          x: (cw / 2 - vp.x) / vp.zoom - 100,  // -100 = moitié de la largeur 200
+          y: (ch / 2 - vp.y) / vp.zoom - 40,   // -40  = moitié de la hauteur 80
+        };
+      }
+    } catch { /* viewport indisponible, on garde le fallback */ }
+
     addTextNode({
-      position: { x: 200, y: 200 },
+      position,
       width: 200,
       height: 80,
       content: "",
@@ -170,8 +186,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       underline: false,
       textAlign: "left",
       color: "#1c1f24",
-      background: "transparent",
-      borderStyle: "none",
+      // Fond blanc par défaut pour que le bloc soit visible
+      background: "#ffffff",
+      // Bordure visible par défaut (l'utilisateur pourra la retirer ensuite)
+      borderStyle: "solid",
       borderColor: "#888888",
     });
   };

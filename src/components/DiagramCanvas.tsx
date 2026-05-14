@@ -121,6 +121,7 @@ export function DiagramCanvas({
   const removeCable = useAppStore((s) => s.removeCable);
   const addCable = useAppStore((s) => s.addCable);
   const updateTextNode = useAppStore((s) => s.updateTextNode);
+  const removeTextNode = useAppStore((s) => s.removeTextNode);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
@@ -262,17 +263,21 @@ export function DiagramCanvas({
     (_: React.MouseEvent, node: Node) => {
       const snap = snapTargetRef.current;
       if (snap) {
-        updateNode(node.id, {
-          position: {
-            x: snap.x !== undefined ? snap.x : node.position.x,
-            y: snap.y !== undefined ? snap.y : node.position.y,
-          },
-        });
+        const newPos = {
+          x: snap.x !== undefined ? snap.x : node.position.x,
+          y: snap.y !== undefined ? snap.y : node.position.y,
+        };
+        // Router vers la bonne action selon le type de nœud
+        if (node.type === "text") {
+          updateTextNode(node.id, { position: newPos });
+        } else if (node.type === "product") {
+          updateNode(node.id, { position: newPos });
+        }
       }
       setGuides([]);
       snapTargetRef.current = null;
     },
-    [updateNode],
+    [updateNode, updateTextNode],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -304,36 +309,57 @@ export function DiagramCanvas({
     (changes: NodeChange[]) => {
       const next = applyNodeChanges(changes, rfNodes);
       for (const change of changes) {
+        // Identifie la nature du nœud ciblé par le changement.
+        // On compare avec les arrays "live" du store ; ne JAMAIS appeler
+        // removeNode pour un id qui n'est pas un produit (pages, text nodes…)
+        // car cela invaliderait inutilement nodes/cables (référence array).
+        const targetId = "id" in change ? (change as { id: string }).id : null;
+        const isTextNode = !!targetId && textNodes.some((tn) => tn.id === targetId);
+        const isProduct  = !!targetId && nodes.some((n) => n.id === targetId);
+
         if (change.type === "position" && change.position) {
           const updated = next.find((n) => n.id === change.id);
           if (!updated) continue;
-          // Text node ou product node ?
-          if (textNodes.some((tn) => tn.id === change.id)) {
+          if (isTextNode) {
             updateTextNode(change.id, { position: updated.position });
-          } else {
+          } else if (isProduct) {
             updateNode(updated.id, { position: updated.position });
           }
+          // Sinon : page node (non-draggable) — ne rien faire
         }
-        if (change.type === "dimensions") {
-          // NodeResizer envoie ce type quand les dimensions changent
-          if (textNodes.some((tn) => tn.id === change.id) && change.dimensions) {
+
+        // Dimensions : on n'applique QUE lorsque l'utilisateur redimensionne
+        // explicitement via NodeResizer (change.resizing === true). La mesure
+        // automatique initiale par React Flow peut renvoyer des dimensions
+        // partielles et écraserait nos valeurs stockées.
+        if (change.type === "dimensions" && change.resizing && change.dimensions) {
+          if (isTextNode) {
             updateTextNode(change.id, {
               width: Math.round(change.dimensions.width),
               height: Math.round(change.dimensions.height),
             });
           }
         }
+
         if (change.type === "remove") {
-          if (textNodes.some((tn) => tn.id === change.id)) {
-            // géré par le bouton ✕ dans TextNode — on ne supprime pas ici
-          } else {
+          if (isTextNode) {
+            removeTextNode(change.id);
+          } else if (isProduct) {
             removeNode(change.id);
           }
+          // Page node ou inconnu : ignorer
         }
-        if (change.type === "select") setSelectedNode(change.selected ? change.id : null);
+
+        if (change.type === "select") {
+          // Sélection : uniquement pour les produits (text nodes gèrent la
+          // sélection via React Flow en interne, on ne stocke pas).
+          if (isProduct) {
+            setSelectedNode(change.selected ? change.id : null);
+          }
+        }
       }
     },
-    [rfNodes, textNodes, updateNode, updateTextNode, removeNode, setSelectedNode],
+    [rfNodes, nodes, textNodes, updateNode, updateTextNode, removeNode, removeTextNode, setSelectedNode],
   );
 
   const onEdgesChange = useCallback(

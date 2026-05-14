@@ -918,15 +918,15 @@ export const useAppStore = create<State>()(
 
         addTextNode: (node) => {
           const id = uid();
-          set((s) => ({ textNodes: [...s.textNodes, { ...node, id }] }));
+          set((s) => ({ textNodes: [...(s.textNodes ?? []), { ...node, id }] }));
           return id;
         },
         updateTextNode: (id, patch) =>
           set((s) => ({
-            textNodes: s.textNodes.map((n) => n.id === id ? { ...n, ...patch } : n),
+            textNodes: (s.textNodes ?? []).map((n) => n.id === id ? { ...n, ...patch } : n),
           })),
         removeTextNode: (id) =>
-          set((s) => ({ textNodes: s.textNodes.filter((n) => n.id !== id) })),
+          set((s) => ({ textNodes: (s.textNodes ?? []).filter((n) => n.id !== id) })),
 
         // ── Nœuds ───────────────────────────────────────────────────────
 
