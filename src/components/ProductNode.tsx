@@ -231,19 +231,37 @@ function SpeakerNode({
       title={`${product.manufacturer} ${product.reference} — ${product.category}`}
     >
       {/* ── Handles aux 4 positions orthogonales ── */}
-      {allPorts.map(({ port, side }, idx) => {
-        const pos = SPEAKER_POSITIONS[idx % 4];
-        const color = signals[port.signal]?.color ?? "#888";
-        const handleId = `${side}:${port.id}`;
+      {(() => {
+        // Si exactement 1 port → le dupliquer aux 4 coins avec suffixe positionnel
+        const SUFFIXES = ["_n", "_e", "_s", "_w"] as const;
+        const items =
+          allPorts.length === 1
+            ? SPEAKER_POSITIONS.map((pos, idx) => {
+                const { port } = allPorts[0];
+                return {
+                  pos,
+                  color: signals[port.signal]?.color ?? "#888",
+                  handleId: `in:${port.id}${SUFFIXES[idx]}`,
+                  label: port.label,
+                  signal: port.signal,
+                };
+              })
+            : allPorts.map(({ port, side }, idx) => ({
+                pos: SPEAKER_POSITIONS[idx % 4],
+                color: signals[port.signal]?.color ?? "#888",
+                handleId: `${side}:${port.id}`,
+                label: port.label,
+                signal: port.signal,
+              }));
 
         // Centrage précis sur le bord du cercle selon la position
-        const posStyle: React.CSSProperties =
-          pos === Position.Top    ? { left: "50%", top: 0,    transform: "translate(-50%, -50%)" } :
+        const posStyleFor = (pos: Position): React.CSSProperties =>
+          pos === Position.Top    ? { left: "50%", top: 0,     transform: "translate(-50%, -50%)" } :
           pos === Position.Right  ? { left: "100%", top: "50%", transform: "translate(-50%, -50%)" } :
           pos === Position.Bottom ? { left: "50%", top: "100%", transform: "translate(-50%, -50%)" } :
-                                    { left: 0,    top: "50%", transform: "translate(-50%, -50%)" };
+                                    { left: 0,     top: "50%", transform: "translate(-50%, -50%)" };
 
-        return (
+        return items.map(({ pos, color, handleId, signal }) => (
           <Handle
             key={handleId}
             id={handleId}
@@ -255,14 +273,14 @@ function SpeakerNode({
               height: 7,
               border: "none",
               borderRadius: "50%",
-              ...posStyle,
+              ...posStyleFor(pos),
             }}
             isConnectable
             data-nodeid={node.id}
-            title={`${port.label} (${port.signal})`}
+            title={signal}
           />
-        );
-      })}
+        ));
+      })()}
 
       {/* ── Contenu centré dans le disque ── */}
       <div className="speaker-node-inner">

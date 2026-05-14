@@ -152,26 +152,36 @@ function SpeakerPreview({
     ...(product.middle ?? []).filter((p) => !isDecorativePort(p)),
   ];
 
+  // Si exactement 1 port, le dupliquer aux 4 positions ; sinon répartir cycliquement.
+  const renderItems =
+    allPorts.length === 1
+      ? PREVIEW_POSITIONS.map((pos, idx) => {
+          const port = allPorts[0];
+          return { key: `${port.id}_${idx}`, pos, color: signals[port.signal]?.color ?? "#888", title: port.signal };
+        })
+      : allPorts.map((port, idx) => ({
+          key: port.id,
+          pos: PREVIEW_POSITIONS[idx % 4],
+          color: signals[port.signal]?.color ?? "#888",
+          title: `${port.label} (${port.signal})`,
+        }));
+
   return (
     <div className="speaker-node" style={{ margin: "8px auto" }}>
-      {allPorts.map((port, idx) => {
-        const pos = PREVIEW_POSITIONS[idx % 4];
-        const color = signals[port.signal]?.color ?? "#888";
-        return (
-          <span
-            key={port.id}
-            style={{
-              position: "absolute",
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: color,
-              ...pos,
-            }}
-            title={`${port.label} (${port.signal})`}
-          />
-        );
-      })}
+      {renderItems.map(({ key, pos, color, title }) => (
+        <span
+          key={key}
+          style={{
+            position: "absolute",
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: color,
+            ...pos,
+          }}
+          title={title}
+        />
+      ))}
       <div className="speaker-node-inner">
         <div className="speaker-node-brand">{product.manufacturer || "Marque"}</div>
         <div className="speaker-node-ref">{product.reference || "Référence"}</div>

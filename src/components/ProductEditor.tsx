@@ -20,6 +20,8 @@ import {
 
 type PortListKey = "inputs" | "outputs" | "middle";
 
+const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
+
 const emptyProduct = (): Product => ({
   id: "",
   reference: "",
@@ -425,48 +427,70 @@ export function ProductEditor({
             onChange={(v) => setDraft({ ...draft, imageBack: v })}
           />
 
-          <PortsEditor
-            title="Gauche"
-            ports={draft.inputs}
-            section="inputs"
-            onAdd={() => addPort("inputs")}
-            onAddSpacer={() => addSpacer("inputs")}
-            onAddSeparator={() => addSeparator("inputs")}
-            onChange={(i, patch) => setPort("inputs", i, patch)}
-            onRemove={(i) => removePort("inputs", i)}
-            onDuplicate={(i) => duplicatePort("inputs", i)}
-            onMove={(i, to) => movePort("inputs", i, to)}
-            onReorder={(from, to) => reorderPort("inputs", from, to)}
-            defaultDirection="in"
-          />
-          <PortsEditor
-            title="Droite"
-            ports={draft.outputs}
-            section="outputs"
-            onAdd={() => addPort("outputs")}
-            onAddSpacer={() => addSpacer("outputs")}
-            onAddSeparator={() => addSeparator("outputs")}
-            onChange={(i, patch) => setPort("outputs", i, patch)}
-            onRemove={(i) => removePort("outputs", i)}
-            onDuplicate={(i) => duplicatePort("outputs", i)}
-            onMove={(i, to) => movePort("outputs", i, to)}
-            onReorder={(from, to) => reorderPort("outputs", from, to)}
-            defaultDirection="out"
-          />
-          <PortsEditor
-            title="Milieu (deux côtés, le côté opposé se bloque dès qu'un est raccordé)"
-            ports={draft.middle ?? []}
-            section="middle"
-            onAdd={() => addPort("middle")}
-            onAddSpacer={() => addSpacer("middle")}
-            onAddSeparator={() => addSeparator("middle")}
-            onChange={(i, patch) => setPort("middle", i, patch)}
-            onRemove={(i) => removePort("middle", i)}
-            onDuplicate={(i) => duplicatePort("middle", i)}
-            onMove={(i, to) => movePort("middle", i, to)}
-            onReorder={(from, to) => reorderPort("middle", from, to)}
-            defaultDirection="bi"
-          />
+          {SPEAKER_CATEGORIES.has(draft.category) ? (
+            <SpeakerPortEditor
+              port={draft.inputs[0] ?? null}
+              onSet={(port) =>
+                setDraft((d) => ({ ...d, inputs: [port], outputs: [], middle: [] }))
+              }
+              onRemove={() =>
+                setDraft((d) => ({ ...d, inputs: [], outputs: [], middle: [] }))
+              }
+              onChange={(patch) =>
+                setDraft((d) => ({
+                  ...d,
+                  inputs: [{ ...(d.inputs[0] ?? {}), ...patch } as Port],
+                  outputs: [],
+                  middle: [],
+                }))
+              }
+            />
+          ) : (
+            <>
+              <PortsEditor
+                title="Gauche"
+                ports={draft.inputs}
+                section="inputs"
+                onAdd={() => addPort("inputs")}
+                onAddSpacer={() => addSpacer("inputs")}
+                onAddSeparator={() => addSeparator("inputs")}
+                onChange={(i, patch) => setPort("inputs", i, patch)}
+                onRemove={(i) => removePort("inputs", i)}
+                onDuplicate={(i) => duplicatePort("inputs", i)}
+                onMove={(i, to) => movePort("inputs", i, to)}
+                onReorder={(from, to) => reorderPort("inputs", from, to)}
+                defaultDirection="in"
+              />
+              <PortsEditor
+                title="Droite"
+                ports={draft.outputs}
+                section="outputs"
+                onAdd={() => addPort("outputs")}
+                onAddSpacer={() => addSpacer("outputs")}
+                onAddSeparator={() => addSeparator("outputs")}
+                onChange={(i, patch) => setPort("outputs", i, patch)}
+                onRemove={(i) => removePort("outputs", i)}
+                onDuplicate={(i) => duplicatePort("outputs", i)}
+                onMove={(i, to) => movePort("outputs", i, to)}
+                onReorder={(from, to) => reorderPort("outputs", from, to)}
+                defaultDirection="out"
+              />
+              <PortsEditor
+                title="Milieu (deux côtés, le côté opposé se bloque dès qu'un est raccordé)"
+                ports={draft.middle ?? []}
+                section="middle"
+                onAdd={() => addPort("middle")}
+                onAddSpacer={() => addSpacer("middle")}
+                onAddSeparator={() => addSeparator("middle")}
+                onChange={(i, patch) => setPort("middle", i, patch)}
+                onRemove={(i) => removePort("middle", i)}
+                onDuplicate={(i) => duplicatePort("middle", i)}
+                onMove={(i, to) => movePort("middle", i, to)}
+                onReorder={(from, to) => reorderPort("middle", from, to)}
+                defaultDirection="bi"
+              />
+            </>
+          )}
           </div>
           <aside className="modal-preview">
             <div className="modal-preview-title">Aperçu</div>
@@ -712,6 +736,75 @@ function PortsEditor({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Éditeur de port simplifié pour Enceintes / Caisson de basse ─────────────
+function SpeakerPortEditor({
+  port,
+  onSet,
+  onRemove,
+  onChange,
+}: {
+  port: Port | null;
+  onSet: (port: Port) => void;
+  onRemove: () => void;
+  onChange: (patch: Partial<Port>) => void;
+}) {
+  const signals = useAppStore((s) => s.signals);
+  const signalOptions = useMemo(() => Object.values(signals), [signals]);
+
+  return (
+    <div className="ports-editor">
+      <div className="ports-editor-header">
+        <h4>
+          Port{" "}
+          <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
+            (dupliqué aux 4 coins)
+          </span>
+        </h4>
+      </div>
+      {!port ? (
+        <>
+          <div className="muted" style={{ marginBottom: 6 }}>
+            Aucun port défini.
+          </div>
+          <button
+            onClick={() => {
+              const first = signalOptions[0];
+              onSet({
+                id: `speaker-${Date.now()}`,
+                label: "",
+                signal: first?.id ?? "",
+                direction: "bi",
+              });
+            }}
+          >
+            + Définir le port
+          </button>
+        </>
+      ) : (
+        <div className="port-edit-row">
+          <span
+            className="port-dot"
+            style={{ background: signals[port.signal]?.color ?? "#888" }}
+          />
+          <select
+            value={port.signal}
+            onChange={(e) => onChange({ signal: e.target.value as SignalType })}
+          >
+            {signalOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <button onClick={onRemove} title="Supprimer le port">
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

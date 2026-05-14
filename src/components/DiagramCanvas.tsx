@@ -35,7 +35,12 @@ function findPort(product: Product | undefined, side: PortSide, portId: string) 
       : side === "out"
         ? product.outputs
         : product.middle ?? [];
-  return list.find((p) => p.id === portId);
+  // Correspondance exacte (cas normal) puis correspondance par préfixe pour
+  // les handles positionnels des enceintes (_n / _e / _s / _w).
+  return (
+    list.find((p) => p.id === portId) ??
+    list.find((p) => portId.startsWith(p.id + "_"))
+  );
 }
 import { ProductNode } from "./ProductNode";
 import { PageNode } from "./PageNode";
