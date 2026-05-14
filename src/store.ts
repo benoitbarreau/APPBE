@@ -16,6 +16,7 @@ import type {
   SignalDef,
   SignalType,
   Tab,
+  TextNodeData,
   Zone,
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
@@ -69,6 +70,7 @@ interface State {
   nodes: PlacedProduct[];
   cables: Cable[];
   zones: Zone[];
+  textNodes: TextNodeData[];
   // ── Données partagées entre onglets ───────────────────────────────────
   signals: Record<string, SignalDef>;
   /** Configuration des colonnes du Tableau IP (ordre, visibilité, custom).
@@ -138,6 +140,10 @@ interface State {
   addProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+
+  addTextNode: (node: Omit<TextNodeData, 'id'>) => string;
+  updateTextNode: (id: string, patch: Partial<TextNodeData>) => void;
+  removeTextNode: (id: string) => void;
 
   addNode: (productId: string, position: { x: number; y: number }) => string;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
@@ -309,12 +315,12 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
  * PAS pertinent — on conserve l'onglet tel quel.
  */
 // Les zones sont globales au projet (s.zones) — on ne les stocke PAS
-// dans chaque onglet. flushActive ne persiste que nodes/cables.
-const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables">): Tab[] =>
+// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes.
+const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables };
+    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes };
   });
 
 export const useAppStore = create<State>()(
@@ -344,6 +350,7 @@ export const useAppStore = create<State>()(
         activeTabId: firstTab.id,
         nodes: [],
         cables: [],
+        textNodes: [],
         signals: { ...DEFAULT_SIGNAL_DEFS },
         ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
         zones: [...DEFAULT_ZONES],
@@ -367,6 +374,7 @@ export const useAppStore = create<State>()(
               activeTabId: newTab.id,
               nodes: [],
               cables: [],
+              textNodes: [],
               zones: [...DEFAULT_ZONES],
               selectedNodeId: null,
               selectedCableId: null,
@@ -588,6 +596,7 @@ export const useAppStore = create<State>()(
               activeTabId: newActive.id,
               nodes: newActive.nodes ?? [],
               cables: newActive.cables ?? [],
+              textNodes: newActive.textNodes ?? [],
               // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
@@ -820,12 +829,14 @@ export const useAppStore = create<State>()(
             }));
 
             // Zones globales : pas besoin de les copier par onglet.
+            const newTextNodes = (source.textNodes ?? []).map((n) => ({ ...n, id: uid() }));
             const newTab: Tab = {
               id: uid(),
               name: `Copie de ${source.name}`,
               nodes: newNodes,
               cables: newCables,
               zones: [],
+              textNodes: newTextNodes,
             };
 
             // Insérer juste après l'onglet source
@@ -841,6 +852,7 @@ export const useAppStore = create<State>()(
               activeTabId: newTab.id,
               nodes: newNodes,
               cables: newCables,
+              textNodes: newTextNodes,
               // s.zones inchangé (zones globales)
               selectedNodeId: null,
               selectedCableId: null,
@@ -885,6 +897,7 @@ export const useAppStore = create<State>()(
               activeTabId: tabId,
               nodes: target.nodes ?? [],
               cables: target.cables ?? [],
+              textNodes: target.textNodes ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -900,6 +913,20 @@ export const useAppStore = create<State>()(
           })),
         removeProduct: (id) =>
           set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+
+        // ── Blocs texte ─────────────────────────────────────────────────
+
+        addTextNode: (node) => {
+          const id = uid();
+          set((s) => ({ textNodes: [...s.textNodes, { ...node, id }] }));
+          return id;
+        },
+        updateTextNode: (id, patch) =>
+          set((s) => ({
+            textNodes: s.textNodes.map((n) => n.id === id ? { ...n, ...patch } : n),
+          })),
+        removeTextNode: (id) =>
+          set((s) => ({ textNodes: s.textNodes.filter((n) => n.id !== id) })),
 
         // ── Nœuds ───────────────────────────────────────────────────────
 
@@ -1225,6 +1252,7 @@ export const useAppStore = create<State>()(
             activeTabId,
             nodes: activeTab.nodes,
             cables: activeTab.cables,
+            textNodes: activeTab.textNodes ?? [],
             // zones et signals : on garde ce qui est déjà dans le store
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             products: Array.from(mergedProductMap.values()),
@@ -1249,6 +1277,7 @@ export const useAppStore = create<State>()(
             activeTabId: tab.id,
             nodes: [],
             cables: [],
+            textNodes: [],
             zones: [...DEFAULT_ZONES],
             ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
@@ -1400,6 +1429,7 @@ export const useAppStore = create<State>()(
               currentVersionsMeta: [],
               nodes: [],
               cables: [],
+              textNodes: [],
               zones: [...DEFAULT_ZONES],
               projectMeta: { ...DEFAULT_PROJECT_META },
               signals: { ...DEFAULT_SIGNAL_DEFS },
@@ -1412,7 +1442,7 @@ export const useAppStore = create<State>()(
     },
     {
       name: "av-diagram-generator",
-      version: 11,
+      version: 12,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & {
           adminCode?: unknown;
@@ -1488,6 +1518,9 @@ export const useAppStore = create<State>()(
           state.ipTableColumns = [...DEFAULT_IP_TABLE_COLUMNS];
         }
 
+        // v12 : ajout des blocs texte
+        if (!state.textNodes) state.textNodes = [];
+
         return state as unknown as State;
       },
     },
@@ -1506,7 +1539,7 @@ export function getFlushedTabs(): Tab[] {
   return s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones };
+    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones, textNodes: s.textNodes };
   });
 }
 

@@ -5908,3 +5908,172 @@ select {
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
+/* ── Panneau Mises en formes (sidebar gauche secondaire) ─────────────────── */
+
+/* La sidebar "Mises en formes" est étroite quand ouverte (180px).
+   On surcharge le .sidebar.left { width:280px } avec une spécificité plus élevée. */
+.sidebar.left.formatting-sidebar {
+  width: 180px;
+}
+.sidebar.left.formatting-sidebar.collapsed {
+  width: 36px;
+  align-items: center;
+  overflow: visible;
+}
+
+.formatting-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.formatting-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.formatting-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.formatting-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.formatting-collapse-btn:hover {
+  background: var(--bg);
+  color: var(--primary);
+  border: none;
+}
+
+.formatting-panel-content {
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formatting-panel-btn {
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: background 0.12s, border-color 0.12s;
+}
+.formatting-panel-btn:hover {
+  background: #f0f3f8;
+  border-color: #b3bcc8;
+}
+
+/* ── Barre d'outils texte flottante (NodeToolbar) ────────────────────────── */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+  flex-wrap: wrap;
+  max-width: 520px;
+}
+
+.text-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+.text-toolbar-btn:hover {
+  background: #f0f3f8;
+  border-color: var(--border);
+}
+.text-toolbar-btn.active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  color: var(--primary);
+}
+.text-toolbar-btn.text-toolbar-delete {
+  color: var(--danger);
+}
+.text-toolbar-btn.text-toolbar-delete:hover {
+  background: #fef2f2;
+  border-color: var(--danger);
+}
+
+.text-toolbar-select {
+  height: 24px;
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  max-width: 120px;
+}
+.text-toolbar-size {
+  max-width: 52px;
+}
+
+.text-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* Sélecteur de couleur avec pastille visible */
+.text-toolbar-color-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.text-toolbar-color-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 3px;
+}
+.text-toolbar-color-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+

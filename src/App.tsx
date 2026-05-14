@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
 import { ProductPalette } from "./components/ProductPalette";
+import { FormattingPanel } from "./components/FormattingPanel";
 import { ProductEditor } from "./components/ProductEditor";
 import { ImportDialog } from "./components/ImportDialog";
 import { CableList } from "./components/CableList";
@@ -135,6 +136,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const nodes = useAppStore((s) => s.nodes);
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
+  const addTextNode = useAppStore((s) => s.addTextNode);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
   const setVersionsMeta = useAppStore((s) => s.setVersionsMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
@@ -153,6 +155,25 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         updateCable(c.id, { labelOffset: { x: 0, y: 0 }, waypoints: [] });
       }
     }
+  };
+
+  const handleAddTextNode = () => {
+    addTextNode({
+      position: { x: 200, y: 200 },
+      width: 200,
+      height: 80,
+      content: "",
+      fontFamily: "Arial, sans-serif",
+      fontSize: 14,
+      bold: false,
+      italic: false,
+      underline: false,
+      textAlign: "left",
+      color: "#1c1f24",
+      background: "transparent",
+      borderStyle: "none",
+      borderColor: "#888888",
+    });
   };
 
   const handleAdd = (productId: string) => {
@@ -378,6 +399,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   };
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [formattingOpen, setFormattingOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -515,7 +537,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
   return (
     <div className="app">
-      {/* ── Sidebar gauche pleine hauteur ────────────────────────────────── */}
+      {/* ── Sidebar gauche : Catalogue ───────────────────────────────────── */}
       <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
         {paletteOpen ? (
           <ProductPalette
@@ -528,7 +550,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         ) : (
           <button
             className="palette-expand-btn"
-            onClick={() => setPaletteOpen(true)}
+            onClick={() => {
+              setPaletteOpen(true);
+              setFormattingOpen(false);
+            }}
             title="Afficher le catalogue"
           >
             <span className="palette-expand-icon">▶</span>
@@ -536,6 +561,31 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           </button>
         )}
       </aside>
+
+      {/* ── Sidebar gauche : Mises en formes (synoptique uniquement) ─────── */}
+      {!activeIsIPTab && !activeIsBayTab && (
+        <aside className={`sidebar left formatting-sidebar${formattingOpen ? "" : " collapsed"}`}>
+          {formattingOpen ? (
+            <FormattingPanel
+              onCollapse={() => setFormattingOpen(false)}
+              onAutoLayout={handleAutoLayout}
+              onAddTextNode={handleAddTextNode}
+            />
+          ) : (
+            <button
+              className="palette-expand-btn"
+              onClick={() => {
+                setFormattingOpen(true);
+                setPaletteOpen(false);
+              }}
+              title="Afficher les mises en formes"
+            >
+              <span className="palette-expand-icon">▶</span>
+              <span className="palette-expand-label">Mises en formes</span>
+            </button>
+          )}
+        </aside>
+      )}
 
       {/* ── Zone principale : bannière + header + onglets + body ─────────── */}
       <div className="app-main">
@@ -589,9 +639,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
               </button>
             )}
-            <button onClick={handleAutoLayout} title="Replacer les produits">
-              Réorganiser
-            </button>
             <div className="export-menu" ref={exportMenuRef}>
               <button onClick={() => setExportMenuOpen((v) => !v)}>Exporter ▾</button>
               {exportMenuOpen && (

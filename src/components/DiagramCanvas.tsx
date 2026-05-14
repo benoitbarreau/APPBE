@@ -46,6 +46,7 @@ function findPort(product: Product | undefined, side: PortSide, portId: string) 
 import { ProductNode } from "./ProductNode";
 import { PageNode } from "./PageNode";
 import { CableEdge } from "./CableEdge";
+import { TextNodeComponent } from "./TextNode";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
 // ── Rendu des guides d'alignement (à l'intérieur du contexte ReactFlow) ──────
@@ -102,7 +103,7 @@ function AlignGuides({ guides }: { guides: Guide[] }) {
   );
 }
 
-const nodeTypes = { product: ProductNode, page: PageNode };
+const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent };
 const edgeTypes = { cable: CableEdge };
 
 export function DiagramCanvas({
@@ -112,12 +113,14 @@ export function DiagramCanvas({
 }) {
   const nodes = useAppStore((s) => s.nodes);
   const cables = useAppStore((s) => s.cables);
+  const textNodes = useAppStore((s) => s.textNodes);
   const products = useAppStore((s) => s.products);
   const signals = useAppStore((s) => s.signals);
   const updateNode = useAppStore((s) => s.updateNode);
   const removeNode = useAppStore((s) => s.removeNode);
   const removeCable = useAppStore((s) => s.removeCable);
   const addCable = useAppStore((s) => s.addCable);
+  const updateTextNode = useAppStore((s) => s.updateTextNode);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
@@ -191,6 +194,18 @@ export function DiagramCanvas({
         pageIdx++;
       }
     }
+    const textRfNodes = textNodes.map((tn) => ({
+      id: tn.id,
+      type: "text" as const,
+      position: tn.position,
+      // data est casté car React Flow attend Record<string, unknown> mais le
+      // custom node reçoit TextNodeData (typé plus précisément en interne).
+      data: tn as unknown as Record<string, unknown>,
+      selected: false,
+      zIndex: 2000,
+      style: { width: tn.width, height: tn.height },
+    }));
+
     return [
       ...pages,
       ...nodes.map((n) => ({
@@ -200,8 +215,9 @@ export function DiagramCanvas({
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
       })),
+      ...textRfNodes,
     ];
-  }, [nodes, selectedNodeId, products]);
+  }, [nodes, textNodes, selectedNodeId, products]);
 
   // Callbacks de drag — définis après rfNodes (dont ils dépendent)
   const onNodeDrag = useCallback(
@@ -290,13 +306,34 @@ export function DiagramCanvas({
       for (const change of changes) {
         if (change.type === "position" && change.position) {
           const updated = next.find((n) => n.id === change.id);
-          if (updated) updateNode(updated.id, { position: updated.position });
+          if (!updated) continue;
+          // Text node ou product node ?
+          if (textNodes.some((tn) => tn.id === change.id)) {
+            updateTextNode(change.id, { position: updated.position });
+          } else {
+            updateNode(updated.id, { position: updated.position });
+          }
         }
-        if (change.type === "remove") removeNode(change.id);
+        if (change.type === "dimensions") {
+          // NodeResizer envoie ce type quand les dimensions changent
+          if (textNodes.some((tn) => tn.id === change.id) && change.dimensions) {
+            updateTextNode(change.id, {
+              width: Math.round(change.dimensions.width),
+              height: Math.round(change.dimensions.height),
+            });
+          }
+        }
+        if (change.type === "remove") {
+          if (textNodes.some((tn) => tn.id === change.id)) {
+            // géré par le bouton ✕ dans TextNode — on ne supprime pas ici
+          } else {
+            removeNode(change.id);
+          }
+        }
         if (change.type === "select") setSelectedNode(change.selected ? change.id : null);
       }
     },
-    [rfNodes, updateNode, removeNode, setSelectedNode],
+    [rfNodes, textNodes, updateNode, updateTextNode, removeNode, setSelectedNode],
   );
 
   const onEdgesChange = useCallback(
@@ -358,6 +395,8 @@ export function DiagramCanvas({
 
   const onNodeDoubleClick = useCallback(
     (_e: React.MouseEvent, n: Node) => {
+      // Les blocs texte gèrent leur propre double-clic en interne
+      if (n.type === "text") return;
       onEditInstance?.(n.id);
     },
     [onEditInstance],

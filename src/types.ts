@@ -224,6 +224,7 @@ export interface Tab {
   nodes: PlacedProduct[]
   cables: Cable[]
   zones: Zone[]
+  textNodes?: TextNodeData[]
   // ── Champs Tableau IP (présents pour onglets IP uniquement) ──────────
   rows?: IPTableRow[]
   network?: IPNetworkInfo
@@ -268,6 +269,25 @@ export const DEFAULT_IP_NETWORK: IPNetworkInfo = {
   dns: '',
   passerelle: '',
   ntp: '',
+}
+
+/** Bloc texte libre positionnable sur le canvas. */
+export interface TextNodeData {
+  id: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  content: string;
+  fontFamily: string;
+  fontSize: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  textAlign: 'left' | 'center' | 'right';
+  color: string;
+  background: string;
+  borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
+  borderColor: string;
 }
 
 export interface SignalDef {
