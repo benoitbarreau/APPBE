@@ -5603,3 +5603,35 @@ select {
   justify-content: flex-end;
 }
 
+/* ── Toast compatibilité ports ──────────────────────────────────────────── */
+.compat-error-toast {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #fff3cd;
+  border: 1.5px solid #f0a800;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+  font-size: 13px;
+  font-weight: 500;
+  color: #7a5100;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: compat-toast-in 0.18s ease;
+}
+.compat-error-icon {
+  font-size: 16px;
+  line-height: 1;
+  color: #f0a800;
+}
+@keyframes compat-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -65,6 +65,20 @@ export function DiagramCanvas({
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
   const readOnly = useEditorState((s) => s.readOnly);
+
+  // ── Notification d'incompatibilité ────────────────────────────────────────
+  const [compatError, setCompatError] = useState<string | null>(null);
+  const compatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showCompatError = useCallback((msg: string) => {
+    if (compatTimerRef.current) clearTimeout(compatTimerRef.current);
+    setCompatError(msg);
+    compatTimerRef.current = setTimeout(() => setCompatError(null), 3500);
+  }, []);
+
+  useEffect(() => () => {
+    if (compatTimerRef.current) clearTimeout(compatTimerRef.current);
+  }, []);
 
   const rfNodes: Node[] = useMemo(() => {
     // Compute the grid of A3 pages large enough to cover the diagram.
@@ -176,10 +190,21 @@ export function DiagramCanvas({
       const toNode = nodes.find((n) => n.id === conn.target);
       if (!fromNode || !toNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
+      const toProduct   = products.find((p) => p.id === toNode.productId);
       const fromPort = findPort(fromProduct, from.side, from.portId);
+      const toPort   = findPort(toProduct,   to.side,   to.portId);
       if (!fromPort) return;
-      // No restriction: any port to any port. Cable signal/color is taken
-      // from the source port (where the user started the drag).
+
+      // ── Vérification de compatibilité par famille de signal ──────────────
+      if (toPort && toPort.signal !== fromPort.signal) {
+        const fromLabel = signals[fromPort.signal]?.label ?? fromPort.signal;
+        const toLabel   = signals[toPort.signal]?.label   ?? toPort.signal;
+        showCompatError(
+          `Connexion impossible : port "${fromLabel}" ↔ port "${toLabel}"`,
+        );
+        return;
+      }
+
       const signal: SignalType = fromPort.signal;
       addCable({
         fromNodeId: fromNode.id,
@@ -191,7 +216,7 @@ export function DiagramCanvas({
         signal,
       });
     },
-    [nodes, products, addCable],
+    [nodes, products, signals, addCable, showCompatError],
   );
 
   const onEdgeDoubleClick = useCallback(
@@ -215,10 +240,24 @@ export function DiagramCanvas({
       const to = parseHandle(newConnection.targetHandle);
       if (!from || !to) return;
       const fromNode = nodes.find((n) => n.id === newConnection.source);
-      if (!fromNode) return;
+      const toNode   = nodes.find((n) => n.id === newConnection.target);
+      if (!fromNode || !toNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
+      const toProduct   = products.find((p) => p.id === toNode.productId);
       const fromPort = findPort(fromProduct, from.side, from.portId);
+      const toPort   = findPort(toProduct,   to.side,   to.portId);
       if (!fromPort) return;
+
+      // ── Vérification de compatibilité par famille de signal ──────────────
+      if (toPort && toPort.signal !== fromPort.signal) {
+        const fromLabel = signals[fromPort.signal]?.label ?? fromPort.signal;
+        const toLabel   = signals[toPort.signal]?.label   ?? toPort.signal;
+        showCompatError(
+          `Reconnexion impossible : port "${fromLabel}" ↔ port "${toLabel}"`,
+        );
+        return;
+      }
+
       updateCable(oldEdge.id, {
         fromNodeId: newConnection.source,
         fromPortId: from.portId,
@@ -230,34 +269,42 @@ export function DiagramCanvas({
         waypoints: [],
       });
     },
-    [nodes, products, updateCable],
+    [nodes, products, signals, updateCable, showCompatError],
   );
 
   return (
-    <ReactFlow
-      nodes={rfNodes}
-      edges={rfEdges}
-      onNodesChange={readOnly ? undefined : onNodesChange}
-      onEdgesChange={readOnly ? undefined : onEdgesChange}
-      onConnect={readOnly ? undefined : onConnect}
-      onReconnect={readOnly ? undefined : onReconnect}
-      onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
-      onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
-      reconnectRadius={10}
-      connectionMode={ConnectionMode.Loose}
-      nodesDraggable={!readOnly}
-      nodesConnectable={!readOnly}
-      elementsSelectable={!readOnly}
-      deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      defaultEdgeOptions={{ type: "cable" }}
-      fitView
-      proOptions={{ hideAttribution: true }}
-    >
-      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-      <Controls />
-      <MiniMap pannable zoomable />
-    </ReactFlow>
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {compatError && (
+        <div className="compat-error-toast">
+          <span className="compat-error-icon">⚠</span>
+          {compatError}
+        </div>
+      )}
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        onNodesChange={readOnly ? undefined : onNodesChange}
+        onEdgesChange={readOnly ? undefined : onEdgesChange}
+        onConnect={readOnly ? undefined : onConnect}
+        onReconnect={readOnly ? undefined : onReconnect}
+        onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
+        onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
+        reconnectRadius={10}
+        connectionMode={ConnectionMode.Loose}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={!readOnly}
+        deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={{ type: "cable" }}
+        fitView
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+        <Controls />
+        <MiniMap pannable zoomable />
+      </ReactFlow>
+    </div>
   );
 }
