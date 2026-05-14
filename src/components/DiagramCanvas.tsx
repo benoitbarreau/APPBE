@@ -7,6 +7,7 @@ import {
   MarkerType,
   MiniMap,
   ReactFlow,
+  useViewport,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -47,6 +48,60 @@ import { PageNode } from "./PageNode";
 import { CableEdge } from "./CableEdge";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
+// ── Rendu des guides d'alignement (à l'intérieur du contexte ReactFlow) ──────
+type Guide = { type: "v"; x: number } | { type: "h"; y: number };
+
+function AlignGuides({ guides }: { guides: Guide[] }) {
+  const { x: vpX, y: vpY, zoom } = useViewport();
+  if (guides.length === 0) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 9999,
+        overflow: "hidden",
+      }}
+    >
+      {guides.map((g, i) => {
+        if (g.type === "v") {
+          const sx = Math.round(g.x * zoom + vpX);
+          return (
+            <div
+              key={`v-${i}`}
+              style={{
+                position: "absolute",
+                left: sx,
+                top: 0,
+                bottom: 0,
+                width: 0,
+                borderLeft: "1.5px dashed #e63946",
+                opacity: 0.85,
+              }}
+            />
+          );
+        }
+        const sy = Math.round(g.y * zoom + vpY);
+        return (
+          <div
+            key={`h-${i}`}
+            style={{
+              position: "absolute",
+              top: sy,
+              left: 0,
+              right: 0,
+              height: 0,
+              borderTop: "1.5px dashed #e63946",
+              opacity: 0.85,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 const nodeTypes = { product: ProductNode, page: PageNode };
 const edgeTypes = { cable: CableEdge };
 
@@ -70,6 +125,11 @@ export function DiagramCanvas({
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
   const readOnly = useEditorState((s) => s.readOnly);
+
+  // ── Guides d'alignement (smart guides style Visio) ───────────────────────
+  const SNAP_THRESHOLD = 8; // pixels flow
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const snapTargetRef = useRef<{ x?: number; y?: number } | null>(null);
 
   // ── Notification d'incompatibilité ────────────────────────────────────────
   const [compatError, setCompatError] = useState<string | null>(null);
@@ -142,6 +202,62 @@ export function DiagramCanvas({
       })),
     ];
   }, [nodes, selectedNodeId, products]);
+
+  // Callbacks de drag — définis après rfNodes (dont ils dépendent)
+  const onNodeDrag = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
+      const dW = node.measured?.width ?? 150;
+      const dH = node.measured?.height ?? 120;
+      const dCX = node.position.x + dW / 2;
+      const dCY = node.position.y + dH / 2;
+
+      const newGuides: Guide[] = [];
+      let snapX: number | undefined;
+      let snapY: number | undefined;
+
+      for (const other of rfNodes) {
+        if (other.type !== "product" || other.id === node.id) continue;
+        const oW = other.measured?.width ?? 150;
+        const oH = other.measured?.height ?? 120;
+        const oCX = other.position.x + oW / 2;
+        const oCY = other.position.y + oH / 2;
+
+        if (Math.abs(dCX - oCX) < SNAP_THRESHOLD) {
+          newGuides.push({ type: "v", x: oCX });
+          if (snapX === undefined) snapX = oCX - dW / 2;
+        }
+        if (Math.abs(dCY - oCY) < SNAP_THRESHOLD) {
+          newGuides.push({ type: "h", y: oCY });
+          if (snapY === undefined) snapY = oCY - dH / 2;
+        }
+      }
+
+      setGuides(newGuides);
+      snapTargetRef.current =
+        snapX !== undefined || snapY !== undefined
+          ? { x: snapX, y: snapY }
+          : null;
+    },
+    [rfNodes, readOnly, SNAP_THRESHOLD],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const snap = snapTargetRef.current;
+      if (snap) {
+        updateNode(node.id, {
+          position: {
+            x: snap.x !== undefined ? snap.x : node.position.x,
+            y: snap.y !== undefined ? snap.y : node.position.y,
+          },
+        });
+      }
+      setGuides([]);
+      snapTargetRef.current = null;
+    },
+    [updateNode],
+  );
 
   const rfEdges: Edge[] = useMemo(
     () =>
@@ -303,6 +419,8 @@ export function DiagramCanvas({
         onReconnect={readOnly ? undefined : onReconnect}
         onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
         onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
+        onNodeDrag={readOnly ? undefined : onNodeDrag}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         reconnectRadius={10}
         connectionMode={ConnectionMode.Loose}
         nodesDraggable={!readOnly}
@@ -315,6 +433,7 @@ export function DiagramCanvas({
         fitView
         proOptions={{ hideAttribution: true }}
       >
+        <AlignGuides guides={guides} />
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
         <Controls />
         <MiniMap pannable zoomable />
