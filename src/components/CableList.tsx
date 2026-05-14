@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAppStore } from "../store";
 import { isSynopticTab, type Cable } from "../types";
 
@@ -66,6 +66,16 @@ export function CableList() {
 
   const totalCables = groups.reduce((n, g) => n + g.rows.length, 0);
 
+  // ── Scroll automatique vers le câble sélectionné ──────────────────────────
+  const rowsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedCableId || !rowsRef.current) return;
+    const el = rowsRef.current.querySelector<HTMLElement>(
+      `[data-cable-id="${selectedCableId}"]`,
+    );
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedCableId]);
+
   const exportCsv = () => {
     const header = ["N°", "Synoptique", "Type de câble", "Signal", "De", "Vers", "Longueur (m)", "Libellé"].join(";");
     const lines: string[] = [];
@@ -112,7 +122,7 @@ export function CableList() {
         </div>
       )}
 
-      <div className="cable-rows">
+      <div className="cable-rows" ref={rowsRef}>
         {groups.map((g) => (
           <div key={g.tabId}>
             {/* En-tête de section par synoptique */}
@@ -164,7 +174,10 @@ function CableRow({
   const color = useAppStore((s) => s.signals[cable.signal]?.color) ?? "#888";
 
   return (
-    <div className={`cable-row${selected ? " selected" : ""}${!editable ? " cable-row-readonly" : ""}`}>
+    <div
+      data-cable-id={cable.id}
+      className={`cable-row${selected ? " selected" : ""}${!editable ? " cable-row-readonly" : ""}`}
+    >
       <div className="cable-row-top">
         <span className="cable-number" style={{ background: color, color: "#fff" }} title="Numérotation auto">
           {cable.number}

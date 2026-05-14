@@ -117,6 +117,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       setRightTab("zones");
     }
   }, [activeIsIPTab, activeIsBayTab, rightTab]);
+
+  // Quand un câble est sélectionné sur le synoptique → basculer sur l'onglet
+  // Câbles et ouvrir le panneau s'il était fermé.
+  const selectedCableId = useAppStore((s) => s.selectedCableId);
+  useEffect(() => {
+    if (selectedCableId && !activeIsIPTab && !activeIsBayTab) {
+      setRightTab("cables");
+      setRightPanelOpen(true);
+    }
+  }, [selectedCableId, activeIsIPTab, activeIsBayTab]);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
   const tabInputRef = useRef<HTMLInputElement>(null);
