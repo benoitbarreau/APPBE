@@ -91,8 +91,10 @@ export function DiagramCanvas({
     // Compute the grid of A3 pages large enough to cover the diagram.
     // Each page is PAGE_BOUNDS.width x PAGE_BOUNDS.height in flow units;
     // tile starting from (0, 0).
-    const NODE_W = 240;
-    const NODE_H = 220;
+    // Largeur CSS fixe du bloc produit : 150px + ~10px de marge pour les handles
+    const NODE_W = 160;
+    // Hauteur estimée haute (varie selon le nb de ports) — valeur conservative
+    const NODE_H = 200;
     const SPEAKER_SIZE = 60;
     let maxRight = PAGE_BOUNDS.width;
     let maxBottom = PAGE_BOUNDS.height;
