@@ -7,16 +7,16 @@ type SortDir = "asc" | "desc";
 
 const COLUMNS_DETAIL: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "number",       label: "N°" },
-  { key: "label",        label: "Etiquette câble" },
-  { key: "tabName",      label: "Synoptique" },
-  { key: "cableType",    label: "Type de câble" },
-  { key: "lengthMeters", label: "Longueur (m)", align: "right" },
+  { key: "label",        label: "Label" },
+  { key: "lengthMeters", label: "Longueur", align: "right" },
+  { key: "cableType",    label: "Type" },
+  { key: "tabName",      label: "Syno" },
 ];
 
 const COLUMNS_SIMPLE: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "number",    label: "N°" },
-  { key: "tabName",   label: "Synoptique" },
-  { key: "cableType", label: "Type de câble" },
+  { key: "tabName",   label: "Syno" },
+  { key: "cableType", label: "Type" },
 ];
 
 function downloadFile(filename: string, content: string, mime: string) {
