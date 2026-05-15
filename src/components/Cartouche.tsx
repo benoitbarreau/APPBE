@@ -71,11 +71,15 @@ export function Cartouche() {
 
       {/* Colonne 4 : Logo entreprise */}
       <div className="cartouche-cell cartouche-logo">
-        <img
-          src={`${import.meta.env.BASE_URL}company-logo.png`}
-          alt="Logo"
-          className="cartouche-logo-img"
-        />
+        {(() => {
+          const isExternal = !(profile?.email ?? "").endsWith("@videosynergie.com");
+          const src = isExternal
+            ? (profile?.company_logo_url ?? null)
+            : `${import.meta.env.BASE_URL}company-logo.png`;
+          return src ? (
+            <img src={src} alt="Logo" className="cartouche-logo-img" />
+          ) : null;
+        })()}
       </div>
     </div>
   );

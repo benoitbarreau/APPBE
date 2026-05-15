@@ -6,8 +6,7 @@ import {
   type IPExportColumn,
 } from "../lib/ipTableExport";
 import type { IPNetworkInfo, IPTableColumnConfig, IPTableRow } from "../types";
-
-const logoUrl = `${import.meta.env.BASE_URL}company-logo.png`;
+import { useAuth } from "../auth/useAuth";
 
 type Format = "pdf" | "xlsx" | "print";
 type Scope  = "all" | "filtered";
@@ -52,6 +51,12 @@ export function IPTableExportModal({
   documentTitle: string;
   onClose: () => void;
 }) {
+  const { profile } = useAuth();
+  const isExternal = !(profile?.email ?? "").endsWith("@videosynergie.com");
+  const logoUrl = isExternal
+    ? (profile?.company_logo_url ?? `${import.meta.env.BASE_URL}company-logo.png`)
+    : `${import.meta.env.BASE_URL}company-logo.png`;
+
   const [format, setFormat] = useState<Format>("pdf");
   const [scope,  setScope]  = useState<Scope>(
     visibleRows.length === rows.length ? "all" : "filtered",

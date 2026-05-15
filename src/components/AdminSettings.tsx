@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/useAuth";
 
-type Panel = "info" | "name" | "password" | "help";
+type Panel = "info" | "name" | "password" | "company" | "help";
 
 export function AdminSettings({ onClose }: { onClose: () => void }) {
   const { user, profile, signOut, refreshProfile } = useAuth();
   const [panel, setPanel] = useState<Panel>("info");
+
+  // L'utilisateur est "externe" si son email n'est pas @videosynergie.com
+  const isExternal = !(user?.email ?? "").endsWith("@videosynergie.com");
 
   // ── Modification du nom affiché ─────────────────────────────────────────
   const [newName, setNewName] = useState(profile?.full_name ?? "");
@@ -62,6 +65,99 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // ── Société & Logo ──────────────────────────────────────────────────────
+  const [companyName, setCompanyName] = useState(profile?.company_name ?? "");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(
+    profile?.company_logo_url ?? null
+  );
+  const [companySaving, setCompanySaving] = useState(false);
+  const [companyMsg, setCompanyMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setLogoPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveCompany = async () => {
+    if (!user) return;
+    setCompanySaving(true);
+    setCompanyMsg(null);
+    try {
+      let logoUrl = profile?.company_logo_url ?? null;
+
+      // Upload du nouveau logo si sélectionné
+      if (logoFile) {
+        const path = `${user.id}/logo.png`;
+        const { error: uploadErr } = await supabase.storage
+          .from("company-logos")
+          .upload(path, logoFile, {
+            upsert: true,
+            contentType: logoFile.type,
+          });
+        if (uploadErr) throw uploadErr;
+
+        const { data: urlData } = supabase.storage
+          .from("company-logos")
+          .getPublicUrl(path);
+        // Cache-bust : ajouter un timestamp pour forcer le rechargement
+        logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      }
+
+      // Mise à jour du profil
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          company_name: companyName.trim() || null,
+          company_logo_url: logoUrl,
+        })
+        .eq("id", user.id);
+      if (error) throw error;
+
+      await refreshProfile();
+      setLogoFile(null);
+      setCompanyMsg({ ok: true, text: "Informations société mises à jour ✓" });
+    } catch (e) {
+      setCompanyMsg({ ok: false, text: e instanceof Error ? e.message : "Erreur" });
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    if (!user) return;
+    setCompanySaving(true);
+    setCompanyMsg(null);
+    try {
+      // Supprimer le fichier du storage
+      await supabase.storage.from("company-logos").remove([`${user.id}/logo.png`]);
+      // Mettre à jour le profil
+      const { error } = await supabase
+        .from("profiles")
+        .update({ company_logo_url: null })
+        .eq("id", user.id);
+      if (error) throw error;
+      await refreshProfile();
+      setLogoPreview(null);
+      setLogoFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setCompanyMsg({ ok: true, text: "Logo supprimé ✓" });
+    } catch (e) {
+      setCompanyMsg({ ok: false, text: e instanceof Error ? e.message : "Erreur" });
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+
   const handleSignOut = async () => {
     await signOut();
     onClose();
@@ -90,6 +186,14 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
             >
               Modifier le nom
             </button>
+            {isExternal && (
+              <button
+                className={panel === "company" ? "active" : ""}
+                onClick={() => { setPanel("company"); setCompanyMsg(null); }}
+              >
+                Société
+              </button>
+            )}
             <button
               className={panel === "password" ? "active" : ""}
               onClick={() => { setPanel("password"); setPwdMsg(null); }}
@@ -124,6 +228,22 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
                     {profile?.role === "admin" ? "Administrateur" : "Utilisateur"}
                   </span>
                 </div>
+                {isExternal && profile?.company_name && (
+                  <div className="form-row">
+                    <label>Société</label>
+                    <span>{profile.company_name}</span>
+                  </div>
+                )}
+                {isExternal && profile?.company_logo_url && (
+                  <div className="form-row">
+                    <label>Logo</label>
+                    <img
+                      src={profile.company_logo_url}
+                      alt="Logo société"
+                      className="account-company-logo-preview"
+                    />
+                  </div>
+                )}
                 <div className="form-row">
                   <label>Membre depuis</label>
                   <span>
@@ -165,6 +285,76 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
                   onClick={() => void saveName()}
                 >
                   {nameSaving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            )}
+
+            {/* Société & Logo (utilisateurs externes uniquement) */}
+            {panel === "company" && isExternal && (
+              <div>
+                <p className="account-hint">
+                  Ces informations apparaissent dans vos cartouches et exports de synoptiques.
+                </p>
+                <div className="form-row">
+                  <label>Nom de la société</label>
+                  <input
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Votre société"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-row account-logo-row">
+                  <label>Logo (PNG / JPEG)</label>
+                  <div className="account-logo-upload">
+                    {logoPreview && (
+                      <div className="account-logo-preview-wrap">
+                        <img
+                          src={logoPreview}
+                          alt="Aperçu logo"
+                          className="account-logo-preview"
+                        />
+                        <button
+                          className="danger account-logo-remove-btn"
+                          type="button"
+                          title="Supprimer le logo"
+                          onClick={() => void removeLogo()}
+                          disabled={companySaving}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    <label className="account-logo-pick-btn" htmlFor="logo-file-input">
+                      {logoPreview ? "Changer de logo" : "Choisir un logo"}
+                    </label>
+                    <input
+                      id="logo-file-input"
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: "none" }}
+                      onChange={handleLogoChange}
+                    />
+                    <p className="account-hint" style={{ marginTop: 4, marginBottom: 0 }}>
+                      Formats acceptés : PNG, JPEG — 2 Mo max
+                    </p>
+                  </div>
+                </div>
+
+                {companyMsg && (
+                  <p className={`account-msg ${companyMsg.ok ? "account-msg-ok" : "account-msg-err"}`}>
+                    {companyMsg.text}
+                  </p>
+                )}
+                <button
+                  className="primary"
+                  style={{ marginTop: 16 }}
+                  disabled={companySaving || (!companyName.trim() && !logoFile && !!profile?.company_name === !!companyName)}
+                  onClick={() => void saveCompany()}
+                >
+                  {companySaving ? "Enregistrement…" : "Enregistrer"}
                 </button>
               </div>
             )}

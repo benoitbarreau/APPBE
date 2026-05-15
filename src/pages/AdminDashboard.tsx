@@ -192,6 +192,11 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     setProfiles(prev => prev.map(p => p.id === id ? { ...p, role } : p))
   }
 
+  const deleteUser = async (id: string) => {
+    await supabase.rpc('admin_delete_user', { target_user_id: id })
+    setProfiles(prev => prev.filter(p => p.id !== id))
+  }
+
   const filtered = filterStatus === 'all' ? profiles : profiles.filter(p => p.status === filterStatus)
   const filters: FilterStatus[] = ['all', 'pending', 'approved', 'rejected']
 
@@ -458,6 +463,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                     currentUserId={currentProfile?.id ?? ''}
                     onUpdateStatus={updateStatus}
                     onUpdateRole={updateRole}
+                    onDeleteUser={deleteUser}
                   />
               }
             </>

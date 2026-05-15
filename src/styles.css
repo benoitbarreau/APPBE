@@ -3009,6 +3009,104 @@ select {
   white-space: nowrap;
 }
 
+/* ── Colonne Société dans le tableau admin ─────────────────────────────────── */
+.user-table-company {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.user-table-company-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
+}
+.user-table-company-name {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+/* ── Confirmation suppression inline ──────────────────────────────────────── */
+.user-table-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.user-table-confirm-delete span {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ── Panneau Société dans Mon compte ──────────────────────────────────────── */
+.account-logo-row {
+  align-items: flex-start;
+}
+.account-logo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.account-logo-preview-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+}
+.account-logo-preview {
+  max-width: 140px;
+  max-height: 80px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  display: block;
+}
+.account-logo-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.account-logo-pick-btn {
+  display: inline-block;
+  padding: 6px 14px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  width: fit-content;
+  transition: background 0.15s;
+}
+.account-logo-pick-btn:hover {
+  background: var(--border);
+}
+.account-company-logo-preview {
+  max-width: 120px;
+  max-height: 60px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+}
+
 .user-table-self-label {
   font-size: 12px;
   font-style: italic;

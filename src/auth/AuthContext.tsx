@@ -14,6 +14,8 @@ export interface Profile {
   role: UserRole
   created_at: string
   last_sign_in_at?: string | null
+  company_name?: string | null
+  company_logo_url?: string | null
 }
 
 interface AuthContextValue {
