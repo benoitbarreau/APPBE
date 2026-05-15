@@ -127,8 +127,19 @@ export function TextNodeComponent({ id, data, selected }: {
             de perdre le focus quand on interagit avec la toolbar. */}
       <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={8}>
         <div
-          className="text-toolbar"
-          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          className="text-toolbar nopan"
+          // nopan = classe reconnue par React Flow pour désactiver le pan sur cet élément.
+          // onPointerDown + stopPropagation = bloque les pointer events natifs
+          // (React Flow utilise les pointer events pour le pan).
+          // onMouseDown + preventDefault = empêche le textarea de perdre le focus
+          // quand on clique sur un bouton de la toolbar.
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            if ((e.target as HTMLElement).tagName !== "INPUT") {
+              e.preventDefault();
+            }
+          }}
         >
           {/* ── Ligne 1 : OPTIONS TEXTE ─────────────────────────────── */}
           <div className="text-toolbar-row">
