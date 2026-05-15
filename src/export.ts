@@ -185,17 +185,39 @@ function hidePageBoundaries(): () => void {
   return () => els.forEach((el) => { el.style.visibility = ""; });
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    // crossOrigin="anonymous" est indispensable pour les images cross-origin
-    // (logos Supabase Storage) : sans cet attribut le canvas devient "tainted"
-    // et toDataURL() est bloqué par le navigateur.
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
+/**
+ * Charge une image en passant par fetch() + blob URL.
+ *
+ * Pourquoi fetch + blob plutôt que new Image() + crossOrigin ?
+ * - Si le navigateur avait mis en cache l'image sans en-tête CORS (avant
+ *   l'ajout de crossOrigin="anonymous" dans le DOM), il réutilise la version
+ *   sans CORS → canvas tainted, toDataURL() bloqué.
+ * - Avec fetch({ cache: 'no-cache' }), on force une requête réseau fraîche
+ *   avec CORS. Le blob URL résultant est same-origin → toDataURL() toujours
+ *   autorisé, même pour des images cross-origin (Supabase Storage).
+ */
+async function loadImage(src: string): Promise<HTMLImageElement> {
+  // Tenter fetch CORS en premier (cross-origin et same-origin fonctionnent)
+  try {
+    const resp = await fetch(src, { mode: "cors", cache: "no-cache" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error("img load")); };
+      img.src = blobUrl;
+    });
+  } catch {
+    // Fallback : image same-origin (ne peut pas être tainted de toute façon)
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Impossible de charger : ${src}`));
+      img.src = src;
+    });
+  }
 }
 
 /** Récupère le src du logo depuis le DOM (cartouche déjà monté). */
@@ -485,6 +507,10 @@ async function snapshotDiagram(
   const restoreWidths = fixCableLabelWidths();
   const restoreBounds = hidePageBoundaries();
   const tx = getViewportForBounds(bounds, RASTER_W, DIAGRAM_H, 0.5, 4, 0);
+  // fetchRequestInit : html-to-image utilise fetch() pour inline les images
+  // cross-origin. mode:'cors' + cache:'no-cache' évite le canvas tainted même
+  // si le navigateur avait une version en cache sans en-têtes CORS.
+  const fetchRequestInit: RequestInit = { mode: "cors", cache: "no-cache" };
   const opts = {
     backgroundColor: background,
     width: RASTER_W,
@@ -497,6 +523,7 @@ async function snapshotDiagram(
     },
     cacheBust: true,
     skipFonts: true,
+    fetchRequestInit,
   };
   try {
     if (format === "png") return await toPng(viewport, opts);
@@ -518,6 +545,7 @@ async function snapshotFull(
   const restoreWidths = fixCableLabelWidths();
   const restoreBounds = hidePageBoundaries();
   const tx = getViewportForBounds(bounds, RASTER_W, RASTER_H, 0.5, 4, 0);
+  const fetchRequestInit: RequestInit = { mode: "cors", cache: "no-cache" };
   const opts = {
     backgroundColor: background,
     width: RASTER_W,
@@ -530,6 +558,7 @@ async function snapshotFull(
     },
     cacheBust: true,
     skipFonts: true,
+    fetchRequestInit,
   };
   try {
     if (format === "png") return await toPng(viewport, opts);
