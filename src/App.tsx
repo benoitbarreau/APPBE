@@ -18,6 +18,7 @@ import { isBayTab, isIPTableTab } from "./types";
 import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
+import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
 import {
@@ -147,6 +148,23 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   // Hash de l'état au dernier enregistrement — permet de détecter les vraies modifications
   const lastSavedHash = useRef<string>("");
 
+  // Modal "modifications non sauvegardées"
+  const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
+
+  // Initialise le hash de référence avec l'état chargé depuis la DB.
+  // Toute modification ultérieure produira un hash différent.
+  useEffect(() => {
+    const state = useAppStore.getState();
+    const flushedTabs = getFlushedTabs();
+    lastSavedHash.current = computeProjectHash(
+      flushedTabs,
+      state.products,
+      state.signals,
+      state.accessories,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
     const positions = layoutNodes(state.nodes, state.cables, state.products);
@@ -225,15 +243,25 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       onBackToProjects?.();
       return;
     }
-    const hasNodes = useAppStore.getState().nodes.length > 0;
-    if (hasNodes && !savedOk) {
-      if (!confirm("Retourner aux projets ? Les modifications non sauvegardées seront perdues.")) return;
+    // Comparer le hash courant avec le hash au dernier enregistrement
+    const state = useAppStore.getState();
+    const flushedTabs = getFlushedTabs();
+    const currentHash = computeProjectHash(
+      flushedTabs,
+      state.products,
+      state.signals,
+      state.accessories,
+    );
+    const hasUnsavedChanges = currentHash !== lastSavedHash.current;
+    if (hasUnsavedChanges) {
+      setUnsavedModalOpen(true);
+      return;
     }
     onBackToProjects?.();
   };
 
-  const handleSave = async () => {
-    if (readOnly) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (readOnly) return false;
     setSaving(true);
     try {
       const state = useAppStore.getState();
@@ -316,8 +344,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
+      return true;
     } catch (e) {
       alert("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -944,6 +974,26 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
       {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
+      {unsavedModalOpen && (
+        <UnsavedChangesModal
+          saving={saving}
+          onSaveAndLeave={() => {
+            void handleSave().then((success) => {
+              if (success) {
+                setUnsavedModalOpen(false);
+                onBackToProjects?.();
+              }
+              // Si success=false, l'alert interne a déjà informé l'utilisateur
+              // → on reste sur la page avec le modal ouvert
+            });
+          }}
+          onIgnoreAndLeave={() => {
+            setUnsavedModalOpen(false);
+            onBackToProjects?.();
+          }}
+          onCancel={() => setUnsavedModalOpen(false)}
+        />
+      )}
       {scopeModal && (
         <ExportScopeModal
           tabs={tabs}
