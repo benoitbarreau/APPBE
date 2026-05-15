@@ -288,6 +288,8 @@ export interface TextNodeData {
   background: string;
   borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
   borderColor: string;
+  /** Rayon des coins arrondis en px (0 = carré). Optionnel pour compatibilité ascendante. */
+  borderRadius?: number;
 }
 
 export interface SignalDef {

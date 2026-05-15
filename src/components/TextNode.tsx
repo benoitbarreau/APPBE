@@ -27,6 +27,14 @@ export function TextNodeComponent({ id, data, selected }: {
     [id, updateTextNode],
   );
 
+  // Quitter le mode édition si le canvas émet l'événement exitTextEdit
+  // (déclenché par un clic sur le fond du canvas dans DiagramCanvas).
+  useEffect(() => {
+    const handler = () => setEditing(false);
+    window.addEventListener("exitTextEdit", handler);
+    return () => window.removeEventListener("exitTextEdit", handler);
+  }, []);
+
   // Ouvrir le mode édition au double-clic
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,6 +61,7 @@ export function TextNodeComponent({ id, data, selected }: {
     if (next && next.closest(".text-toolbar")) return;
     setEditing(false);
   };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") setEditing(false);
     e.stopPropagation();
@@ -65,6 +74,8 @@ export function TextNodeComponent({ id, data, selected }: {
     },
     [update],
   );
+
+  const borderRadius = data.borderRadius ?? 0;
 
   // Style de la boîte
   const boxStyle: React.CSSProperties = {
@@ -82,6 +93,7 @@ export function TextNodeComponent({ id, data, selected }: {
     border:          data.borderStyle === "none"
                        ? "none"
                        : `1px ${data.borderStyle} ${data.borderColor}`,
+    borderRadius:    `${borderRadius}px`,
     cursor:          editing ? "text" : "default",
     overflow:        "hidden",
     whiteSpace:      "pre-wrap",
@@ -92,168 +104,245 @@ export function TextNodeComponent({ id, data, selected }: {
 
   return (
     <>
-      {/* Poignées de redimensionnement */}
+      {/* Poignées de redimensionnement — visibles dès que le bloc est sélectionné,
+          y compris en mode édition (comportement PowerPoint).
+          Poignées plus grosses pour faciliter le drag. */}
       <NodeResizer
-        isVisible={selected && !editing}
+        isVisible={!!selected}
         minWidth={80}
         minHeight={30}
         onResize={handleResize}
+        handleStyle={{
+          width: 10,
+          height: 10,
+          borderRadius: 2,
+          background: "#fff",
+          border: "2px solid #2f6fed",
+        }}
+        lineStyle={{ borderColor: "#2f6fed", borderWidth: 1 }}
       />
 
-      {/* Barre de formatage flottante (Figma-style).
-          - Visible quand le bloc est sélectionné OU en cours d'édition.
-          - onMouseDown(preventDefault) sur le wrapper : empêche le textarea
-            de perdre le focus quand on clique sur un bouton/select/color de
-            la barre — sinon on sort de l'édition à chaque clic. */}
-      <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={6}>
+      {/* Barre de formatage 2 lignes (Ligne 1 : Texte / Ligne 2 : Cadre).
+          - onMouseDown preventDefault sur le wrapper : empêche le textarea
+            de perdre le focus quand on interagit avec la toolbar. */}
+      <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={8}>
         <div
           className="text-toolbar"
-          // preventDefault sur mousedown empêche le textarea de perdre le
-          // focus quand on clique sur un bouton/select/color picker de la
-          // toolbar. Combiné au garde relatedTarget dans handleBlur, ça
-          // garantit qu'on reste en édition pendant l'utilisation de la barre.
           onMouseDown={(e) => e.preventDefault()}
         >
-          {/* Famille de police */}
-          <select
-            className="text-toolbar-select"
-            value={data.fontFamily}
-            onChange={(e) => update({ fontFamily: e.target.value })}
-            title="Police"
-          >
-            {FONTS.map((f) => (
-              <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          {/* ── Ligne 1 : OPTIONS TEXTE ─────────────────────────────── */}
+          <div className="text-toolbar-row">
+            <span className="text-toolbar-row-label">Texte</span>
 
-          {/* Taille */}
-          <select
-            className="text-toolbar-select text-toolbar-size"
-            value={data.fontSize}
-            onChange={(e) => update({ fontSize: Number(e.target.value) })}
-            title="Taille"
-          >
-            {FONT_SIZES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            {/* Famille de police */}
+            <select
+              className="text-toolbar-select"
+              value={data.fontFamily}
+              onChange={(e) => update({ fontFamily: e.target.value })}
+              title="Police"
+            >
+              {FONTS.map((f) => (
+                <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
 
-          <span className="text-toolbar-sep" />
+            {/* Taille */}
+            <select
+              className="text-toolbar-select text-toolbar-size"
+              value={data.fontSize}
+              onChange={(e) => update({ fontSize: Number(e.target.value) })}
+              title="Taille"
+            >
+              {FONT_SIZES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
 
-          {/* Gras */}
-          <button
-            className={`text-toolbar-btn${data.bold ? " active" : ""}`}
-            onClick={() => update({ bold: !data.bold })}
-            title="Gras"
-          >
-            <strong>B</strong>
-          </button>
-          {/* Italique */}
-          <button
-            className={`text-toolbar-btn${data.italic ? " active" : ""}`}
-            onClick={() => update({ italic: !data.italic })}
-            title="Italique"
-          >
-            <em>I</em>
-          </button>
-          {/* Souligné */}
-          <button
-            className={`text-toolbar-btn${data.underline ? " active" : ""}`}
-            onClick={() => update({ underline: !data.underline })}
-            title="Souligné"
-          >
-            <u>U</u>
-          </button>
+            <span className="text-toolbar-sep" />
 
-          <span className="text-toolbar-sep" />
+            {/* Gras */}
+            <button
+              className={`text-toolbar-btn${data.bold ? " active" : ""}`}
+              onClick={() => update({ bold: !data.bold })}
+              title="Gras"
+            >
+              <strong>B</strong>
+            </button>
+            {/* Italique */}
+            <button
+              className={`text-toolbar-btn${data.italic ? " active" : ""}`}
+              onClick={() => update({ italic: !data.italic })}
+              title="Italique"
+            >
+              <em>I</em>
+            </button>
+            {/* Souligné */}
+            <button
+              className={`text-toolbar-btn${data.underline ? " active" : ""}`}
+              onClick={() => update({ underline: !data.underline })}
+              title="Souligné"
+            >
+              <u>U</u>
+            </button>
 
-          {/* Alignement */}
-          <button
-            className={`text-toolbar-btn${data.textAlign === "left" ? " active" : ""}`}
-            onClick={() => update({ textAlign: "left" })}
-            title="Aligner à gauche"
-          >≡</button>
-          <button
-            className={`text-toolbar-btn${data.textAlign === "center" ? " active" : ""}`}
-            onClick={() => update({ textAlign: "center" })}
-            title="Centrer"
-          >☰</button>
-          <button
-            className={`text-toolbar-btn${data.textAlign === "right" ? " active" : ""}`}
-            onClick={() => update({ textAlign: "right" })}
-            title="Aligner à droite"
-          >≡</button>
+            <span className="text-toolbar-sep" />
 
-          <span className="text-toolbar-sep" />
+            {/* Alignement */}
+            <button
+              className={`text-toolbar-btn${data.textAlign === "left" ? " active" : ""}`}
+              onClick={() => update({ textAlign: "left" })}
+              title="Aligner à gauche"
+            >≡</button>
+            <button
+              className={`text-toolbar-btn${data.textAlign === "center" ? " active" : ""}`}
+              onClick={() => update({ textAlign: "center" })}
+              title="Centrer"
+            >☰</button>
+            <button
+              className={`text-toolbar-btn${data.textAlign === "right" ? " active" : ""}`}
+              onClick={() => update({ textAlign: "right" })}
+              title="Aligner à droite"
+            >≡</button>
 
-          {/* Couleur du texte */}
-          <label className="text-toolbar-color-wrap" title="Couleur du texte">
-            <span className="text-toolbar-color-label" style={{ color: data.color }}>A</span>
-            <input
-              type="color"
-              className="text-toolbar-color-input"
-              value={data.color}
-              onChange={(e) => update({ color: e.target.value })}
-            />
-          </label>
+            <span className="text-toolbar-sep" />
 
-          {/* Couleur de fond */}
-          <label className="text-toolbar-color-wrap" title="Couleur de fond (double-clic pour transparence)">
-            <span className="text-toolbar-color-label" style={{ background: data.background === "transparent" ? "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 0 / 8px 8px" : data.background, border: "1px solid #ccc", borderRadius: 3, width: 16, height: 16, display: "inline-block" }} />
-            <input
-              type="color"
-              className="text-toolbar-color-input"
-              value={data.background === "transparent" ? "#ffffff" : data.background}
-              onChange={(e) => update({ background: e.target.value })}
-            />
-          </label>
-          <button
-            className={`text-toolbar-btn${data.background === "transparent" ? " active" : ""}`}
-            onClick={() => update({ background: data.background === "transparent" ? "#ffffff" : "transparent" })}
-            title="Fond transparent"
-            style={{ fontSize: 10 }}
-          >
-            ⊘
-          </button>
-
-          <span className="text-toolbar-sep" />
-
-          {/* Bordure */}
-          <select
-            className="text-toolbar-select"
-            value={data.borderStyle}
-            onChange={(e) => update({ borderStyle: e.target.value as TextNodeData["borderStyle"] })}
-            title="Style de bordure"
-          >
-            <option value="none">Aucune</option>
-            <option value="solid">Continue</option>
-            <option value="dashed">Tirets</option>
-            <option value="dotted">Points</option>
-          </select>
-          {data.borderStyle !== "none" && (
-            <label className="text-toolbar-color-wrap" title="Couleur de bordure">
-              <span className="text-toolbar-color-label" style={{ background: data.borderColor, border: "1px solid #ccc", borderRadius: 3, width: 16, height: 16, display: "inline-block" }} />
+            {/* Couleur du texte — "A" avec soulignement coloré (style Word/PowerPoint) */}
+            <label className="text-toolbar-color-wrap" title="Couleur du texte">
+              <span
+                className="text-toolbar-color-label text-toolbar-color-a"
+                style={{ borderBottomColor: data.color }}
+              >
+                A
+              </span>
               <input
                 type="color"
                 className="text-toolbar-color-input"
-                value={data.borderColor}
-                onChange={(e) => update({ borderColor: e.target.value })}
+                value={data.color}
+                onChange={(e) => update({ color: e.target.value })}
               />
             </label>
-          )}
 
-          <span className="text-toolbar-sep" />
+            <span className="text-toolbar-sep" />
 
-          {/* Supprimer */}
-          <button
-            className="text-toolbar-btn text-toolbar-delete"
-            onClick={() => removeTextNode(id)}
-            title="Supprimer ce bloc texte"
-          >
-            ✕
-          </button>
+            {/* ✓ Terminer l'édition */}
+            <button
+              className="text-toolbar-btn text-toolbar-done"
+              onClick={() => setEditing(false)}
+              title="Terminer l'édition (Échap)"
+            >
+              ✓
+            </button>
+          </div>
+
+          {/* ── Ligne 2 : OPTIONS CADRE ──────────────────────────────── */}
+          <div className="text-toolbar-row text-toolbar-row-frame">
+            <span className="text-toolbar-row-label">Cadre</span>
+
+            {/* Style de bordure */}
+            <select
+              className="text-toolbar-select"
+              value={data.borderStyle}
+              onChange={(e) => update({ borderStyle: e.target.value as TextNodeData["borderStyle"] })}
+              title="Style de bordure"
+            >
+              <option value="none">Aucune</option>
+              <option value="solid">Continue</option>
+              <option value="dashed">Tirets</option>
+              <option value="dotted">Points</option>
+            </select>
+
+            {/* Couleur de bordure (visible uniquement si bordure active) */}
+            {data.borderStyle !== "none" && (
+              <label className="text-toolbar-color-wrap" title="Couleur de bordure">
+                <span
+                  className="text-toolbar-color-label"
+                  style={{
+                    background: data.borderColor,
+                    border: "1px solid #ccc",
+                    borderRadius: 3,
+                    width: 16,
+                    height: 16,
+                    display: "inline-block",
+                  }}
+                />
+                <input
+                  type="color"
+                  className="text-toolbar-color-input"
+                  value={data.borderColor}
+                  onChange={(e) => update({ borderColor: e.target.value })}
+                />
+              </label>
+            )}
+
+            <span className="text-toolbar-sep" />
+
+            {/* Couleur de fond */}
+            <label className="text-toolbar-color-wrap" title="Couleur de fond">
+              <span
+                className="text-toolbar-color-label"
+                style={{
+                  background:
+                    data.background === "transparent"
+                      ? "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 0 / 8px 8px"
+                      : data.background,
+                  border: "1px solid #ccc",
+                  borderRadius: 3,
+                  width: 16,
+                  height: 16,
+                  display: "inline-block",
+                }}
+              />
+              <input
+                type="color"
+                className="text-toolbar-color-input"
+                value={data.background === "transparent" ? "#ffffff" : data.background}
+                onChange={(e) => update({ background: e.target.value })}
+              />
+            </label>
+            {/* Bouton fond transparent */}
+            <button
+              className={`text-toolbar-btn${data.background === "transparent" ? " active" : ""}`}
+              onClick={() =>
+                update({
+                  background: data.background === "transparent" ? "#ffffff" : "transparent",
+                })
+              }
+              title="Fond transparent"
+              style={{ fontSize: 11 }}
+            >
+              ⊘
+            </button>
+
+            <span className="text-toolbar-sep" />
+
+            {/* Coins arrondis — slider 0–30 px */}
+            <label className="text-toolbar-radius-wrap" title={`Coins arrondis : ${borderRadius}px`}>
+              <span className="text-toolbar-radius-icon">◻</span>
+              <input
+                type="range"
+                className="text-toolbar-slider"
+                min={0}
+                max={30}
+                step={1}
+                value={borderRadius}
+                onChange={(e) => update({ borderRadius: Number(e.target.value) })}
+              />
+              <span className="text-toolbar-radius-val">{borderRadius}px</span>
+            </label>
+
+            <span className="text-toolbar-sep" />
+
+            {/* Supprimer le bloc */}
+            <button
+              className="text-toolbar-btn text-toolbar-delete"
+              onClick={() => removeTextNode(id)}
+              title="Supprimer ce bloc texte"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       </NodeToolbar>
 
@@ -285,7 +374,11 @@ export function TextNodeComponent({ id, data, selected }: {
             onKeyDown={handleKeyDown}
           />
         ) : (
-          data.content || <span style={{ opacity: 0.35, fontStyle: "italic" }}>Double-clic pour éditer</span>
+          data.content || (
+            <span style={{ opacity: 0.35, fontStyle: "italic" }}>
+              Double-clic pour éditer
+            </span>
+          )
         )}
       </div>
     </>

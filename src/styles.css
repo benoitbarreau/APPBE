@@ -5983,18 +5983,40 @@ select {
   border-color: #b3bcc8;
 }
 
-/* ── Barre d'outils texte flottante (NodeToolbar) ────────────────────────── */
+/* ── Barre d'outils texte flottante 2 lignes (NodeToolbar) ──────────────── */
 .text-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 6px;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.14);
-  flex-wrap: wrap;
-  max-width: 520px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07);
+  overflow: hidden;
+  min-width: max-content;
+}
+
+/* Chaque ligne de la toolbar */
+.text-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+}
+
+/* Ligne cadre : fond légèrement teinté pour la différencier visuellement */
+.text-toolbar-row.text-toolbar-row-frame {
+  border-top: 1px solid var(--border);
+  background: #f7f8fa;
+}
+
+/* Étiquette de section (TEXTE / CADRE) */
+.text-toolbar-row-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-right: 5px;
+  min-width: 32px;
+  user-select: none;
 }
 
 .text-toolbar-btn {
@@ -6003,18 +6025,18 @@ select {
   justify-content: center;
   min-width: 26px;
   height: 24px;
-  padding: 0 4px;
+  padding: 0 5px;
   font-size: 12px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
   color: var(--text);
   transition: background 0.1s, border-color 0.1s;
   flex-shrink: 0;
 }
 .text-toolbar-btn:hover {
-  background: #f0f3f8;
+  background: #eef2f8;
   border-color: var(--border);
 }
 .text-toolbar-btn.active {
@@ -6022,6 +6044,19 @@ select {
   border-color: color-mix(in srgb, var(--primary) 40%, transparent);
   color: var(--primary);
 }
+
+/* Bouton ✓ Terminer — vert */
+.text-toolbar-btn.text-toolbar-done {
+  color: #16a34a;
+  border-color: #bbf7d0;
+  font-size: 13px;
+}
+.text-toolbar-btn.text-toolbar-done:hover {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+/* Bouton ✕ Supprimer — rouge */
 .text-toolbar-btn.text-toolbar-delete {
   color: var(--danger);
 }
@@ -6049,7 +6084,7 @@ select {
   height: 18px;
   background: var(--border);
   flex-shrink: 0;
-  margin: 0 2px;
+  margin: 0 3px;
 }
 
 /* Sélecteur de couleur avec pastille visible */
@@ -6066,6 +6101,16 @@ select {
   line-height: 1;
   border-radius: 3px;
 }
+
+/* "A" couleur texte — soulignement coloré style Word/PowerPoint */
+.text-toolbar-color-a {
+  color: var(--text);
+  border-bottom: 3px solid #000; /* couleur écrasée via style inline */
+  padding-bottom: 1px;
+  display: inline-block;
+  line-height: 1.1;
+}
+
 .text-toolbar-color-input {
   position: absolute;
   inset: 0;
@@ -6075,5 +6120,36 @@ select {
   cursor: pointer;
   padding: 0;
   border: none;
+}
+
+/* Slider coins arrondis */
+.text-toolbar-radius-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  cursor: default;
+}
+.text-toolbar-radius-icon {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1;
+}
+.text-toolbar-slider {
+  width: 62px;
+  height: 3px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.text-toolbar-radius-val {
+  font-size: 10px;
+  color: var(--muted);
+  min-width: 24px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 

@@ -526,6 +526,12 @@ export function DiagramCanvas({
     [onEditInstance],
   );
 
+  // Clic sur le fond du canvas (pane) → quitter le mode édition des blocs texte.
+  // On dispatch un événement custom que TextNodeComponent écoute.
+  const onPaneClick = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("exitTextEdit"));
+  }, []);
+
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
       if (!newConnection.source || !newConnection.target) return;
@@ -586,6 +592,7 @@ export function DiagramCanvas({
         onReconnect={readOnly ? undefined : onReconnect}
         onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
         onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
+        onPaneClick={onPaneClick}
         reconnectRadius={10}
         connectionMode={ConnectionMode.Loose}
         // Drag clic-gauche désactivé NŒUD PAR NŒUD via dragHandle inexistant
