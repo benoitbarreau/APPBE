@@ -127,8 +127,11 @@ END;
 $$;
 
 -- ── 4. Mise à jour de admin_list_users pour inclure les nouveaux champs ───────
+-- DROP requis car la signature de retour change (ajout de deux colonnes).
 
-CREATE OR REPLACE FUNCTION public.admin_list_users()
+DROP FUNCTION IF EXISTS public.admin_list_users();
+
+CREATE FUNCTION public.admin_list_users()
 RETURNS TABLE (
   id               uuid,
   email            text,
