@@ -137,6 +137,12 @@ export function DiagramCanvas({
   const [guides, setGuides] = useState<Guide[]>([]);
   const snapTargetRef = useRef<{ x?: number; y?: number } | null>(null);
 
+  // ── Sélection des blocs texte (local, non persisté dans le store) ────────
+  // `selected: false` était codé en dur dans rfNodes → le NodeResizer ne
+  // s'affichait jamais. On track l'ID sélectionné ici pour le passer
+  // correctement dans la prop `selected` du nœud.
+  const [selectedTextNodeId, setSelectedTextNodeId] = useState<string | null>(null);
+
   // ── Drag droit personnalisé (clic droit + glisser sur un bloc) ──────────
   // Ref car les positions de souris sont écrites/lues très souvent → éviter
   // les re-renders. setGuides() reste un setState car les guides doivent
@@ -226,7 +232,7 @@ export function DiagramCanvas({
       // data est casté car React Flow attend Record<string, unknown> mais le
       // custom node reçoit TextNodeData (typé plus précisément en interne).
       data: tn as unknown as Record<string, unknown>,
-      selected: false,
+      selected: tn.id === selectedTextNodeId,
       zIndex: 2000,
       style: { width: tn.width, height: tn.height },
       dragHandle: NO_DRAG_HANDLE,
@@ -244,7 +250,7 @@ export function DiagramCanvas({
       })),
       ...textRfNodes,
     ];
-  }, [nodes, textNodes, selectedNodeId, products]);
+  }, [nodes, textNodes, selectedNodeId, selectedTextNodeId, products]);
 
   // Helper : calcule guides d'alignement + cible de snap pour une position
   // candidate. Utilisé par le drag clic-droit personnalisé.
@@ -449,9 +455,12 @@ export function DiagramCanvas({
         }
 
         if (change.type === "select") {
-          // Sélection : uniquement pour les produits (text nodes gèrent la
-          // sélection via React Flow en interne, on ne stocke pas).
-          if (isProduct) {
+          if (isTextNode) {
+            // Pour les blocs texte, on met à jour l'état local de sélection
+            // afin que la prop `selected` soit correctement transmise et que
+            // le NodeResizer s'affiche.
+            setSelectedTextNodeId(change.selected ? change.id : null);
+          } else if (isProduct) {
             setSelectedNode(change.selected ? change.id : null);
           }
         }
@@ -526,10 +535,11 @@ export function DiagramCanvas({
     [onEditInstance],
   );
 
-  // Clic sur le fond du canvas (pane) → quitter le mode édition des blocs texte.
-  // On dispatch un événement custom que TextNodeComponent écoute.
+  // Clic sur le fond du canvas (pane) → quitter le mode édition des blocs texte
+  // et désélectionner. On dispatch un événement custom que TextNodeComponent écoute.
   const onPaneClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("exitTextEdit"));
+    setSelectedTextNodeId(null);
   }, []);
 
   const onReconnect = useCallback(
