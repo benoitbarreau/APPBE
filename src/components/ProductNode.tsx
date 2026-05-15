@@ -43,11 +43,12 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   // Refs sur les inputs éditables pour bloquer la propagation native du
   // pointerdown vers le listener d3-drag de React Flow.
   const labelInputRef = useRef<HTMLInputElement>(null);
+  const mfrInputRef   = useRef<HTMLInputElement>(null);
   const refInputRef   = useRef<HTMLInputElement>(null);
   const catInputRef   = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const block = (e: PointerEvent) => e.stopPropagation();
-    const els = [labelInputRef, refInputRef, catInputRef].map((r) => r.current);
+    const els = [labelInputRef, mfrInputRef, refInputRef, catInputRef].map((r) => r.current);
     els.forEach((el) => el?.addEventListener("pointerdown", block));
     return () => els.forEach((el) => el?.removeEventListener("pointerdown", block));
   }, []);
@@ -110,7 +111,21 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         }
       >
         <div className="product-node-name-row">
-          <div className="product-node-name">{product.manufacturer}</div>
+          {isGeneric && !readOnly ? (
+            <input
+              ref={mfrInputRef}
+              className="product-node-generic-input product-node-name nodrag"
+              value={product.manufacturer}
+              placeholder="Marque"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              onChange={(e) => updateProduct(product.id, { manufacturer: e.target.value })}
+              title="Marque du produit générique"
+            />
+          ) : (
+            <div className="product-node-name">{product.manufacturer}</div>
+          )}
           <input
             ref={labelInputRef}
             className={`product-node-label nodrag${node.labelIsAuto ? " is-auto" : ""}`}
