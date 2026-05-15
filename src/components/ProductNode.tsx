@@ -94,7 +94,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         <div className="product-node-name-row">
           <div className="product-node-name">{product.manufacturer}</div>
           <input
-            className={`product-node-label${node.labelIsAuto ? " is-auto" : ""}`}
+            className={`product-node-label nodrag${node.labelIsAuto ? " is-auto" : ""}`}
             value={node.label ?? ""}
             placeholder="Label"
             readOnly={readOnly}
