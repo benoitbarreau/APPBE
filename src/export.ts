@@ -83,17 +83,56 @@ export function downloadFile(dataUrl: string, filename: string, format: string):
 
 // ── Calcul des pages ─────────────────────────────────────────────────────
 
+type RFNodeLike = {
+  id?: string;
+  position?: { x: number; y: number };
+  measured?: { width?: number; height?: number };
+};
+
 export function computePageRects(nodes: unknown[]): PageRect[] {
+  const ns = nodes as RFNodeLike[];
+
+  // ── Stratégie 1 : utiliser les page nodes du canvas ──────────────────
+  // DiagramCanvas.tsx génère des page nodes avec les positions exactes en
+  // utilisant les dimensions mesurées par React Flow (measuredNodeSizes).
+  // Ces nodes sont la source de vérité : on les réutilise directement plutôt
+  // que de recalculer avec des tailles estimées (ce qui provoque des pages blanches).
+  const pageNodes = ns.filter(
+    (n) => typeof n.id === "string" && n.id.startsWith(PAGE_NODE_ID),
+  );
+
+  if (pageNodes.length > 0) {
+    // Trier par ligne (y) puis colonne (x) pour obtenir l'ordre d'affichage
+    const sorted = [...pageNodes].sort((a, b) => {
+      const ay = a.position?.y ?? 0, by = b.position?.y ?? 0;
+      const ax = a.position?.x ?? 0, bx = b.position?.x ?? 0;
+      return ay !== by ? ay - by : ax - bx;
+    });
+    return sorted.map((n, i) => ({
+      x: n.position?.x ?? 0,
+      y: n.position?.y ?? 0,
+      width: PAGE_BOUNDS.width,
+      height: PAGE_BOUNDS.height,
+      index: i + 1,
+    }));
+  }
+
+  // ── Stratégie 2 (fallback) : estimation heuristique ─────────────────
+  // Utilisée uniquement si aucun page node n'est disponible (premier rendu,
+  // contexte hors-canvas…). Utilise les dimensions mesurées par RF si dispo,
+  // sinon les constantes NODE_W / NODE_H.
   let maxRight = PAGE_BOUNDS.width, maxBottom = PAGE_BOUNDS.height;
   let minLeft = 0, minTop = 0;
-  for (const n of nodes as { id?: string; position?: { x: number; y: number } }[]) {
+  for (const n of ns) {
     if (typeof n.id === "string" && n.id.startsWith(PAGE_NODE_ID)) continue;
     const x = n.position?.x ?? 0;
     const y = n.position?.y ?? 0;
-    if (x + NODE_W > maxRight) maxRight = x + NODE_W;
-    if (y + NODE_H > maxBottom) maxBottom = y + NODE_H;
+    const nw = n.measured?.width  ?? NODE_W;
+    const nh = n.measured?.height ?? NODE_H;
+    if (x + nw > maxRight)  maxRight  = x + nw;
+    if (y + nh > maxBottom) maxBottom = y + nh;
     if (x < minLeft) minLeft = x;
-    if (y < minTop) minTop = y;
+    if (y < minTop)  minTop  = y;
   }
   const colStart = Math.min(0, Math.floor(minLeft / PAGE_BOUNDS.width));
   const rowStart = Math.min(0, Math.floor(minTop / PAGE_BOUNDS.height));
