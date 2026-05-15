@@ -76,6 +76,7 @@ export function TextNodeComponent({ id, data, selected }: {
   );
 
   const borderRadius = data.borderRadius ?? 0;
+  const borderWidth  = data.borderWidth  ?? 1;
 
   // Style de la boîte
   const boxStyle: React.CSSProperties = {
@@ -90,9 +91,9 @@ export function TextNodeComponent({ id, data, selected }: {
     textAlign:       data.textAlign,
     color:           data.color,
     background:      data.background === "transparent" ? "transparent" : data.background,
-    border:          data.borderStyle === "none"
+    border:          data.borderStyle === "none" || borderWidth === 0
                        ? "none"
-                       : `1px ${data.borderStyle} ${data.borderColor}`,
+                       : `${borderWidth}px ${data.borderStyle} ${data.borderColor}`,
     borderRadius:    `${borderRadius}px`,
     cursor:          editing ? "text" : "default",
     overflow:        "hidden",
@@ -269,6 +270,20 @@ export function TextNodeComponent({ id, data, selected }: {
               <option value="dotted">Points</option>
             </select>
 
+            {/* Épaisseur de bordure */}
+            {data.borderStyle !== "none" && (
+              <input
+                type="number"
+                className="text-toolbar-borderwidth"
+                min={0}
+                max={10}
+                step={1}
+                value={borderWidth}
+                onChange={(e) => update({ borderWidth: Math.max(0, Math.min(10, Number(e.target.value))) })}
+                title="Épaisseur de bordure (px)"
+              />
+            )}
+
             {/* Couleur de bordure (visible uniquement si bordure active) */}
             {data.borderStyle !== "none" && (
               <label className="text-toolbar-color-wrap" title="Couleur de bordure">
@@ -367,6 +382,10 @@ export function TextNodeComponent({ id, data, selected }: {
         {editing ? (
           <textarea
             ref={textareaRef}
+            // nodrag = classe React Flow : désactive le drag du nœud quand
+            // l'événement provient du textarea. Permet clic+glisser pour
+            // sélectionner du texte sans déplacer le bloc.
+            className="nodrag"
             style={{
               width: "100%",
               height: "100%",

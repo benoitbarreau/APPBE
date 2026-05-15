@@ -191,6 +191,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       // Bordure visible par défaut (l'utilisateur pourra la retirer ensuite)
       borderStyle: "solid",
       borderColor: "#888888",
+      borderWidth: 1,
       borderRadius: 0,
     });
   };

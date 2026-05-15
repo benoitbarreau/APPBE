@@ -288,6 +288,8 @@ export interface TextNodeData {
   background: string;
   borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
   borderColor: string;
+  /** Épaisseur de bordure en px. Optionnel pour compatibilité ascendante (fallback : 1). */
+  borderWidth?: number;
   /** Rayon des coins arrondis en px (0 = carré). Optionnel pour compatibilité ascendante. */
   borderRadius?: number;
 }

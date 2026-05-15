@@ -6153,3 +6153,16 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+/* Input numérique épaisseur de bordure */
+.text-toolbar-borderwidth {
+  width: 40px;
+  height: 24px;
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  text-align: center;
+  flex-shrink: 0;
+}
+

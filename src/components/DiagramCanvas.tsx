@@ -7,7 +7,6 @@ import {
   MarkerType,
   MiniMap,
   ReactFlow,
-  useReactFlow,
   useViewport,
   type Connection,
   type Edge,
@@ -130,7 +129,6 @@ export function DiagramCanvas({
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
   const readOnly = useEditorState((s) => s.readOnly);
-  const reactFlow = useReactFlow();
 
   // ── Guides d'alignement (smart guides style Visio) ───────────────────────
   const SNAP_THRESHOLD = 8; // pixels flow
@@ -142,20 +140,6 @@ export function DiagramCanvas({
   // s'affichait jamais. On track l'ID sélectionné ici pour le passer
   // correctement dans la prop `selected` du nœud.
   const [selectedTextNodeId, setSelectedTextNodeId] = useState<string | null>(null);
-
-  // ── Drag droit personnalisé (clic droit + glisser sur un bloc) ──────────
-  // Ref car les positions de souris sont écrites/lues très souvent → éviter
-  // les re-renders. setGuides() reste un setState car les guides doivent
-  // re-render à chaque mouvement pour s'afficher.
-  const rightDragRef = useRef<{
-    nodeId: string;
-    nodeType: "product" | "text";
-    startScreenX: number;
-    startScreenY: number;
-    startNodeX: number;
-    startNodeY: number;
-    lastPos: { x: number; y: number };
-  } | null>(null);
 
   // ── Notification d'incompatibilité ────────────────────────────────────────
   const [compatError, setCompatError] = useState<string | null>(null);
@@ -217,14 +201,9 @@ export function DiagramCanvas({
         pageIdx++;
       }
     }
-    // dragHandle pointe vers un sélecteur inexistant pour désactiver le drag
-    // natif clic-gauche de React Flow au niveau du nœud (et non globalement),
-    // tout en conservant :
-    //   - les double-clics (édition produit / texte)
-    //   - le NodeResizer (utilise ses propres handles)
-    //   - la sélection au clic simple
-    const NO_DRAG_HANDLE = "__no_drag__";
-
+    // Les blocs texte et produits utilisent le drag natif React Flow (clic gauche).
+    // La sélection de texte dans les blocs en mode édition est protégée par la
+    // classe `nodrag` sur le <textarea> (voir TextNode.tsx).
     const textRfNodes = textNodes.map((tn) => ({
       id: tn.id,
       type: "text" as const,
@@ -235,7 +214,6 @@ export function DiagramCanvas({
       selected: tn.id === selectedTextNodeId,
       zIndex: 2000,
       style: { width: tn.width, height: tn.height },
-      dragHandle: NO_DRAG_HANDLE,
     }));
 
     return [
@@ -246,14 +224,13 @@ export function DiagramCanvas({
         position: n.position,
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
-        dragHandle: NO_DRAG_HANDLE,
       })),
       ...textRfNodes,
     ];
   }, [nodes, textNodes, selectedNodeId, selectedTextNodeId, products]);
 
-  // Helper : calcule guides d'alignement + cible de snap pour une position
-  // candidate. Utilisé par le drag clic-droit personnalisé.
+  // Helper : calcule guides d'alignement + cible de snap pour une position candidate.
+  // Appelé depuis onNodeDrag (drag natif React Flow sur les blocs produit).
   const computeGuides = useCallback(
     (nodeId: string, position: { x: number; y: number }, dW: number, dH: number) => {
       const dCX = position.x + dW / 2;
@@ -284,104 +261,34 @@ export function DiagramCanvas({
     [rfNodes, SNAP_THRESHOLD],
   );
 
-  // ── Drag clic droit : démarrage (capture-phase pour intercepter avant RF) ─
-  const onCanvasMouseDownCapture = useCallback(
-    (e: React.MouseEvent) => {
-      if (readOnly) return;
-      if (e.button !== 2) return; // uniquement clic droit
-      const target = e.target as HTMLElement;
-      const nodeEl = target.closest(".react-flow__node") as HTMLElement | null;
-      if (!nodeEl) return;
-      const nodeId = nodeEl.getAttribute("data-id");
-      if (!nodeId) return;
-
-      const product = nodes.find((n) => n.id === nodeId);
-      const textNode = textNodes.find((tn) => tn.id === nodeId);
-      if (!product && !textNode) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const startPos = product ? product.position : textNode!.position;
-      rightDragRef.current = {
-        nodeId,
-        nodeType: product ? "product" : "text",
-        startScreenX: e.clientX,
-        startScreenY: e.clientY,
-        startNodeX: startPos.x,
-        startNodeY: startPos.y,
-        lastPos: { ...startPos },
-      };
+  // ── Drag natif React Flow : smart guides pendant le drag des blocs produit ─
+  const onNodeDrag = useCallback(
+    (_e: React.MouseEvent, node: Node) => {
+      if (node.type !== "product") return;
+      const dW = node.measured?.width ?? 150;
+      const dH = node.measured?.height ?? 120;
+      const { guides: g, snap } = computeGuides(node.id, node.position, dW, dH);
+      setGuides(g);
+      snapTargetRef.current = snap;
     },
-    [readOnly, nodes, textNodes],
+    [computeGuides],
   );
 
-  // ── Drag clic droit : écouteurs globaux (mousemove + mouseup) ───────────
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const drag = rightDragRef.current;
-      if (!drag) return;
-      const { zoom } = reactFlow.getViewport();
-      const dx = (e.clientX - drag.startScreenX) / zoom;
-      const dy = (e.clientY - drag.startScreenY) / zoom;
-      const newPos = {
-        x: drag.startNodeX + dx,
-        y: drag.startNodeY + dy,
-      };
-      drag.lastPos = newPos;
-
-      // Guides d'alignement (uniquement pour les blocs produit ;
-      // pas pour les blocs texte qui ont des tailles très variables)
-      if (drag.nodeType === "product") {
-        const nodeRf = rfNodes.find((n) => n.id === drag.nodeId);
-        const dW = nodeRf?.measured?.width ?? 150;
-        const dH = nodeRf?.measured?.height ?? 120;
-        const { guides: g, snap } = computeGuides(drag.nodeId, newPos, dW, dH);
-        setGuides(g);
-        snapTargetRef.current = snap;
-      }
-
-      if (drag.nodeType === "text") {
-        updateTextNode(drag.nodeId, { position: newPos });
-      } else {
-        updateNode(drag.nodeId, { position: newPos });
-      }
-    };
-
-    const onUp = () => {
-      const drag = rightDragRef.current;
-      if (!drag) return;
-      // Appliquer le snap éventuel à la position finale
+  // ── Fin de drag : applique le snap à la position finale ──────────────────
+  const onNodeDragStop = useCallback(
+    (_e: React.MouseEvent, node: Node) => {
       const snap = snapTargetRef.current;
-      if (snap && drag.nodeType === "product") {
+      if (snap && node.type === "product") {
         const finalPos = {
-          x: snap.x !== undefined ? snap.x : drag.lastPos.x,
-          y: snap.y !== undefined ? snap.y : drag.lastPos.y,
+          x: snap.x !== undefined ? snap.x : node.position.x,
+          y: snap.y !== undefined ? snap.y : node.position.y,
         };
-        updateNode(drag.nodeId, { position: finalPos });
+        updateNode(node.id, { position: finalPos });
       }
-      rightDragRef.current = null;
       snapTargetRef.current = null;
       setGuides([]);
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [reactFlow, rfNodes, computeGuides, updateNode, updateTextNode]);
-
-  // ── Désactiver le menu contextuel du navigateur sur les blocs uniquement ─
-  const onCanvasContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest(".react-flow__node")) {
-        e.preventDefault();
-      }
     },
-    [],
+    [updateNode],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -584,8 +491,6 @@ export function DiagramCanvas({
   return (
     <div
       style={{ position: "relative", width: "100%", height: "100%" }}
-      onMouseDownCapture={onCanvasMouseDownCapture}
-      onContextMenu={onCanvasContextMenu}
     >
       {compatError && (
         <div className="compat-error-toast">
@@ -603,11 +508,10 @@ export function DiagramCanvas({
         onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
         onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
         onPaneClick={onPaneClick}
+        onNodeDrag={readOnly ? undefined : onNodeDrag}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         reconnectRadius={10}
         connectionMode={ConnectionMode.Loose}
-        // Drag clic-gauche désactivé NŒUD PAR NŒUD via dragHandle inexistant
-        // (cf. rfNodes useMemo). nodesDraggable doit rester à true sinon
-        // onNodeDoubleClick et NodeResizer ne fonctionnent plus.
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
