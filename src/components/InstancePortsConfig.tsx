@@ -134,11 +134,6 @@ export function InstancePortsConfig({
                         key={p.id}
                         className={"instance-port-row port-edit-row-decorative"
                           + (dragId === p.id ? " dragging" : "")}
-                        draggable
-                        onDragStart={(e) => {
-                          setDragId(p.id);
-                          e.dataTransfer.effectAllowed = "move";
-                        }}
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
@@ -147,9 +142,17 @@ export function InstancePortsConfig({
                           e.preventDefault();
                           onDrop(p.id, sec.key);
                         }}
-                        onDragEnd={() => setDragId(null)}
                       >
-                        <span className="instance-drag-handle" title="Glisser pour réordonner">≡</span>
+                        <span
+                          className="instance-drag-handle"
+                          title="Glisser pour réordonner"
+                          draggable
+                          onDragStart={(e) => {
+                            setDragId(p.id);
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragEnd={() => setDragId(null)}
+                        >≡</span>
                         <span className="port-decorative-label">
                           {p.kind === "spacer" ? "— Espace —" : "— Séparateur —"}
                         </span>
@@ -171,11 +174,6 @@ export function InstancePortsConfig({
                         "instance-port-row" +
                         (dragId === p.id ? " dragging" : "")
                       }
-                      draggable
-                      onDragStart={(e) => {
-                        setDragId(p.id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = "move";
@@ -184,9 +182,17 @@ export function InstancePortsConfig({
                         e.preventDefault();
                         onDrop(p.id, sec.key);
                       }}
-                      onDragEnd={() => setDragId(null)}
                     >
-                      <span className="instance-drag-handle" title="Glisser pour réordonner">
+                      <span
+                        className="instance-drag-handle"
+                        title="Glisser pour réordonner"
+                        draggable
+                        onDragStart={(e) => {
+                          setDragId(p.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => setDragId(null)}
+                      >
                         ≡
                       </span>
                       <span
@@ -200,7 +206,6 @@ export function InstancePortsConfig({
                           setNodePortLabel(node.id, p.id, e.target.value)
                         }
                         placeholder="Libellé"
-                        onMouseDown={(e) => e.stopPropagation()}
                       />
                       {extra ? (
                         <select
