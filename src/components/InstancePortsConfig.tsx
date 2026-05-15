@@ -6,6 +6,7 @@ import {
   getEffectivePorts,
   isExtraPort,
 } from "../ports";
+import { BLANK_PRODUCT } from "../types";
 import type { Port, PortPlacement, SignalType } from "../types";
 
 const SECTIONS: { key: PortPlacement; label: string }[] = [
@@ -22,9 +23,10 @@ export function InstancePortsConfig({
   onClose: () => void;
 }) {
   const node = useAppStore((s) => s.nodes.find((n) => n.id === nodeId));
-  const product = useAppStore((s) =>
+  const productFromStore = useAppStore((s) =>
     s.products.find((p) => p.id === node?.productId),
   );
+  const product = node?.isBlankBlock ? BLANK_PRODUCT : productFromStore;
   const signals = useAppStore((s) => s.signals);
   const setNodePortPlacement = useAppStore((s) => s.setNodePortPlacement);
   const resetNodePortPlacement = useAppStore((s) => s.resetNodePortPlacement);

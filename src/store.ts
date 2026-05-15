@@ -22,7 +22,7 @@ import type {
 } from "./types";
 import type { ProjectData } from "./lib/projectsApi";
 import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
-import { DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
+import { BLANK_BLOCK_PRODUCT_ID, DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
 
 const DEFAULT_ZONES: Zone[] = [
@@ -154,6 +154,7 @@ interface State {
   sendShapeBackward: (id: string) => void;
 
   addNode: (productId: string, position: { x: number; y: number }) => string;
+  addBlankBlock: (position: { x: number; y: number }) => void;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
   removeNode: (id: string) => void;
   /** Réordonne les nœuds (drag & drop dans la liste des étiquettes produits). */
@@ -1036,6 +1037,30 @@ export const useAppStore = create<State>()(
             };
           });
           return id;
+        },
+        addBlankBlock: (position) => {
+          const id = uid();
+          set((s) => {
+            const label = nextAutoLabel("BLK", collectAllLabels(s));
+            return {
+              nodes: [
+                ...s.nodes,
+                {
+                  id,
+                  productId: BLANK_BLOCK_PRODUCT_ID,
+                  name: "Bloc vierge",
+                  position,
+                  isBlankBlock: true,
+                  blockManufacturer: "",
+                  blockReference: "",
+                  blockCategory: "",
+                  label,
+                  labelIsAuto: true,
+                  extraPorts: [],
+                },
+              ],
+            };
+          });
         },
         updateNode: (id, patch) =>
           set((s) => ({

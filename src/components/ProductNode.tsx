@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore, useEditorState } from "../store";
 import { getEffectivePorts } from "../ports";
-import { isDecorativePort, type Port } from "../types";
+import { BLANK_PRODUCT, isDecorativePort, type Port } from "../types";
 
 // Catégories qui utilisent le rendu « bloc rond »
 const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
@@ -30,33 +30,31 @@ function isLightHex(hex: string): boolean {
 export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const { nodeId } = data;
   const node = useAppStore((s) => s.nodes.find((n) => n.id === nodeId));
-  const product = useAppStore((s) =>
+  const productFromStore = useAppStore((s) =>
     s.products.find((p) => p.id === node?.productId),
   );
   const cables = useAppStore((s) => s.cables);
   const zones = useAppStore((s) => s.zones);
   const setNodeZone = useAppStore((s) => s.setNodeZone);
   const updateNode = useAppStore((s) => s.updateNode);
-  const updateProduct = useAppStore((s) => s.updateProduct);
   const readOnly = useEditorState((s) => s.readOnly);
 
-  // Refs sur les inputs éditables pour bloquer la propagation native du
-  // pointerdown vers le listener d3-drag de React Flow.
+  // Refs pour bloquer le drag React Flow pendant la saisie dans les inputs.
   const labelInputRef = useRef<HTMLInputElement>(null);
-  const mfrInputRef   = useRef<HTMLInputElement>(null);
-  const refInputRef   = useRef<HTMLInputElement>(null);
-  const catInputRef   = useRef<HTMLInputElement>(null);
+  const blankMfrRef   = useRef<HTMLInputElement>(null);
+  const blankRefRef   = useRef<HTMLInputElement>(null);
+  const blankCatRef   = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const block = (e: PointerEvent) => e.stopPropagation();
-    const els = [labelInputRef, mfrInputRef, refInputRef, catInputRef].map((r) => r.current);
+    const els = [labelInputRef, blankMfrRef, blankRefRef, blankCatRef].map((r) => r.current);
     els.forEach((el) => el?.addEventListener("pointerdown", block));
     return () => els.forEach((el) => el?.removeEventListener("pointerdown", block));
   }, []);
 
-  if (!node || !product) return null;
-
-  // Produit générique → référence et catégorie éditables inline
-  const isGeneric = product.manufacturer === "Générique";
+  if (!node) return null;
+  const isBlankBlock = !!node.isBlankBlock;
+  const product = isBlankBlock ? BLANK_PRODUCT : productFromStore;
+  if (!product) return null;
 
   // ── Bloc rond pour Enceintes / Caissons de basse ──────────────────────
   if (SPEAKER_CATEGORIES.has(product.category)) {
@@ -111,20 +109,22 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         }
       >
         <div className="product-node-name-row">
-          {isGeneric && !readOnly ? (
+          {isBlankBlock && !readOnly ? (
             <input
-              ref={mfrInputRef}
-              className="product-node-generic-input product-node-name nodrag"
-              value={product.manufacturer}
+              ref={blankMfrRef}
+              className="product-node-blank-input product-node-name nodrag"
+              value={node.blockManufacturer ?? ""}
               placeholder="Marque"
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
-              onChange={(e) => updateProduct(product.id, { manufacturer: e.target.value })}
-              title="Marque du produit générique"
+              onChange={(e) => updateNode(node.id, { blockManufacturer: e.target.value })}
+              title="Marque du bloc vierge"
             />
           ) : (
-            <div className="product-node-name">{product.manufacturer}</div>
+            <div className="product-node-name">
+              {isBlankBlock ? (node.blockManufacturer || "Marque") : product.manufacturer}
+            </div>
           )}
           <input
             ref={labelInputRef}
@@ -145,17 +145,17 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             }
           />
         </div>
-        {isGeneric && !readOnly ? (
+        {isBlankBlock && !readOnly ? (
           <input
-            ref={refInputRef}
-            className="product-node-generic-input product-node-ref nodrag"
-            value={product.reference}
+            ref={blankRefRef}
+            className="product-node-blank-input product-node-ref nodrag"
+            value={node.blockReference ?? ""}
             placeholder="Référence"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
-            onChange={(e) => updateProduct(product.id, { reference: e.target.value })}
-            title="Référence du produit générique"
+            onChange={(e) => updateNode(node.id, { blockReference: e.target.value })}
+            title="Référence du bloc vierge"
             style={headerSubColor ? { color: headerSubColor } : undefined}
           />
         ) : (
@@ -163,21 +163,21 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             className="product-node-ref"
             style={headerSubColor ? { color: headerSubColor } : undefined}
           >
-            {product.reference}
+            {isBlankBlock ? (node.blockReference || "Référence") : product.reference}
           </div>
         )}
         <div className="product-node-cat-row">
-          {isGeneric && !readOnly ? (
+          {isBlankBlock && !readOnly ? (
             <input
-              ref={catInputRef}
-              className="product-node-generic-input product-node-cat nodrag"
-              value={product.category}
+              ref={blankCatRef}
+              className="product-node-blank-input product-node-cat nodrag"
+              value={node.blockCategory ?? ""}
               placeholder="Catégorie"
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
-              onChange={(e) => updateProduct(product.id, { category: e.target.value })}
-              title="Catégorie du produit générique"
+              onChange={(e) => updateNode(node.id, { blockCategory: e.target.value })}
+              title="Catégorie du bloc vierge"
               style={headerSubColor ? { color: headerSubColor } : undefined}
             />
           ) : (
@@ -185,7 +185,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
               className="product-node-cat"
               style={headerSubColor ? { color: headerSubColor } : undefined}
             >
-              {product.category}
+              {isBlankBlock ? (node.blockCategory || "Catégorie") : product.category}
             </div>
           )}
           {zone && (

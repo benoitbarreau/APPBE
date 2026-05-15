@@ -45,6 +45,21 @@ export interface Product {
 
 export type PortPlacement = "left" | "right" | "middle";
 
+/** ID réservé pour le produit synthétique "Bloc vierge". */
+export const BLANK_BLOCK_PRODUCT_ID = "__blank__";
+
+/** Produit synthétique utilisé comme base pour les blocs vierges.
+ *  Il n'est jamais stocké dans le catalogue — il est créé à la volée. */
+export const BLANK_PRODUCT: Product = {
+  id: BLANK_BLOCK_PRODUCT_ID,
+  manufacturer: "",
+  reference: "",
+  category: "",
+  inputs: [],
+  outputs: [],
+  middle: [],
+};
+
 export interface PlacedProduct {
   id: string;
   productId: string;
@@ -60,6 +75,11 @@ export interface PlacedProduct {
   portLabelOverrides?: Record<string, string>;
   portOrder?: string[];
   extraPorts?: Port[];
+  /** Bloc vierge : textes et ports 100 % par instance, non liés au catalogue. */
+  isBlankBlock?: boolean;
+  blockManufacturer?: string;
+  blockReference?: string;
+  blockCategory?: string;
 }
 
 export interface Zone {

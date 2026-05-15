@@ -15,12 +15,14 @@ export function ProductPalette({
   onEdit,
   onNew,
   onImport,
+  onAddBlankBlock,
   onCollapse,
 }: {
   onAdd: (productId: string) => void;
   onEdit: (productId: string) => void;
   onNew: () => void;
   onImport: () => void;
+  onAddBlankBlock?: () => void;
   onCollapse?: () => void;
 }) {
   const products = useAppStore((s) => s.products);
@@ -357,6 +359,16 @@ export function ProductPalette({
         onChange={(e) => setFilter(e.target.value)}
         className="palette-search"
       />
+
+      {onAddBlankBlock && (
+        <button
+          className="palette-blank-block-btn"
+          onClick={onAddBlankBlock}
+          title="Ajouter un bloc vierge sur le synoptique (marque, référence, catégorie et ports éditables par instance)"
+        >
+          ⊞ Bloc vierge
+        </button>
+      )}
 
       <div className="palette-list">
         {/* ── Catalogue commun ─────────────────────────────────────────── */}

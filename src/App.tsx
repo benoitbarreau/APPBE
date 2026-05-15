@@ -134,6 +134,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const tabInputRef = useRef<HTMLInputElement>(null);
 
   const addNode = useAppStore((s) => s.addNode);
+  const addBlankBlock = useAppStore((s) => s.addBlankBlock);
   const nodes = useAppStore((s) => s.nodes);
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
@@ -235,6 +236,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleAdd = (productId: string) => {
     const offset = nodes.length * 30;
     addNode(productId, { x: 200 + offset, y: 100 + offset });
+  };
+
+  const handleAddBlankBlock = () => {
+    const offset = nodes.length * 30;
+    addBlankBlock({ x: 200 + offset, y: 100 + offset });
   };
 
   const handleBackToProjects = () => {
@@ -613,6 +619,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             onEdit={(id) => setEditing(id)}
             onNew={() => setEditing("new")}
             onImport={() => setImporting(true)}
+            onAddBlankBlock={handleAddBlankBlock}
             onCollapse={() => setPaletteOpen(false)}
           />
         ) : (
