@@ -651,11 +651,6 @@ function PortsEditor({
             className={"port-edit-row"
               + (dragIdx === i ? " dragging" : "")
               + (isDecorative ? " port-edit-row-decorative" : "")}
-            draggable
-            onDragStart={(e) => {
-              setDragIdx(i);
-              e.dataTransfer.effectAllowed = "move";
-            }}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
@@ -665,9 +660,17 @@ function PortsEditor({
               if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
               setDragIdx(null);
             }}
-            onDragEnd={() => setDragIdx(null)}
           >
-            <span className="instance-drag-handle" title="Glisser pour réordonner">
+            <span
+              className="instance-drag-handle"
+              title="Glisser pour réordonner"
+              draggable
+              onDragStart={(e) => {
+                setDragIdx(i);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragEnd={() => setDragIdx(null)}
+            >
               ≡
             </span>
             {isDecorative ? (
