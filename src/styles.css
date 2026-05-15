@@ -4430,11 +4430,71 @@ select {
 .ip-table tbody tr.ip-row-zone:hover td {
   background: var(--zone-bg-hover, transparent);
 }
+/* Cellules IP / MAC — fond noir en vue totale (pas en Vue LAN) */
+.ip-table tbody tr td.ip-cell-dark {
+  background: #111 !important;
+}
+.ip-table tbody tr td.ip-cell-dark input {
+  background: transparent;
+  color: #fff;
+  caret-color: #fff;
+}
+/* En vue totale, les lignes manuelles conservent aussi le fond noir sur ces cellules */
+.ip-table tbody tr.ip-row-manual td.ip-cell-dark {
+  background: #111 !important;
+}
+
+/* Bouton Vue LAN */
+.ip-lan-view-btn {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.ip-lan-view-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+.ip-lan-view-btn.active {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+  font-weight: 600;
+}
+.ip-lan-view-btn.active:hover {
+  background: #1d4ed8;
+}
+
+/* Badge "Vue LAN" dans la barre de statut */
+.ip-lan-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 1px 8px;
+  background: #1e40af;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 /* Une cellule en doublon IP doit rester rouge même quand la ligne a une
    couleur de zone — le doublon est plus prioritaire visuellement. */
 .ip-table tbody tr td.ip-cell-dup,
 .ip-table tbody tr.ip-row-zone td.ip-cell-dup {
   background: #ffe5e5 !important;
+}
+/* Les doublons restent visibles même sur fond noir */
+.ip-table tbody tr td.ip-cell-dark.ip-cell-dup {
+  background: #7f1d1d !important;
+}
+.ip-table tbody tr td.ip-cell-dark.ip-cell-dup input {
+  color: #fca5a5;
 }
 .ip-table tbody td input {
   width: 100%;

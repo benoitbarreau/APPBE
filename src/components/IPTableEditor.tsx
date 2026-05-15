@@ -8,7 +8,7 @@ import {
   type IPColumn,
 } from "../lib/ipTableSync";
 import type { IPTableColumnConfig, IPTableRow } from "../types";
-import { DEFAULT_IP_TABLE_COLUMNS, isIPTableTab } from "../types";
+import { DEFAULT_IP_TABLE_COLUMNS, isIPTableTab, isSynopticTab } from "../types";
 import { IPTableExportModal } from "./IPTableExportModal";
 import { IPTableImportModal } from "./IPTableImportModal";
 
@@ -45,10 +45,14 @@ function getCellValue(row: IPTableRow, colId: string): string {
 
 // ── Composant principal ────────────────────────────────────────────────────
 
+// Colonnes IP et MAC — fond noir en vue totale
+const IP_MAC_COLS = new Set(["ip", "mac", "ipDante", "ipDanteSec", "macDante"]);
+
 export function IPTableEditor({ tabId }: { tabId: string }) {
   const tab        = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const allTabs    = useAppStore((s) => s.tabs);
   const allZones   = useAppStore((s) => s.zones);
+  const allProducts = useAppStore((s) => s.products);
   const ipTableColumns   = useAppStore((s) => s.ipTableColumns);
   const setIPTableColumns = useAppStore((s) => s.setIPTableColumns);
   const addIPTableColumn  = useAppStore((s) => s.addIPTableColumn);
@@ -76,6 +80,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   const [sortKey,  setSortKey]  = useState<string | null>(null);
   const [sortDir,  setSortDir]  = useState<SortDir>("asc");
   const [onlyDuplicates, setOnlyDuplicates] = useState(false);
+  const [lanView, setLanView] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -155,6 +160,45 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 
   const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
 
+  // ── Vue LAN : set des rowIds éligibles (produit avec port RJ45/IP) ────────
+  // Les lignes manuelles (manual=true) sont toujours éligibles.
+  // Pour les lignes auto, on vérifie si le produit lié a au moins un port
+  // dont signal === "RJ45" (type "RJ45 / IP" dans DEFAULT_SIGNAL_DEFS).
+  const lanEligibleIds = useMemo(() => {
+    // Map instanceId → productId depuis tous les onglets synoptiques
+    const instanceProductMap = new Map<string, string>();
+    for (const t of allTabs) {
+      if (!isSynopticTab(t)) continue;
+      for (const node of (t as { nodes?: { id: string; productId?: string }[] }).nodes ?? []) {
+        if (node.productId) instanceProductMap.set(node.id, node.productId);
+      }
+    }
+
+    const eligible = new Set<string>();
+    for (const row of rows) {
+      if (row.manual) {
+        eligible.add(row.id);
+        continue;
+      }
+      for (const instanceId of row.productInstanceIds) {
+        const productId = instanceProductMap.get(instanceId);
+        if (!productId) continue;
+        const product = allProducts.find((p) => p.id === productId);
+        if (!product) continue;
+        const allPorts = [
+          ...product.inputs,
+          ...product.outputs,
+          ...(product.middle ?? []),
+        ];
+        const hasRJ45 = allPorts.some(
+          (p) => p.kind !== "spacer" && p.kind !== "separator" && p.signal === "RJ45",
+        );
+        if (hasRJ45) { eligible.add(row.id); break; }
+      }
+    }
+    return eligible;
+  }, [rows, allTabs, allProducts]);
+
   // Couleurs de zones
   const nodeIdToZoneId = useMemo(() => {
     const m = new Map<string, string | undefined>();
@@ -182,6 +226,8 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 
   const visibleRows = useMemo<IPTableRow[]>(() => {
     let list: IPTableRow[] = rows;
+    // Filtre Vue LAN : conserver uniquement les lignes avec port RJ45/IP
+    if (lanView) list = list.filter((r) => lanEligibleIds.has(r.id));
     // Filtrer uniquement sur les colonnes visibles
     for (const col of visibleCols) {
       const f = (filters[col.id] ?? "").trim().toLowerCase();
@@ -191,7 +237,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     if (onlyDuplicates) list = filterDuplicateIpRows(list, duplicateMap);
     list = applySort(list, sortKey, sortDir);
     return list;
-  }, [rows, filters, visibleCols, onlyDuplicates, duplicateMap, sortKey, sortDir]);
+  }, [rows, lanView, lanEligibleIds, filters, visibleCols, onlyDuplicates, duplicateMap, sortKey, sortDir]);
 
   const onHeaderClick = (id: string) => {
     if (sortKey === id) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -315,6 +361,17 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
             )}
           </div>
 
+          {/* ── Vue LAN ───────────────────────────────────────────── */}
+          <button
+            className={`ip-lan-view-btn${lanView ? " active" : ""}`}
+            onClick={() => setLanView((v) => !v)}
+            title={lanView
+              ? "Vue LAN active — cliquer pour revenir à la vue complète"
+              : "Filtrer pour n'afficher que les produits avec un port RJ45/IP"}
+          >
+            🌐 Vue LAN{lanView && ` (${visibleRows.length})`}
+          </button>
+
           {!readOnly && (
             <>
               <button onClick={() => syncIPTable(tabId)} title="Recharger depuis les synoptiques">
@@ -362,6 +419,11 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
       <div className="ip-table-status-bar">
         <div>
           <strong>{visibleRows.length}</strong> ligne(s) affichée(s) sur {rows.length}
+          {lanView && (
+            <span className="ip-lan-badge" title="Vue LAN active — seuls les produits avec port RJ45/IP sont affichés">
+              🌐 Vue LAN
+            </span>
+          )}
           {hasDuplicates && (
             <span className="ip-dup-badge" title="Au moins une IP est en doublon">
               ⚠ {duplicateMap.size} ligne(s) avec IP en doublon
@@ -443,6 +505,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
                 zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
+                lanView={lanView}
                 onChange={(patch) => updateIPRow(tabId, row.id, patch)}
                 onRemove={() => handleRemoveRow(row)}
               />
@@ -497,7 +560,7 @@ function hexToRgba(hex: string, alpha: number): string {
 
 // ── IPRow ──────────────────────────────────────────────────────────────────
 function IPRow({
-  row, columns, duplicates, zoneColor, readOnly, onChange, onRemove,
+  row, columns, duplicates, zoneColor, readOnly, lanView, onChange, onRemove,
 }: {
   tabId: string;
   row: IPTableRow;
@@ -505,6 +568,7 @@ function IPRow({
   duplicates: Set<IPColumn>;
   zoneColor?: string;
   readOnly: boolean;
+  lanView: boolean;
   onChange: (patch: Partial<IPTableRow>) => void;
   onRemove: () => void;
 }) {
@@ -533,10 +597,17 @@ function IPRow({
           }
         };
 
+        // Fond noir + texte blanc sur les colonnes IP/MAC en vue totale
+        const isIpMacCol = IP_MAC_COLS.has(col.id);
+        const cellClass = [
+          isDup ? "ip-cell-dup" : "",
+          isIpMacCol && !lanView ? "ip-cell-dark" : "",
+        ].filter(Boolean).join(" ") || undefined;
+
         return (
           <td
             key={col.id}
-            className={isDup ? "ip-cell-dup" : undefined}
+            className={cellClass}
             title={isDup ? "Cette IP est en doublon avec une autre cellule." : undefined}
           >
             <input
