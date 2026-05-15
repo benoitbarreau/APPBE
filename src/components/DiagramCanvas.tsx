@@ -28,19 +28,17 @@ function parseHandle(handleId: string | null): { side: PortSide; portId: string 
   return { side: m[1] as PortSide, portId: m[2] };
 }
 
-function findPort(product: Product | undefined, side: PortSide, portId: string) {
+/** Cherche un port dans toutes les sections du produit (inputs + outputs + middle),
+ *  indépendamment du côté. Cela corrige le bug où un port déplacé via portOverrides
+ *  se retrouvait dans la mauvaise liste (ex. output déplacé à gauche, cherché dans inputs). */
+function findPort(product: Product | undefined, portId: string) {
   if (!product) return undefined;
-  const list =
-    side === "in"
-      ? product.inputs
-      : side === "out"
-        ? product.outputs
-        : product.middle ?? [];
+  const all = [...product.inputs, ...product.outputs, ...(product.middle ?? [])];
   // Correspondance exacte (cas normal) puis correspondance par préfixe pour
   // les handles positionnels des enceintes (_n / _e / _s / _w).
   return (
-    list.find((p) => p.id === portId) ??
-    list.find((p) => portId.startsWith(p.id + "_"))
+    all.find((p) => p.id === portId) ??
+    all.find((p) => portId.startsWith(p.id + "_"))
   );
 }
 import { ProductNode } from "./ProductNode";
@@ -325,30 +323,57 @@ export function DiagramCanvas({
     [updateNode],
   );
 
-  const rfEdges: Edge[] = useMemo(
-    () =>
-      cables.map((c) => {
-        const color = signals[c.signal]?.color ?? "#888";
-        const arrow = { type: MarkerType.ArrowClosed, color };
-        const fromSide: PortSide = c.fromPortSide ?? "out";
-        const toSide: PortSide = c.toPortSide ?? "in";
-        return {
-          id: c.id,
-          type: "cable",
-          source: c.fromNodeId,
-          target: c.toNodeId,
-          sourceHandle: `${fromSide}:${c.fromPortId}`,
-          targetHandle: `${toSide}:${c.toPortId}`,
-          data: { color },
-          style: { stroke: color, strokeWidth: 2 },
-          markerStart: c.reversed ? arrow : undefined,
-          markerEnd: c.reversed ? undefined : arrow,
-          selected: c.id === selectedCableId,
-          zIndex: 1000,
-        } satisfies Edge;
-      }),
-    [cables, signals, selectedCableId],
-  );
+  const rfEdges: Edge[] = useMemo(() => {
+    /**
+     * Recalcule le côté effectif (PortSide) d'un port en tenant compte de ses
+     * portOverrides actuels. Corrige le bug où un câble créé avant un déplacement
+     * de port stockait l'ancien côté et devenait invisible après le déplacement.
+     *
+     * Priorité :
+     *  1. Override explicite sur l'instance ("left"→"in", "right"→"out")
+     *  2. Position par défaut dans le catalogue (inputs→"in", outputs→"out")
+     *  3. Valeur stockée dans le câble (fallback, toujours correcte pour extraPorts)
+     */
+    const effectiveSide = (
+      stored: PortSide | undefined,
+      nodeId: string,
+      portId: string,
+    ): PortSide => {
+      const s = stored ?? "out";
+      if (s === "midL" || s === "midR") return s; // ports milieu : pas de déplacement gauche/droite
+      const node = nodes.find((n) => n.id === nodeId);
+      const product = products.find((p) => p.id === node?.productId);
+      const override = node?.portOverrides?.[portId];
+      if (override === "left") return "in";
+      if (override === "right") return "out";
+      if (product) {
+        if (product.inputs.some((p) => p.id === portId)) return "in";
+        if (product.outputs.some((p) => p.id === portId)) return "out";
+      }
+      return s;
+    };
+
+    return cables.map((c) => {
+      const color = signals[c.signal]?.color ?? "#888";
+      const arrow = { type: MarkerType.ArrowClosed, color };
+      const fromSide = effectiveSide(c.fromPortSide, c.fromNodeId, c.fromPortId);
+      const toSide   = effectiveSide(c.toPortSide,   c.toNodeId,   c.toPortId);
+      return {
+        id: c.id,
+        type: "cable",
+        source: c.fromNodeId,
+        target: c.toNodeId,
+        sourceHandle: `${fromSide}:${c.fromPortId}`,
+        targetHandle: `${toSide}:${c.toPortId}`,
+        data: { color },
+        style: { stroke: color, strokeWidth: 2 },
+        markerStart: c.reversed ? arrow : undefined,
+        markerEnd: c.reversed ? undefined : arrow,
+        selected: c.id === selectedCableId,
+        zIndex: 1000,
+      } satisfies Edge;
+    });
+  }, [cables, signals, selectedCableId, nodes, products]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -459,8 +484,8 @@ export function DiagramCanvas({
       if (!fromNode || !toNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
       const toProduct   = products.find((p) => p.id === toNode.productId);
-      const fromPort = findPort(fromProduct, from.side, from.portId);
-      const toPort   = findPort(toProduct,   to.side,   to.portId);
+      const fromPort = findPort(fromProduct, from.portId);
+      const toPort   = findPort(toProduct,   to.portId);
       if (!fromPort) return;
 
       // ── Vérification de compatibilité par famille de signal ──────────────
@@ -522,8 +547,8 @@ export function DiagramCanvas({
       if (!fromNode || !toNode) return;
       const fromProduct = products.find((p) => p.id === fromNode.productId);
       const toProduct   = products.find((p) => p.id === toNode.productId);
-      const fromPort = findPort(fromProduct, from.side, from.portId);
-      const toPort   = findPort(toProduct,   to.side,   to.portId);
+      const fromPort = findPort(fromProduct, from.portId);
+      const toPort   = findPort(toProduct,   to.portId);
       if (!fromPort) return;
 
       // ── Vérification de compatibilité par famille de signal ──────────────
