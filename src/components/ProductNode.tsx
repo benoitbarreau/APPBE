@@ -37,23 +37,25 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const zones = useAppStore((s) => s.zones);
   const setNodeZone = useAppStore((s) => s.setNodeZone);
   const updateNode = useAppStore((s) => s.updateNode);
+  const updateProduct = useAppStore((s) => s.updateProduct);
   const readOnly = useEditorState((s) => s.readOnly);
 
-  // Ref sur l'input LABEL pour bloquer la propagation native du pointerdown
-  // vers le listener d3-drag de React Flow (posé sur le nœud parent).
-  // stopPropagation() au niveau de l'input (enfant) fire avant que l'événement
-  // n'atteigne le nœud React Flow (ancêtre), empêchant le démarrage du drag
-  // pendant la saisie/sélection de texte dans le label.
+  // Refs sur les inputs éditables pour bloquer la propagation native du
+  // pointerdown vers le listener d3-drag de React Flow.
   const labelInputRef = useRef<HTMLInputElement>(null);
+  const refInputRef   = useRef<HTMLInputElement>(null);
+  const catInputRef   = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const el = labelInputRef.current;
-    if (!el) return;
     const block = (e: PointerEvent) => e.stopPropagation();
-    el.addEventListener("pointerdown", block);
-    return () => el.removeEventListener("pointerdown", block);
+    const els = [labelInputRef, refInputRef, catInputRef].map((r) => r.current);
+    els.forEach((el) => el?.addEventListener("pointerdown", block));
+    return () => els.forEach((el) => el?.removeEventListener("pointerdown", block));
   }, []);
 
   if (!node || !product) return null;
+
+  // Produit générique → référence et catégorie éditables inline
+  const isGeneric = product.manufacturer === "Générique";
 
   // ── Bloc rond pour Enceintes / Caissons de basse ──────────────────────
   if (SPEAKER_CATEGORIES.has(product.category)) {
@@ -128,19 +130,49 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             }
           />
         </div>
-        <div
-          className="product-node-ref"
-          style={headerSubColor ? { color: headerSubColor } : undefined}
-        >
-          {product.reference}
-        </div>
-        <div className="product-node-cat-row">
+        {isGeneric && !readOnly ? (
+          <input
+            ref={refInputRef}
+            className="product-node-generic-input product-node-ref nodrag"
+            value={product.reference}
+            placeholder="Référence"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) => updateProduct(product.id, { reference: e.target.value })}
+            title="Référence du produit générique"
+            style={headerSubColor ? { color: headerSubColor } : undefined}
+          />
+        ) : (
           <div
-            className="product-node-cat"
+            className="product-node-ref"
             style={headerSubColor ? { color: headerSubColor } : undefined}
           >
-            {product.category}
+            {product.reference}
           </div>
+        )}
+        <div className="product-node-cat-row">
+          {isGeneric && !readOnly ? (
+            <input
+              ref={catInputRef}
+              className="product-node-generic-input product-node-cat nodrag"
+              value={product.category}
+              placeholder="Catégorie"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              onChange={(e) => updateProduct(product.id, { category: e.target.value })}
+              title="Catégorie du produit générique"
+              style={headerSubColor ? { color: headerSubColor } : undefined}
+            />
+          ) : (
+            <div
+              className="product-node-cat"
+              style={headerSubColor ? { color: headerSubColor } : undefined}
+            >
+              {product.category}
+            </div>
+          )}
           {zone && (
             <div className="product-node-zone-name" title={`Zone : ${zone.label}`}>
               {zone.label}
