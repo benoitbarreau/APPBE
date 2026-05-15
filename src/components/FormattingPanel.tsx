@@ -1,10 +1,28 @@
+import { useEffect, useRef, useState } from "react";
+
 interface FormattingPanelProps {
   onCollapse: () => void;
   onAutoLayout: () => void;
   onAddTextNode: () => void;
+  onAddShapeNode: (shape: "rectangle" | "ellipse") => void;
 }
 
-export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode }: FormattingPanelProps) {
+export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAddShapeNode }: FormattingPanelProps) {
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  const shapeMenuWrapRef = useRef<HTMLDivElement>(null);
+
+  // Fermer le sous-menu si clic en dehors
+  useEffect(() => {
+    if (!shapeMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!shapeMenuWrapRef.current?.contains(e.target as Node)) {
+        setShapeMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [shapeMenuOpen]);
+
   return (
     <div className="formatting-panel">
       <div className="formatting-panel-header">
@@ -32,6 +50,31 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode }: For
         >
           T + Texte
         </button>
+
+        {/* Bouton "Forme" avec sous-menu Rectangle / Ellipse */}
+        <div className="shape-menu-wrap" ref={shapeMenuWrapRef}>
+          <button
+            className="formatting-panel-btn shape-menu-toggle"
+            onClick={() => setShapeMenuOpen((v) => !v)}
+            title="Ajouter un bloc forme (rectangle ou ellipse)"
+          >
+            ▭ + Forme {shapeMenuOpen ? "▴" : "▾"}
+          </button>
+          {shapeMenuOpen && (
+            <div className="shape-menu-dropdown">
+              <button
+                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("rectangle"); }}
+              >
+                ▭ Rectangle
+              </button>
+              <button
+                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("ellipse"); }}
+              >
+                ⬭ Ellipse
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

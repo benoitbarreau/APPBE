@@ -47,6 +47,7 @@ import { ProductNode } from "./ProductNode";
 import { PageNode } from "./PageNode";
 import { CableEdge } from "./CableEdge";
 import { TextNodeComponent } from "./TextNode";
+import { ShapeNodeComponent } from "./ShapeNode";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
 // ── Rendu des guides d'alignement (à l'intérieur du contexte ReactFlow) ──────
@@ -103,7 +104,7 @@ function AlignGuides({ guides }: { guides: Guide[] }) {
   );
 }
 
-const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent };
+const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent, shape: ShapeNodeComponent };
 const edgeTypes = { cable: CableEdge };
 
 export function DiagramCanvas({
@@ -114,6 +115,7 @@ export function DiagramCanvas({
   const nodes = useAppStore((s) => s.nodes);
   const cables = useAppStore((s) => s.cables);
   const textNodes = useAppStore((s) => s.textNodes);
+  const shapeNodes = useAppStore((s) => s.shapeNodes);
   const products = useAppStore((s) => s.products);
   const signals = useAppStore((s) => s.signals);
   const updateNode = useAppStore((s) => s.updateNode);
@@ -122,6 +124,8 @@ export function DiagramCanvas({
   const addCable = useAppStore((s) => s.addCable);
   const updateTextNode = useAppStore((s) => s.updateTextNode);
   const removeTextNode = useAppStore((s) => s.removeTextNode);
+  const updateShapeNode = useAppStore((s) => s.updateShapeNode);
+  const removeShapeNode = useAppStore((s) => s.removeShapeNode);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
@@ -135,11 +139,11 @@ export function DiagramCanvas({
   const [guides, setGuides] = useState<Guide[]>([]);
   const snapTargetRef = useRef<{ x?: number; y?: number } | null>(null);
 
-  // ── Sélection des blocs texte (local, non persisté dans le store) ────────
-  // `selected: false` était codé en dur dans rfNodes → le NodeResizer ne
-  // s'affichait jamais. On track l'ID sélectionné ici pour le passer
-  // correctement dans la prop `selected` du nœud.
-  const [selectedTextNodeId, setSelectedTextNodeId] = useState<string | null>(null);
+  // ── Sélection locale (blocs texte et forme) — non persistée dans le store ──
+  // `selected: false` codé en dur empêchait le NodeResizer d'apparaître.
+  // On track l'ID sélectionné ici pour le passer dans la prop `selected`.
+  const [selectedTextNodeId,  setSelectedTextNodeId]  = useState<string | null>(null);
+  const [selectedShapeNodeId, setSelectedShapeNodeId] = useState<string | null>(null);
 
   // ── Notification d'incompatibilité ────────────────────────────────────────
   const [compatError, setCompatError] = useState<string | null>(null);
@@ -196,7 +200,7 @@ export function DiagramCanvas({
           selectable: false,
           draggable: false,
           deletable: false,
-          zIndex: -1,
+          zIndex: -2000,   // En dessous de tout (formes à -1000+, produits à 0, textes à 2000)
         });
         pageIdx++;
       }
@@ -216,8 +220,21 @@ export function DiagramCanvas({
       style: { width: tn.width, height: tn.height },
     }));
 
+    // Blocs forme : zIndex négatif (en arrière-plan de tout sauf les pages).
+    // zOrder 0 → zIndex -1000, zOrder 1 → zIndex -999, etc.
+    const shapeRfNodes = (shapeNodes ?? []).map((sn) => ({
+      id: sn.id,
+      type: "shape" as const,
+      position: sn.position,
+      data: sn as unknown as Record<string, unknown>,
+      selected: sn.id === selectedShapeNodeId,
+      zIndex: sn.zOrder - 1000,
+      style: { width: sn.width, height: sn.height },
+    }));
+
     return [
       ...pages,
+      ...shapeRfNodes,   // formes en arrière-plan (zIndex -1000 à ~-971)
       ...nodes.map((n) => ({
         id: n.id,
         type: "product",
@@ -225,9 +242,9 @@ export function DiagramCanvas({
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
       })),
-      ...textRfNodes,
+      ...textRfNodes,    // textes au premier plan (zIndex 2000)
     ];
-  }, [nodes, textNodes, selectedNodeId, selectedTextNodeId, products]);
+  }, [nodes, textNodes, shapeNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, products]);
 
   // Helper : calcule guides d'alignement + cible de snap pour une position candidate.
   // Appelé depuis onNodeDrag (drag natif React Flow sur les blocs produit).
@@ -324,15 +341,18 @@ export function DiagramCanvas({
         // On compare avec les arrays "live" du store ; ne JAMAIS appeler
         // removeNode pour un id qui n'est pas un produit (pages, text nodes…)
         // car cela invaliderait inutilement nodes/cables (référence array).
-        const targetId = "id" in change ? (change as { id: string }).id : null;
-        const isTextNode = !!targetId && textNodes.some((tn) => tn.id === targetId);
-        const isProduct  = !!targetId && nodes.some((n) => n.id === targetId);
+        const targetId  = "id" in change ? (change as { id: string }).id : null;
+        const isTextNode  = !!targetId && textNodes.some((tn) => tn.id === targetId);
+        const isShapeNode = !!targetId && (shapeNodes ?? []).some((sn) => sn.id === targetId);
+        const isProduct   = !!targetId && nodes.some((n) => n.id === targetId);
 
         if (change.type === "position" && change.position) {
           const updated = next.find((n) => n.id === change.id);
           if (!updated) continue;
           if (isTextNode) {
             updateTextNode(change.id, { position: updated.position });
+          } else if (isShapeNode) {
+            updateShapeNode(change.id, { position: updated.position });
           } else if (isProduct) {
             updateNode(updated.id, { position: updated.position });
           }
@@ -349,12 +369,19 @@ export function DiagramCanvas({
               width: Math.round(change.dimensions.width),
               height: Math.round(change.dimensions.height),
             });
+          } else if (isShapeNode) {
+            updateShapeNode(change.id, {
+              width: Math.round(change.dimensions.width),
+              height: Math.round(change.dimensions.height),
+            });
           }
         }
 
         if (change.type === "remove") {
           if (isTextNode) {
             removeTextNode(change.id);
+          } else if (isShapeNode) {
+            removeShapeNode(change.id);
           } else if (isProduct) {
             removeNode(change.id);
           }
@@ -367,13 +394,15 @@ export function DiagramCanvas({
             // afin que la prop `selected` soit correctement transmise et que
             // le NodeResizer s'affiche.
             setSelectedTextNodeId(change.selected ? change.id : null);
+          } else if (isShapeNode) {
+            setSelectedShapeNodeId(change.selected ? change.id : null);
           } else if (isProduct) {
             setSelectedNode(change.selected ? change.id : null);
           }
         }
       }
     },
-    [rfNodes, nodes, textNodes, updateNode, updateTextNode, removeNode, removeTextNode, setSelectedNode],
+    [rfNodes, nodes, textNodes, shapeNodes, updateNode, updateTextNode, updateShapeNode, removeNode, removeTextNode, removeShapeNode, setSelectedNode],
   );
 
   const onEdgesChange = useCallback(
@@ -447,6 +476,7 @@ export function DiagramCanvas({
   const onPaneClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("exitTextEdit"));
     setSelectedTextNodeId(null);
+    setSelectedShapeNodeId(null);
   }, []);
 
   const onReconnect = useCallback(

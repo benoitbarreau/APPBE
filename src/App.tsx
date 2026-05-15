@@ -137,6 +137,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const updateNode = useAppStore((s) => s.updateNode);
   const updateCable = useAppStore((s) => s.updateCable);
   const addTextNode = useAppStore((s) => s.addTextNode);
+  const addShapeNode = useAppStore((s) => s.addShapeNode);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
   const setVersionsMeta = useAppStore((s) => s.setVersionsMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
@@ -194,6 +195,23 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       borderWidth: 1,
       borderRadius: 0,
     });
+  };
+
+  const handleAddShapeNode = (shape: "rectangle" | "ellipse") => {
+    let position = { x: 200, y: 200 };
+    try {
+      const vp = reactFlow.getViewport();
+      const canvas = document.querySelector(".react-flow") as HTMLElement | null;
+      if (canvas) {
+        const cw = canvas.clientWidth;
+        const ch = canvas.clientHeight;
+        position = {
+          x: (cw / 2 - vp.x) / vp.zoom - 100,   // -100 = moitié de la largeur 200
+          y: (ch / 2 - vp.y) / vp.zoom - 75,     // -75  = moitié de la hauteur 150
+        };
+      }
+    } catch { /* viewport indisponible, fallback */ }
+    addShapeNode(shape, position);
   };
 
   const handleAdd = (productId: string) => {
@@ -590,6 +608,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               onCollapse={() => setFormattingOpen(false)}
               onAutoLayout={handleAutoLayout}
               onAddTextNode={handleAddTextNode}
+              onAddShapeNode={handleAddShapeNode}
             />
           ) : (
             <button

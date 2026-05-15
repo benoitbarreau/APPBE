@@ -13,6 +13,7 @@ import type {
   ProjectMeta,
   Rack,
   RackItem,
+  ShapeNodeData,
   SignalDef,
   SignalType,
   Tab,
@@ -71,6 +72,7 @@ interface State {
   cables: Cable[];
   zones: Zone[];
   textNodes: TextNodeData[];
+  shapeNodes: ShapeNodeData[];
   // ── Données partagées entre onglets ───────────────────────────────────
   signals: Record<string, SignalDef>;
   /** Configuration des colonnes du Tableau IP (ordre, visibilité, custom).
@@ -144,6 +146,12 @@ interface State {
   addTextNode: (node: Omit<TextNodeData, 'id'>) => string;
   updateTextNode: (id: string, patch: Partial<TextNodeData>) => void;
   removeTextNode: (id: string) => void;
+
+  addShapeNode: (shape: 'rectangle' | 'ellipse', position: { x: number; y: number }) => string;
+  updateShapeNode: (id: string, patch: Partial<ShapeNodeData>) => void;
+  removeShapeNode: (id: string) => void;
+  bringShapeForward: (id: string) => void;
+  sendShapeBackward: (id: string) => void;
 
   addNode: (productId: string, position: { x: number; y: number }) => string;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
@@ -315,12 +323,12 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
  * PAS pertinent — on conserve l'onglet tel quel.
  */
 // Les zones sont globales au projet (s.zones) — on ne les stocke PAS
-// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes.
-const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes">): Tab[] =>
+// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes/shapeNodes.
+const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes" | "shapeNodes">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes };
+    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes };
   });
 
 export const useAppStore = create<State>()(
@@ -351,6 +359,7 @@ export const useAppStore = create<State>()(
         nodes: [],
         cables: [],
         textNodes: [],
+        shapeNodes: [],
         signals: { ...DEFAULT_SIGNAL_DEFS },
         ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
         zones: [...DEFAULT_ZONES],
@@ -375,6 +384,7 @@ export const useAppStore = create<State>()(
               nodes: [],
               cables: [],
               textNodes: [],
+              shapeNodes: [],
               zones: [...DEFAULT_ZONES],
               selectedNodeId: null,
               selectedCableId: null,
@@ -597,6 +607,7 @@ export const useAppStore = create<State>()(
               nodes: newActive.nodes ?? [],
               cables: newActive.cables ?? [],
               textNodes: newActive.textNodes ?? [],
+              shapeNodes: newActive.shapeNodes ?? [],
               // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
@@ -830,6 +841,7 @@ export const useAppStore = create<State>()(
 
             // Zones globales : pas besoin de les copier par onglet.
             const newTextNodes = (source.textNodes ?? []).map((n) => ({ ...n, id: uid() }));
+            const newShapeNodes = (source.shapeNodes ?? []).map((n) => ({ ...n, id: uid() }));
             const newTab: Tab = {
               id: uid(),
               name: `Copie de ${source.name}`,
@@ -837,6 +849,7 @@ export const useAppStore = create<State>()(
               cables: newCables,
               zones: [],
               textNodes: newTextNodes,
+              shapeNodes: newShapeNodes,
             };
 
             // Insérer juste après l'onglet source
@@ -853,6 +866,7 @@ export const useAppStore = create<State>()(
               nodes: newNodes,
               cables: newCables,
               textNodes: newTextNodes,
+              shapeNodes: newShapeNodes,
               // s.zones inchangé (zones globales)
               selectedNodeId: null,
               selectedCableId: null,
@@ -898,6 +912,7 @@ export const useAppStore = create<State>()(
               nodes: target.nodes ?? [],
               cables: target.cables ?? [],
               textNodes: target.textNodes ?? [],
+              shapeNodes: target.shapeNodes ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -927,6 +942,77 @@ export const useAppStore = create<State>()(
           })),
         removeTextNode: (id) =>
           set((s) => ({ textNodes: (s.textNodes ?? []).filter((n) => n.id !== id) })),
+
+        // ── Blocs forme ─────────────────────────────────────────────────
+
+        addShapeNode: (shape, position) => {
+          const id = uid();
+          set((s) => {
+            const shapes = s.shapeNodes ?? [];
+            const maxOrder = shapes.length > 0
+              ? Math.max(...shapes.map((sn) => sn.zOrder))
+              : -1;
+            const newShape: ShapeNodeData = {
+              id,
+              position,
+              width: 200,
+              height: 150,
+              shape,
+              background: "#dbeafe",
+              borderStyle: "solid",
+              borderColor: "#3b82f6",
+              borderWidth: 2,
+              borderRadius: 0,
+              zOrder: maxOrder + 1,
+            };
+            return { shapeNodes: [...shapes, newShape] };
+          });
+          return id;
+        },
+
+        updateShapeNode: (id, patch) =>
+          set((s) => ({
+            shapeNodes: (s.shapeNodes ?? []).map((n) => n.id === id ? { ...n, ...patch } : n),
+          })),
+
+        removeShapeNode: (id) =>
+          set((s) => ({ shapeNodes: (s.shapeNodes ?? []).filter((n) => n.id !== id) })),
+
+        bringShapeForward: (id) =>
+          set((s) => {
+            const shapes = s.shapeNodes ?? [];
+            const current = shapes.find((sn) => sn.id === id);
+            if (!current) return {};
+            const nextHigher = shapes
+              .filter((sn) => sn.id !== id && sn.zOrder > current.zOrder)
+              .sort((a, b) => a.zOrder - b.zOrder)[0];
+            if (!nextHigher) return {};
+            return {
+              shapeNodes: shapes.map((sn) => {
+                if (sn.id === id) return { ...sn, zOrder: nextHigher.zOrder };
+                if (sn.id === nextHigher.id) return { ...sn, zOrder: current.zOrder };
+                return sn;
+              }),
+            };
+          }),
+
+        sendShapeBackward: (id) =>
+          set((s) => {
+            const shapes = s.shapeNodes ?? [];
+            const current = shapes.find((sn) => sn.id === id);
+            if (!current) return {};
+            const nextLower = shapes
+              .filter((sn) => sn.id !== id && sn.zOrder < current.zOrder)
+              .sort((a, b) => b.zOrder - a.zOrder)[0];
+            if (!nextLower) return {};
+            return {
+              shapeNodes: shapes.map((sn) => {
+                if (sn.id === id) return { ...sn, zOrder: nextLower.zOrder };
+                if (sn.id === nextLower.id) return { ...sn, zOrder: current.zOrder };
+                return sn;
+              }),
+            };
+          }),
 
         // ── Nœuds ───────────────────────────────────────────────────────
 
@@ -1253,6 +1339,7 @@ export const useAppStore = create<State>()(
             nodes: activeTab.nodes,
             cables: activeTab.cables,
             textNodes: activeTab.textNodes ?? [],
+            shapeNodes: activeTab.shapeNodes ?? [],
             // zones et signals : on garde ce qui est déjà dans le store
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             products: Array.from(mergedProductMap.values()),
@@ -1278,6 +1365,7 @@ export const useAppStore = create<State>()(
             nodes: [],
             cables: [],
             textNodes: [],
+            shapeNodes: [],
             zones: [...DEFAULT_ZONES],
             ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
@@ -1430,6 +1518,7 @@ export const useAppStore = create<State>()(
               nodes: [],
               cables: [],
               textNodes: [],
+              shapeNodes: [],
               zones: [...DEFAULT_ZONES],
               projectMeta: { ...DEFAULT_PROJECT_META },
               signals: { ...DEFAULT_SIGNAL_DEFS },
@@ -1442,13 +1531,15 @@ export const useAppStore = create<State>()(
     },
     {
       name: "av-diagram-generator",
-      version: 12,
+      version: 13,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & {
           adminCode?: unknown;
           nodes?: PlacedProduct[];
           cables?: Cable[];
           zones?: Zone[];
+          textNodes?: TextNodeData[];
+          shapeNodes?: ShapeNodeData[];
         } | undefined;
         if (!state) return state as unknown as State;
 
@@ -1521,6 +1612,15 @@ export const useAppStore = create<State>()(
         // v12 : ajout des blocs texte
         if (!state.textNodes) state.textNodes = [];
 
+        // v13 : ajout des blocs forme
+        if (!state.shapeNodes) state.shapeNodes = [];
+        if (state.tabs) {
+          state.tabs = state.tabs.map((t) => ({
+            ...t,
+            shapeNodes: t.shapeNodes ?? [],
+          }));
+        }
+
         return state as unknown as State;
       },
     },
@@ -1539,7 +1639,7 @@ export function getFlushedTabs(): Tab[] {
   return s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones, textNodes: s.textNodes };
+    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones, textNodes: s.textNodes, shapeNodes: s.shapeNodes };
   });
 }
 

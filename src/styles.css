@@ -5983,6 +5983,48 @@ select {
   border-color: #b3bcc8;
 }
 
+/* ── Sous-menu "Ajouter une forme" ────────────────────────────────────── */
+.shape-menu-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.shape-menu-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shape-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.13);
+  z-index: 300;
+  overflow: hidden;
+}
+
+.shape-menu-dropdown button {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.shape-menu-dropdown button:hover {
+  background: #f0f3f8;
+  border-color: transparent;
+}
+
 /* ── Barre d'outils texte flottante 2 lignes (NodeToolbar) ──────────────── */
 .text-toolbar {
   background: #fff;

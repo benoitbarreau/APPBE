@@ -225,6 +225,7 @@ export interface Tab {
   cables: Cable[]
   zones: Zone[]
   textNodes?: TextNodeData[]
+  shapeNodes?: ShapeNodeData[]
   // ── Champs Tableau IP (présents pour onglets IP uniquement) ──────────
   rows?: IPTableRow[]
   network?: IPNetworkInfo
@@ -269,6 +270,24 @@ export const DEFAULT_IP_NETWORK: IPNetworkInfo = {
   dns: '',
   passerelle: '',
   ntp: '',
+}
+
+/** Bloc forme (rectangle ou ellipse) positionnable sur le canvas.
+ *  Toujours rendu en arrière-plan de tous les autres objets. */
+export interface ShapeNodeData {
+  id: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  shape: 'rectangle' | 'ellipse';
+  background: string;
+  borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
+  borderColor: string;
+  borderWidth: number;
+  /** Rayon des coins arrondis en px (ignoré si shape === 'ellipse'). */
+  borderRadius: number;
+  /** Ordre d'empilement entre formes : plus la valeur est haute, plus la forme est au premier plan. */
+  zOrder: number;
 }
 
 /** Bloc texte libre positionnable sur le canvas. */
