@@ -136,7 +136,12 @@ export function TextNodeComponent({ id, data, selected }: {
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => {
             e.stopPropagation();
-            if ((e.target as HTMLElement).tagName !== "INPUT") {
+            // preventDefault uniquement sur les éléments non-interactifs
+            // (boutons, labels…) pour empêcher le textarea de perdre le focus.
+            // Les <input> (slider, color) et <select> ont besoin du comportement
+            // par défaut pour fonctionner correctement.
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag !== "INPUT" && tag !== "SELECT") {
               e.preventDefault();
             }
           }}
