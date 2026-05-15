@@ -240,7 +240,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        // URL de redirection après clic sur le lien de confirmation.
+        // En prod : GitHub Pages. En dev : localhost (détection automatique).
+        emailRedirectTo: 'https://benoitbarreau.github.io/APPBE/',
+      },
     })
     if (error) throw error
   }
