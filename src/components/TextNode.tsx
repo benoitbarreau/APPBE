@@ -128,7 +128,7 @@ export function TextNodeComponent({ id, data, selected }: {
       <NodeToolbar isVisible={selected || editing} position={Position.Top} offset={8}>
         <div
           className="text-toolbar"
-          onMouseDown={(e) => e.preventDefault()}
+          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
         >
           {/* ── Ligne 1 : OPTIONS TEXTE ─────────────────────────────── */}
           <div className="text-toolbar-row">
