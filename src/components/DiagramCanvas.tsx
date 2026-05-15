@@ -145,6 +145,13 @@ export function DiagramCanvas({
   const [selectedTextNodeId,  setSelectedTextNodeId]  = useState<string | null>(null);
   const [selectedShapeNodeId, setSelectedShapeNodeId] = useState<string | null>(null);
 
+  // ── Dimensions réelles des blocs produit (mesurées par React Flow) ──────────
+  // Permet de calculer la grille de pages avec les vraies hauteurs au lieu des
+  // estimations statiques qui généraient des pages fantômes quand un bloc
+  // s'approchait du bord d'une page sans réellement la dépasser.
+  const measuredNodeSizes = useRef<Map<string, { width: number; height: number }>>(new Map());
+  const [measuredVersion, setMeasuredVersion] = useState(0);
+
   // ── Notification d'incompatibilité ────────────────────────────────────────
   const [compatError, setCompatError] = useState<string | null>(null);
   const compatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,10 +172,15 @@ export function DiagramCanvas({
     // Compute the grid of A3 pages large enough to cover the diagram.
     // Each page is PAGE_BOUNDS.width x PAGE_BOUNDS.height in flow units;
     // tile starting from (0, 0).
-    // Largeur CSS fixe du bloc produit : 150px + ~10px de marge pour les handles
+    //
+    // Dimensions par défaut (fallback avant la 1ère mesure par React Flow) :
+    // - NODE_W / NODE_H : estimation conservative pour les blocs produit normaux
+    // - SPEAKER_SIZE    : blocs enceintes (forme carrée fixe)
+    // Les vraies dimensions sont lues depuis measuredNodeSizes (mis à jour via
+    // onNodesChange) pour éviter les pages fantômes générées par des estimations
+    // trop grandes.
     const NODE_W = 160;
-    // Hauteur estimée haute (varie selon le nb de ports) — valeur conservative
-    const NODE_H = 200;
+    const NODE_H = 160;   // réduit de 200 → 160 ; les vrais blocs mesurent en général 80-180px
     const SPEAKER_SIZE = 60;
     let maxRight = PAGE_BOUNDS.width;
     let maxBottom = PAGE_BOUNDS.height;
@@ -177,12 +189,14 @@ export function DiagramCanvas({
     for (const n of nodes) {
       const product = products.find((p) => p.id === n.productId);
       const isSpeaker = product && SPEAKER_CATS.has(product.category);
-      const nw = isSpeaker ? SPEAKER_SIZE : NODE_W;
-      const nh = isSpeaker ? SPEAKER_SIZE : NODE_H;
-      if (n.position.x + nw > maxRight) maxRight = n.position.x + nw;
+      // Utilise la dimension mesurée par React Flow si disponible, sinon l'estimation
+      const measured = measuredNodeSizes.current.get(n.id);
+      const nw = measured?.width  ?? (isSpeaker ? SPEAKER_SIZE : NODE_W);
+      const nh = measured?.height ?? (isSpeaker ? SPEAKER_SIZE : NODE_H);
+      if (n.position.x + nw > maxRight)  maxRight  = n.position.x + nw;
       if (n.position.y + nh > maxBottom) maxBottom = n.position.y + nh;
       if (n.position.x < minLeft) minLeft = n.position.x;
-      if (n.position.y < minTop) minTop = n.position.y;
+      if (n.position.y < minTop)  minTop  = n.position.y;
     }
     const colStart = Math.min(0, Math.floor(minLeft / PAGE_BOUNDS.width));
     const rowStart = Math.min(0, Math.floor(minTop / PAGE_BOUNDS.height));
@@ -244,7 +258,10 @@ export function DiagramCanvas({
       })),
       ...textRfNodes,    // textes au premier plan (zIndex 2000)
     ];
-  }, [nodes, textNodes, shapeNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, products]);
+  // measuredVersion : compteur incrémenté quand React Flow mesure un bloc produit
+  // → force le recalcul des pages avec les vraies dimensions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, textNodes, shapeNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, products, measuredVersion]);
 
   // Helper : calcule guides d'alignement + cible de snap pour une position candidate.
   // Appelé depuis onNodeDrag (drag natif React Flow sur les blocs produit).
@@ -359,21 +376,34 @@ export function DiagramCanvas({
           // Sinon : page node (non-draggable) — ne rien faire
         }
 
-        // Dimensions : on n'applique QUE lorsque l'utilisateur redimensionne
-        // explicitement via NodeResizer (change.resizing === true). La mesure
-        // automatique initiale par React Flow peut renvoyer des dimensions
-        // partielles et écraserait nos valeurs stockées.
-        if (change.type === "dimensions" && change.resizing && change.dimensions) {
-          if (isTextNode) {
-            updateTextNode(change.id, {
-              width: Math.round(change.dimensions.width),
-              height: Math.round(change.dimensions.height),
-            });
-          } else if (isShapeNode) {
-            updateShapeNode(change.id, {
-              width: Math.round(change.dimensions.width),
-              height: Math.round(change.dimensions.height),
-            });
+        // Dimensions : deux cas à distinguer.
+        if (change.type === "dimensions" && change.dimensions) {
+          if (change.resizing) {
+            // Redimensionnement explicite par l'utilisateur via NodeResizer →
+            // persister la nouvelle taille dans le store.
+            if (isTextNode) {
+              updateTextNode(change.id, {
+                width:  Math.round(change.dimensions.width),
+                height: Math.round(change.dimensions.height),
+              });
+            } else if (isShapeNode) {
+              updateShapeNode(change.id, {
+                width:  Math.round(change.dimensions.width),
+                height: Math.round(change.dimensions.height),
+              });
+            }
+          } else if (isProduct) {
+            // Mesure automatique par React Flow (1ère render ou après un
+            // changement de contenu). On stocke dans le ref pour affiner le
+            // calcul de la grille de pages sans écraser nos valeurs persistées.
+            const { width: newW, height: newH } = change.dimensions;
+            if (newW > 0 && newH > 0) {
+              const prev = measuredNodeSizes.current.get(change.id);
+              if (!prev || Math.abs(prev.height - newH) > 4 || Math.abs(prev.width - newW) > 4) {
+                measuredNodeSizes.current.set(change.id, { width: newW, height: newH });
+                setMeasuredVersion((v) => v + 1);
+              }
+            }
           }
         }
 
@@ -384,6 +414,8 @@ export function DiagramCanvas({
             removeShapeNode(change.id);
           } else if (isProduct) {
             removeNode(change.id);
+            // Nettoyer la dimension mesurée du nœud supprimé
+            measuredNodeSizes.current.delete(change.id);
           }
           // Page node ou inconnu : ignorer
         }
