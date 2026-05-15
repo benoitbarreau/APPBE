@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore, useEditorState } from "../store";
 import { getEffectivePorts } from "../ports";
@@ -37,6 +38,21 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const setNodeZone = useAppStore((s) => s.setNodeZone);
   const updateNode = useAppStore((s) => s.updateNode);
   const readOnly = useEditorState((s) => s.readOnly);
+
+  // Ref sur l'input LABEL pour bloquer la propagation native du pointerdown
+  // vers le listener d3-drag de React Flow (posé sur le nœud parent).
+  // stopPropagation() au niveau de l'input (enfant) fire avant que l'événement
+  // n'atteigne le nœud React Flow (ancêtre), empêchant le démarrage du drag
+  // pendant la saisie/sélection de texte dans le label.
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = labelInputRef.current;
+    if (!el) return;
+    const block = (e: PointerEvent) => e.stopPropagation();
+    el.addEventListener("pointerdown", block);
+    return () => el.removeEventListener("pointerdown", block);
+  }, []);
+
   if (!node || !product) return null;
 
   // ── Bloc rond pour Enceintes / Caissons de basse ──────────────────────
@@ -94,6 +110,7 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
         <div className="product-node-name-row">
           <div className="product-node-name">{product.manufacturer}</div>
           <input
+            ref={labelInputRef}
             className={`product-node-label nodrag${node.labelIsAuto ? " is-auto" : ""}`}
             value={node.label ?? ""}
             placeholder="Label"
