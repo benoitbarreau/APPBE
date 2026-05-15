@@ -200,6 +200,7 @@ export function InstancePortsConfig({
                           setNodePortLabel(node.id, p.id, e.target.value)
                         }
                         placeholder="Libellé"
+                        onMouseDown={(e) => e.stopPropagation()}
                       />
                       {extra ? (
                         <select
