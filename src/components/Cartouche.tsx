@@ -77,7 +77,7 @@ export function Cartouche() {
             ? (profile?.company_logo_url ?? null)
             : `${import.meta.env.BASE_URL}company-logo.png`;
           return src ? (
-            <img src={src} alt="Logo" className="cartouche-logo-img" />
+            <img src={src} alt="Logo" className="cartouche-logo-img" crossOrigin="anonymous" />
           ) : null;
         })()}
       </div>

@@ -188,6 +188,10 @@ function hidePageBoundaries(): () => void {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // crossOrigin="anonymous" est indispensable pour les images cross-origin
+    // (logos Supabase Storage) : sans cet attribut le canvas devient "tainted"
+    // et toDataURL() est bloqué par le navigateur.
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
