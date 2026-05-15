@@ -77,8 +77,9 @@ export function computeProjectHash(
   products: unknown,
   signals: unknown,
   accessories?: unknown,
+  zones?: unknown,
 ): string {
-  const str = JSON.stringify({ tabs, products, signals, accessories })
+  const str = JSON.stringify({ tabs, products, signals, accessories, zones })
   let h = 0
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(31, h) + str.charCodeAt(i) | 0

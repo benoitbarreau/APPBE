@@ -1,6 +1,5 @@
 import { useAppStore } from "../store";
 import type { Zone } from "../types";
-import { upsertUserZone, deleteUserZone } from "../lib/userSignalsZonesApi";
 
 const slugifyId = (label: string): string =>
   label
@@ -25,12 +24,12 @@ export function ZonesList() {
     }
     const zone: Zone = { id, label: "Nouvelle zone", color: "#888888" };
     upsert(zone);
-    upsertUserZone(zone).catch(() => {});
+    // Les zones sont désormais per-project, sauvegardées avec le projet — pas de sync user_zones
   };
 
   const handleUpsert = (z: Zone) => {
     upsert(z);
-    upsertUserZone(z).catch(() => {});
+    // Les zones sont désormais per-project, sauvegardées avec le projet — pas de sync user_zones
   };
 
   const handleRemove = (z: Zone) => {
@@ -42,7 +41,7 @@ export function ZonesList() {
       : confirm(`Supprimer la zone "${z.label}" ?`);
     if (!ok) return;
     remove(z.id);
-    deleteUserZone(z.id).catch(() => {});
+    // Les zones sont désormais per-project, sauvegardées avec le projet — pas de sync user_zones
   };
 
   return (

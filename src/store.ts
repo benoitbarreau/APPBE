@@ -332,6 +332,14 @@ const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" 
     return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes };
   });
 
+/**
+ * Buffer de migration des zones utilisateur (user_zones Supabase).
+ * Rempli au login par mergeUserZones, utilisé en fallback dans loadProjectData
+ * si le projet n'a pas encore de zones dans ses données (anciens projets).
+ * N'est jamais persisté dans React state — module-level uniquement.
+ */
+let _loginZonesForMigration: Zone[] | null = null;
+
 export const useAppStore = create<State>()(
   persist(
     (set, get) => {
@@ -1349,11 +1357,20 @@ export const useAppStore = create<State>()(
             }
           }
 
-          // ── Signaux et zones : JAMAIS écrasés par le projet ─────────────
-          // Ces données sont globales (catalogue partagé d'équipe) et sont
-          // gérées exclusivement via Supabase user_signals / user_zones.
-          // Le JSONB projet peut les contenir pour compatibilité ascendante
-          // mais ne doit jamais écraser l'état courant du store.
+          // ── Zones : restaurer depuis les données du projet ─────────────
+          // Priorité : data.zones (top-level, format post-migration) >
+          //            premier onglet synoptique (anciens projets, zones flushées) >
+          //            _loginZonesForMigration (user_zones chargées au login) >
+          //            DEFAULT_ZONES
+          const firstSynopticTab = tabs.find((t) => isSynopticTab(t));
+          const projectZones: Zone[] = (() => {
+            if (data.zones && data.zones.length > 0) return data.zones;
+            if (firstSynopticTab?.zones && firstSynopticTab.zones.length > 0)
+              return firstSynopticTab.zones;
+            if (_loginZonesForMigration && _loginZonesForMigration.length > 0)
+              return _loginZonesForMigration;
+            return [...DEFAULT_ZONES];
+          })();
 
           set({
             currentProjectId: id,
@@ -1365,7 +1382,7 @@ export const useAppStore = create<State>()(
             cables: activeTab.cables,
             textNodes: activeTab.textNodes ?? [],
             shapeNodes: activeTab.shapeNodes ?? [],
-            // zones et signals : on garde ce qui est déjà dans le store
+            zones: projectZones,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             products: Array.from(mergedProductMap.values()),
             // Accessoires : restaurer depuis le projet si présents, sinon conserver les actuels
@@ -1521,13 +1538,13 @@ export const useAppStore = create<State>()(
             return { signals: result };
           }),
 
-        mergeUserZones: (cloudZones) =>
-          set((s) => {
-            // Zones cloud (priorité max) + locales non encore synchro
-            const result = new Map<string, Zone>(s.zones.map((z) => [z.id, z]));
-            for (const z of cloudZones) result.set(z.id, z);
-            return { zones: Array.from(result.values()) };
-          }),
+        mergeUserZones: (cloudZones) => {
+          // Depuis la migration vers les zones par projet, cette fonction ne
+          // modifie plus s.zones directement. Elle stocke les zones cloud dans
+          // un buffer de migration (_loginZonesForMigration) utilisé par
+          // loadProjectData pour initialiser les anciens projets sans zones.
+          _loginZonesForMigration = cloudZones;
+        },
 
         clearForUser: (userId) =>
           set((s) => {

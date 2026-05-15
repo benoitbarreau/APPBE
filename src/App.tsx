@@ -162,6 +162,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       state.products,
       state.signals,
       state.accessories,
+      state.zones,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -257,6 +258,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       state.products,
       state.signals,
       state.accessories,
+      state.zones,
     );
     const hasUnsavedChanges = currentHash !== lastSavedHash.current;
     if (hasUnsavedChanges) {
@@ -275,7 +277,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       const flushedTabs = getFlushedTabs();
 
       // ── Détection de modification réelle ──────────────────────────────
-      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories);
+      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories, state.zones);
       const isModified = lastSavedHash.current !== "" && currentHash !== lastSavedHash.current;
       const isExistingProject = !!state.currentProjectId;
 
@@ -304,6 +306,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             products: state.products,
             accessories: state.accessories,
             ipTableColumns: state.ipTableColumns,
+            zones: state.zones,
           });
           // Conserver les 3 derniers snapshots archivés max
           versionsMeta = [...versionsMeta, archived].slice(-3);
@@ -331,6 +334,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           products: state.products,
           accessories: state.accessories,
           ipTableColumns: state.ipTableColumns,
+          zones: state.zones,
         },
       );
 
