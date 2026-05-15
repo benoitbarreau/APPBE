@@ -505,7 +505,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
                 zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
-                lanView={lanView}
+                isLanEligible={lanEligibleIds.has(row.id)}
                 onChange={(patch) => updateIPRow(tabId, row.id, patch)}
                 onRemove={() => handleRemoveRow(row)}
               />
@@ -560,7 +560,7 @@ function hexToRgba(hex: string, alpha: number): string {
 
 // ── IPRow ──────────────────────────────────────────────────────────────────
 function IPRow({
-  row, columns, duplicates, zoneColor, readOnly, lanView, onChange, onRemove,
+  row, columns, duplicates, zoneColor, readOnly, isLanEligible, onChange, onRemove,
 }: {
   tabId: string;
   row: IPTableRow;
@@ -568,7 +568,7 @@ function IPRow({
   duplicates: Set<IPColumn>;
   zoneColor?: string;
   readOnly: boolean;
-  lanView: boolean;
+  isLanEligible: boolean;
   onChange: (patch: Partial<IPTableRow>) => void;
   onRemove: () => void;
 }) {
@@ -601,7 +601,7 @@ function IPRow({
         const isIpMacCol = IP_MAC_COLS.has(col.id);
         const cellClass = [
           isDup ? "ip-cell-dup" : "",
-          isIpMacCol && !lanView ? "ip-cell-dark" : "",
+          isIpMacCol && !isLanEligible ? "ip-cell-dark" : "",
         ].filter(Boolean).join(" ") || undefined;
 
         return (
