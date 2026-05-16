@@ -293,6 +293,13 @@ const allNodes = useAppStore((s) => s.nodes);
 
   const [hovered, setHovered] = useState(false);
 
+  // Désactiver l'effet survol sur ce câble si un AUTRE câble est déjà sélectionné.
+  // Cela évite que câble B "vole" le curseur quand on cherche la poignée de câble A.
+  const anyOtherCableSelected = useStore((s) =>
+    s.edges.some((e) => e.selected && e.id !== id),
+  );
+  const effectiveHovered = hovered && !anyOtherCableSelected;
+
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -597,7 +604,7 @@ const allNodes = useAppStore((s) => s.nodes);
   return (
     <>
       {/* Halo de survol — rendu derrière le trait principal */}
-      {hovered && !selected && (
+      {effectiveHovered && !selected && (
         <path
           d={path}
           stroke={color}
@@ -614,7 +621,7 @@ const allNodes = useAppStore((s) => s.nodes);
         path={path}
         style={{
           ...style,
-          strokeWidth: selected ? 2.5 : hovered ? 2.5 : 2,
+          strokeWidth: selected ? 2.5 : effectiveHovered ? 2.5 : 2,
           strokeLinecap: "round",
           strokeLinejoin: "round",
         }}
@@ -638,7 +645,7 @@ const allNodes = useAppStore((s) => s.nodes);
         />
 
         {/* Pilules de déplacement — visibles au survol (50 %) ou sélectionné (100 %) */}
-        {(hovered || selected) && segments.map((seg, i) => {
+        {(effectiveHovered || selected) && segments.map((seg, i) => {
           const dx = seg.b.x - seg.a.x;
           const dy = seg.b.y - seg.a.y;
           const isH = Math.abs(dy) < 1;
