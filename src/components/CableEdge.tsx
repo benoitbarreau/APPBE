@@ -25,6 +25,7 @@ function buildPathWithBumps(
   points: Point[],
   bumpsPerSeg: Map<number, Point[]>,
   r = 4,
+  cornerR = 0,
 ): string {
   if (points.length < 2) return "";
   let d = `M ${points[0].x} ${points[0].y}`;
@@ -35,55 +36,77 @@ function buildPathWithBumps(
     const isH = Math.abs(a.y - b.y) < 1;
     const isV = Math.abs(a.x - b.x) < 1;
     const list = bumpsPerSeg.get(segIdx) ?? [];
-    if (list.length === 0 || (!isH && !isV)) {
-      d += ` L ${b.x} ${b.y}`;
-      continue;
+
+    // Rayon d'arrondi au coin B (uniquement pour les points intermédiaires)
+    let cr = 0;
+    if (cornerR > 0 && i < points.length - 1) {
+      const lenIn  = Math.hypot(b.x - a.x, b.y - a.y);
+      const next   = points[i + 1];
+      const lenOut = Math.hypot(next.x - b.x, next.y - b.y);
+      cr = Math.min(cornerR, lenIn / 2, lenOut / 2);
     }
-    if (isH) {
-      const y = a.y; // coordonnée stable du segment H
+
+    // Direction normalisée du segment courant
+    const lenFull = Math.hypot(b.x - a.x, b.y - a.y);
+    const dix = lenFull > 0.5 ? (b.x - a.x) / lenFull : 0;
+    const diy = lenFull > 0.5 ? (b.y - a.y) / lenFull : 0;
+
+    // Point où s'arrête le trait (avant l'arc de coin)
+    const ex = b.x - dix * cr;
+    const ey = b.y - diy * cr;
+
+    if (list.length === 0 || (!isH && !isV)) {
+      d += ` L ${ex} ${ey}`;
+    } else if (isH) {
+      const y   = a.y;
       const dirX = a.x < b.x ? 1 : -1;
-      // Trier dans le sens de parcours, filtrer trop proche des bords
       const sorted = [...list].sort((p, q) => (p.x - q.x) * dirX);
-      const valid = sorted.filter(
-        (bump) => Math.abs(bump.x - a.x) > r && Math.abs(bump.x - b.x) > r,
+      const valid  = sorted.filter(
+        (bump) => Math.abs(bump.x - a.x) > r && Math.abs(bump.x - ex) > r,
       );
-      // Dédoublonner : supprimer les bumps trop proches du précédent (min 2r)
       const deduped: Point[] = [];
       for (const bump of valid) {
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.x - last.x) >= 2 * r) deduped.push(bump);
       }
-      // sweep=0 (CCW) → arc vers le HAUT, cohérent quel que soit dirX
-      // Vérification géométrique :
-      //   droite : (bump.x-r,y)→(bump.x+r,y) CCW = 9h→12h→3h = haut ✓
-      //   gauche : (bump.x+r,y)→(bump.x-r,y) CCW = 3h→12h→9h = haut ✓
+      // sweep=0 (CCW) → arc vers le HAUT
       for (const bump of deduped) {
         d += ` L ${bump.x - dirX * r} ${y}`;
         d += ` A ${r} ${r} 0 0 0 ${bump.x + dirX * r} ${y}`;
       }
-      d += ` L ${b.x} ${b.y}`;
+      d += ` L ${ex} ${ey}`;
     } else {
-      const x = a.x; // coordonnée stable du segment V
+      const x   = a.x;
       const dirY = a.y < b.y ? 1 : -1;
       const sorted = [...list].sort((p, q) => (p.y - q.y) * dirY);
-      const valid = sorted.filter(
-        (bump) => Math.abs(bump.y - a.y) > r && Math.abs(bump.y - b.y) > r,
+      const valid  = sorted.filter(
+        (bump) => Math.abs(bump.y - a.y) > r && Math.abs(bump.y - ey) > r,
       );
-      // Dédoublonner
       const deduped: Point[] = [];
       for (const bump of valid) {
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.y - last.y) >= 2 * r) deduped.push(bump);
       }
-      // sweep=1 (CW) → arc vers la DROITE, cohérent quel que soit dirY
-      // Vérification géométrique :
-      //   bas  : (x,bump.y-r)→(x,bump.y+r) CW = 12h→3h→6h = droite ✓
-      //   haut : (x,bump.y+r)→(x,bump.y-r) CW =  6h→3h→12h = droite ✓
+      // sweep=1 (CW) → arc vers la DROITE
       for (const bump of deduped) {
         d += ` L ${x} ${bump.y - dirY * r}`;
         d += ` A ${r} ${r} 0 0 1 ${x} ${bump.y + dirY * r}`;
       }
-      d += ` L ${b.x} ${b.y}`;
+      d += ` L ${ex} ${ey}`;
+    }
+
+    // Arc d'arrondi au coin B
+    if (cr > 0) {
+      const next    = points[i + 1];
+      const lenOut  = Math.hypot(next.x - b.x, next.y - b.y);
+      const dox     = lenOut > 0.5 ? (next.x - b.x) / lenOut : 0;
+      const doy     = lenOut > 0.5 ? (next.y - b.y) / lenOut : 0;
+      const exitX   = b.x + dox * cr;
+      const exitY   = b.y + doy * cr;
+      // Produit vectoriel : >0 = virage gauche (CCW/sweep=0), <0 = virage droit (CW/sweep=1)
+      const cross   = dix * doy - diy * dox;
+      const sweep   = cross < 0 ? 1 : 0;
+      d += ` A ${cr} ${cr} 0 0 ${sweep} ${exitX} ${exitY}`;
     }
   }
   return d;
@@ -270,6 +293,8 @@ function effectiveWaypoints(
 
 /** Distance minimale (en px canvas) entre deux segments câbles parallèles. */
 const MIN_CABLE_GAP = 10;
+/** Rayon d'arrondi (en px canvas) des angles intermédiaires des câbles. */
+const CABLE_CORNER_R = 6;
 
 export function CableEdge({
   id,
@@ -436,7 +461,7 @@ const allNodes = useAppStore((s) => s.nodes);
   }
 
   // buildPathWithBumps se comporte comme buildPolyline quand bumpsPerSeg est vide
-  const path = buildPathWithBumps(allPoints, bumpsPerSeg);
+  const path = buildPathWithBumps(allPoints, bumpsPerSeg, 4, CABLE_CORNER_R);
   const mid = Math.floor(allPoints.length / 2);
   const a = allPoints[mid - 1] ?? allPoints[0];
   const b = allPoints[mid] ?? allPoints[allPoints.length - 1];
