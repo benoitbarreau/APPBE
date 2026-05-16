@@ -103,9 +103,10 @@ function buildPathWithBumps(
       const doy     = lenOut > 0.5 ? (next.y - b.y) / lenOut : 0;
       const exitX   = b.x + dox * cr;
       const exitY   = b.y + doy * cr;
-      // Produit vectoriel : >0 = virage gauche (CCW/sweep=0), <0 = virage droit (CW/sweep=1)
+      // En SVG (Y vers le bas), le produit vectoriel est positif pour un virage CW
+      // (sens horaire à l'écran). L'arc intérieur d'un virage CW se dessine en sweep=1.
       const cross   = dix * doy - diy * dox;
-      const sweep   = cross < 0 ? 1 : 0;
+      const sweep   = cross >= 0 ? 1 : 0;
       d += ` A ${cr} ${cr} 0 0 ${sweep} ${exitX} ${exitY}`;
     }
   }
