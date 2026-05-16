@@ -1611,6 +1611,30 @@ select {
   font-weight: 700;
 }
 
+/* Ligne légende en lecture seule (types par défaut pour les non-admins) */
+.legend-row-readonly {
+  opacity: 0.72;
+}
+.legend-row-readonly input[readonly],
+.legend-row-readonly input:disabled {
+  background: transparent;
+  cursor: default;
+  color: var(--text-muted, #666);
+  border-color: transparent;
+}
+.legend-row-readonly input[type="color"]:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+.legend-row-readonly-spacer {
+  display: block;
+  width: 24px;
+}
+.legend-hint-user {
+  color: var(--muted, #888);
+  font-style: italic;
+}
+
 /* Product node - fixed width, compact */
 .product-node {
   background: #fff;

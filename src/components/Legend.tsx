@@ -7,6 +7,7 @@ import {
   deleteUserSignal,
   deleteAllUserSignals,
 } from "../lib/userSignalsZonesApi";
+import { useAuth } from "../auth/useAuth";
 
 const slugifyId = (label: string): string =>
   label
@@ -16,6 +17,10 @@ const slugifyId = (label: string): string =>
     .replace(/[^A-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "") || "NEW";
 
+/** Vrai si l'id appartient aux 10 types de câbles livrés par défaut. */
+const isDefaultSignal = (id: string): boolean =>
+  Object.prototype.hasOwnProperty.call(DEFAULT_SIGNAL_DEFS, id);
+
 export function Legend() {
   const signals = useAppStore((s) => s.signals);
   const cables = useAppStore((s) => s.cables);
@@ -24,19 +29,19 @@ export function Legend() {
   const remove = useAppStore((s) => s.removeSignal);
   const resetSignalsToDefaults = useAppStore((s) => s.resetSignalsToDefaults);
 
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+
   const list = useMemo(() => Object.values(signals), [signals]);
 
-  /** Réinitialise la légende à la liste par défaut.
-   *  Avertit si des câbles utilisent des signaux qui vont être supprimés. */
+  /** Réinitialise la légende à la liste par défaut (admin uniquement). */
   const handleReset = async () => {
     const defaultIds = new Set(Object.keys(DEFAULT_SIGNAL_DEFS));
-    // Collecte tous les signaux utilisés dans le projet (onglet actif + autres)
     const usedSignalIds = new Set<string>();
     for (const c of cables) usedSignalIds.add(c.signal);
     for (const t of tabs) {
       for (const c of (t.cables ?? [])) usedSignalIds.add(c.signal);
     }
-    // Signaux qui vont disparaître = utilisés mais absents des défauts
     const removedUsed: string[] = [];
     for (const sigId of usedSignalIds) {
       if (!defaultIds.has(sigId)) {
@@ -58,19 +63,14 @@ export function Legend() {
       : "";
     if (!confirm(baseMsg + warnMsg + "\n\nContinuer ?")) return;
 
-    // 1. Mise à jour locale immédiate
     resetSignalsToDefaults();
-    // 2. Nettoyage cloud : supprime tous les user_signals existants
-    //    puis réinsère les valeurs par défaut (pour qu'au prochain login
-    //    elles soient prioritaires sur DEFAULT_SIGNAL_DEFS).
     try {
       await deleteAllUserSignals();
       await Promise.all(
         Object.values(DEFAULT_SIGNAL_DEFS).map((def) => upsertUserSignal(def)),
       );
     } catch {
-      /* échec silencieux — la réinitialisation locale est faite, la sync
-         cloud pourra être retentée plus tard */
+      /* échec silencieux */
     }
   };
 
@@ -89,10 +89,13 @@ export function Legend() {
       numberPrefix: id.slice(0, 4),
     };
     upsert(def);
-    upsertUserSignal(def).catch(() => {});
+    // Admin : sync global (user_signals). User : per-project uniquement, pas de sync.
+    if (isAdmin) upsertUserSignal(def).catch(() => {});
   };
 
   const handleRemove = (id: string) => {
+    // Seul un admin peut supprimer les types par défaut
+    if (!isAdmin && isDefaultSignal(id)) return;
     const used = cables.filter((c) => c.signal === id).length;
     const ok = used
       ? confirm(
@@ -101,12 +104,16 @@ export function Legend() {
       : confirm(`Supprimer le type "${signals[id]?.label ?? id}" ?`);
     if (!ok) return;
     remove(id);
-    deleteUserSignal(id).catch(() => {});
+    // Admin : sync global. User : per-project uniquement.
+    if (isAdmin) deleteUserSignal(id).catch(() => {});
   };
 
   const handleUpsert = (def: SignalDef) => {
+    // Seul un admin peut modifier les types par défaut
+    if (!isAdmin && isDefaultSignal(def.id)) return;
     upsert(def);
-    upsertUserSignal(def).catch(() => {});
+    // Admin : sync global. User : per-project uniquement.
+    if (isAdmin) upsertUserSignal(def).catch(() => {});
   };
 
   const handleChangeLabel = (def: SignalDef, label: string) => {
@@ -118,18 +125,26 @@ export function Legend() {
       <div className="legend-editor-header">
         <h3>Types de câbles</h3>
         <div className="legend-editor-header-actions">
-          <button
-            onClick={() => void handleReset()}
-            title="Remplacer la liste par les 10 types de câbles par défaut"
-          >
-            ↻ Réinitialiser
-          </button>
+          {/* Réinitialiser : admin uniquement */}
+          {isAdmin && (
+            <button
+              onClick={() => void handleReset()}
+              title="Remplacer la liste par les 10 types de câbles par défaut"
+            >
+              ↻ Réinitialiser
+            </button>
+          )}
           <button onClick={handleAdd}>+ Ajouter</button>
         </div>
       </div>
       <div className="legend-editor-hint muted">
         La couleur s'applique en direct aux pastilles et aux liaisons. Le préfixe pilote la
         numérotation auto (IPn, HDMIn…).
+        {!isAdmin && (
+          <span className="legend-hint-user">
+            {" "}Les types par défaut sont en lecture seule. Vous pouvez ajouter vos propres types (par projet).
+          </span>
+        )}
       </div>
       <div className="legend-editor-list">
         <div className="legend-editor-row legend-editor-headrow">
@@ -141,40 +156,59 @@ export function Legend() {
         </div>
         {list.map((def) => {
           const used = cables.filter((c) => c.signal === def.id).length;
+          const isDefault = isDefaultSignal(def.id);
+          // Un user peut éditer uniquement ses propres types (non-défaut)
+          const canEdit = isAdmin || !isDefault;
+
           return (
-            <div key={def.id} className="legend-editor-row">
+            <div
+              key={def.id}
+              className={`legend-editor-row${!canEdit ? " legend-row-readonly" : ""}`}
+            >
               <input
                 type="color"
                 className="legend-color"
                 value={def.color}
-                onChange={(e) => upsert({ ...def, color: e.target.value })}
-                onBlur={(e) => handleUpsert({ ...def, color: e.target.value })}
-                title="Couleur"
+                onChange={(e) => canEdit && upsert({ ...def, color: e.target.value })}
+                onBlur={(e) => canEdit && handleUpsert({ ...def, color: e.target.value })}
+                title={canEdit ? "Couleur" : "Lecture seule — admin uniquement"}
+                disabled={!canEdit}
               />
               <input
                 value={def.label}
-                onChange={(e) => handleChangeLabel(def, e.target.value)}
+                onChange={(e) => canEdit && handleChangeLabel(def, e.target.value)}
                 placeholder="Nom affiché"
+                readOnly={!canEdit}
+                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
               />
               <input
                 value={def.numberPrefix}
-                onChange={(e) => handleUpsert({ ...def, numberPrefix: e.target.value })}
+                onChange={(e) => canEdit && handleUpsert({ ...def, numberPrefix: e.target.value })}
                 placeholder="Préf."
                 className="legend-prefix"
                 maxLength={6}
+                readOnly={!canEdit}
+                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
               />
               <input
                 value={def.defaultCable}
-                onChange={(e) => handleUpsert({ ...def, defaultCable: e.target.value })}
+                onChange={(e) => canEdit && handleUpsert({ ...def, defaultCable: e.target.value })}
                 placeholder="Câble par défaut"
+                readOnly={!canEdit}
+                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
               />
-              <button
-                onClick={() => handleRemove(def.id)}
-                className="danger"
-                title={used ? `Utilisé par ${used} câble(s)` : "Supprimer"}
-              >
-                ✕
-              </button>
+              {/* Bouton supprimer : admin = tout, user = uniquement ses types perso */}
+              {canEdit ? (
+                <button
+                  onClick={() => handleRemove(def.id)}
+                  className="danger"
+                  title={used ? `Utilisé par ${used} câble(s)` : "Supprimer"}
+                >
+                  ✕
+                </button>
+              ) : (
+                <span className="legend-row-readonly-spacer" />
+              )}
             </div>
           );
         })}

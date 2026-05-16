@@ -340,6 +340,20 @@ const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" 
  */
 let _loginZonesForMigration: Zone[] | null = null;
 
+/**
+ * Signaux globaux de l'administrateur (user_signals Supabase).
+ * Rempli au login par mergeUserSignals uniquement si des signaux existent dans
+ * user_signals (i.e. l'utilisateur est admin et a personnalisé sa légende).
+ * Lors de loadProjectData, ces signaux sont mergés en surcharge des signaux
+ * du projet pour que les personnalisations admin soient disponibles partout.
+ *
+ * Pour les utilisateurs non-admin : user_signals est vide → ce buffer reste null
+ * → les signaux viennent uniquement des données du projet (per-project).
+ *
+ * Mis à jour en temps réel par upsertSignal / removeSignal / resetSignalsToDefaults.
+ */
+let _adminGlobalSignals: Record<string, SignalDef> | null = null;
+
 export const useAppStore = create<State>()(
   persist(
     (set, get) => {
@@ -1154,16 +1168,31 @@ export const useAppStore = create<State>()(
         updateProjectMeta: (patch) =>
           set((s) => ({ projectMeta: { ...s.projectMeta, ...patch } })),
 
-        upsertSignal: (def) =>
-          set((s) => ({ signals: { ...s.signals, [def.id]: def } })),
-        removeSignal: (id) =>
+        upsertSignal: (def) => {
+          // Maintenir le cache admin global si actif (admin uniquement)
+          if (_adminGlobalSignals !== null) {
+            _adminGlobalSignals = { ..._adminGlobalSignals, [def.id]: def };
+          }
+          set((s) => ({ signals: { ...s.signals, [def.id]: def } }));
+        },
+        removeSignal: (id) => {
+          // Maintenir le cache admin global si actif (admin uniquement)
+          if (_adminGlobalSignals !== null) {
+            const next = { ..._adminGlobalSignals };
+            delete next[id];
+            _adminGlobalSignals = next;
+          }
           set((s) => {
             const next = { ...s.signals };
             delete next[id];
             return { signals: next };
-          }),
-        resetSignalsToDefaults: () =>
-          set(() => ({ signals: { ...DEFAULT_SIGNAL_DEFS } })),
+          });
+        },
+        resetSignalsToDefaults: () => {
+          // Réinitialiser le cache admin — sera rechargé au prochain login
+          _adminGlobalSignals = null;
+          set(() => ({ signals: { ...DEFAULT_SIGNAL_DEFS } }));
+        },
 
         upsertZone: (z) =>
           set((s) => {
@@ -1357,6 +1386,23 @@ export const useAppStore = create<State>()(
             }
           }
 
+          // ── Signaux : project data + globals admin en surcharge ────────
+          // Priorité : _adminGlobalSignals (admins : signaux user_signals Supabase) >
+          //            data.signals (signaux sauvegardés dans le projet) >
+          //            DEFAULT_SIGNAL_DEFS (fallback anciens projets vides)
+          //
+          // Pour les non-admin : _adminGlobalSignals = null → signaux per-project uniquement.
+          // Pour les admins : leurs personnalisations globales surchargent le projet,
+          //   assurant que leurs types de câbles custom apparaissent dans tous les projets.
+          const projectSignals: Record<string, SignalDef> =
+            data.signals && Object.keys(data.signals).length > 0
+              ? data.signals
+              : { ...DEFAULT_SIGNAL_DEFS };
+          const effectiveSignals: Record<string, SignalDef> = { ...projectSignals };
+          if (_adminGlobalSignals) {
+            Object.assign(effectiveSignals, _adminGlobalSignals);
+          }
+
           // ── Zones : restaurer depuis les données du projet ─────────────
           // Priorité : data.zones (top-level, format post-migration) >
           //            premier onglet synoptique (anciens projets, zones flushées) >
@@ -1383,6 +1429,7 @@ export const useAppStore = create<State>()(
             textNodes: activeTab.textNodes ?? [],
             shapeNodes: activeTab.shapeNodes ?? [],
             zones: projectZones,
+            signals: effectiveSignals,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
             products: Array.from(mergedProductMap.values()),
             // Accessoires : restaurer depuis le projet si présents, sinon conserver les actuels
@@ -1530,15 +1577,16 @@ export const useAppStore = create<State>()(
             };
           }),
 
-        mergeUserSignals: (cloudSignals) =>
-          set((s) => {
-            // Signaux cloud (priorité max) + locaux non encore synchro
-            const result: Record<string, SignalDef> = { ...s.signals };
-            for (const [id, def] of Object.entries(cloudSignals)) {
-              result[id] = def;
-            }
-            return { signals: result };
-          }),
+        mergeUserSignals: (cloudSignals) => {
+          // Stocke les signaux admin (user_signals) dans le buffer global.
+          // Ils seront mergés en surcharge des signaux projet dans loadProjectData.
+          // Pour les non-admin : user_signals vide → buffer reste null → signaux per-project.
+          if (Object.keys(cloudSignals).length > 0) {
+            _adminGlobalSignals = { ...cloudSignals };
+          }
+          // Ne met plus à jour s.signals directement — signaux = per-project depuis la v2
+          // (même logique que mergeUserZones)
+        },
 
         mergeUserZones: (cloudZones) => {
           // Depuis la migration vers les zones par projet, cette fonction ne
