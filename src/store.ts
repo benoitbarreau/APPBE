@@ -1397,6 +1397,8 @@ export const useAppStore = create<State>()(
             selectedNodeId: null,
             selectedCableId: null,
           });
+          // Réinitialiser l'état éditeur volatile : étiquettes câbles masquées par défaut
+          useEditorState.setState({ cableLabelsHidden: true });
         },
 
         resetProject: () => {
@@ -1722,6 +1724,6 @@ export const useEditorState = create<EditorState>()((set) => ({
   setReadOnly: (readOnly) => set({ readOnly }),
   cableView: "detailed",
   setCableView: (cableView) => set({ cableView }),
-  cableLabelsHidden: false,
+  cableLabelsHidden: true,
   setCableLabelsHidden: (cableLabelsHidden) => set({ cableLabelsHidden }),
 }));
