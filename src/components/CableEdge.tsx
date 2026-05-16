@@ -639,7 +639,7 @@ const allNodes = useAppStore((s) => s.nodes);
         <path
           d={path}
           stroke="transparent"
-          strokeWidth={24}
+          strokeWidth={14}
           fill="none"
           style={{ pointerEvents: "stroke" }}
         />
@@ -695,7 +695,7 @@ const allNodes = useAppStore((s) => s.nodes);
                 x2={seg.b.x}
                 y2={seg.b.y}
                 stroke="transparent"
-                strokeWidth={22}
+                strokeWidth={14}
                 style={{ cursor, pointerEvents: "stroke" }}
                 onMouseDown={(e) => onSegmentMouseDown(seg, e)}
               />
