@@ -268,6 +268,9 @@ function effectiveWaypoints(
   return wps;
 }
 
+/** Distance minimale (en px canvas) entre deux segments câbles parallèles. */
+const MIN_CABLE_GAP = 10;
+
 export function CableEdge({
   id,
   sourceX,
@@ -339,6 +342,26 @@ const allNodes = useAppStore((s) => s.nodes);
       .filter((o): o is Rect => o !== null);
   };
 
+  /** Renvoie tous les segments de TOUS les autres câbles (pour le snap). */
+  const buildOtherCablesSegs = (): Seg[] => {
+    const result: Seg[] = [];
+    for (const ec of allCables) {
+      if (ec.id === id) continue;
+      const eFrom = getHandlePos(nodeLookup, ec.fromNodeId, ec.fromPortId, ec.fromPortSide ?? "out");
+      const eTo = getHandlePos(nodeLookup, ec.toNodeId, ec.toPortId, ec.toPortSide ?? "in");
+      if (!eFrom || !eTo) continue;
+      const eObs = buildObstacles(ec);
+      const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObs);
+      const ePts = [eFrom, ...ewps, eTo];
+      for (let i = 0; i < ePts.length - 1; i++) {
+        const a = ePts[i];
+        const b = ePts[i + 1];
+        result.push({ a, b, isH: Math.abs(a.y - b.y) < 1, isV: Math.abs(a.x - b.x) < 1 });
+      }
+    }
+    return result;
+  };
+
   // Step 1: compute earlier cables' segments first (we need them to (a)
   // avoid routing on top of them and (b) draw bumps where we cross).
   const cableIdx = allCables.findIndex((c) => c.id === id);
@@ -380,9 +403,9 @@ const allNodes = useAppStore((s) => s.nodes);
   const cableObstacles: Rect[] = earlierSegs
     .filter((s) => s.isV)
     .map((s) => ({
-      x: s.a.x - 1,
+      x: s.a.x - MIN_CABLE_GAP,
       y: Math.min(s.a.y, s.b.y),
-      width: 2,
+      width: MIN_CABLE_GAP * 2,
       height: Math.abs(s.b.y - s.a.y),
     }));
 
@@ -540,6 +563,8 @@ const allNodes = useAppStore((s) => s.nodes);
     // with the new effective waypoints.
     const baseWaypoints = waypoints.map((p) => ({ ...p }));
     const baseLen = baseWaypoints.length;
+    // Capture une fois au départ du drag (pas dans onMove — perf)
+    const otherSegsForSnap = buildOtherCablesSegs();
 
     const onMove = (ev: MouseEvent) => {
       const rdx = (ev.clientX - start.x) / zoom;
@@ -551,7 +576,37 @@ const allNodes = useAppStore((s) => s.nodes);
       const isBReal = seg.indexB > 0 && seg.indexB <= baseLen;
 
       if (isH || isV) {
-        const newPerp = isH ? seg.a.y + rdy : seg.a.x + rdx;
+        let newPerp = isH ? seg.a.y + rdy : seg.a.x + rdx;
+
+        // Snap : empêche de s'approcher à moins de MIN_CABLE_GAP
+        // d'un segment parallèle d'un autre câble.
+        if (isH) {
+          const xMin = Math.min(seg.a.x, seg.b.x);
+          const xMax = Math.max(seg.a.x, seg.b.x);
+          for (const s of otherSegsForSnap) {
+            if (!s.isH) continue;
+            // Ignorer les segments sans chevauchement horizontal
+            if (Math.min(s.a.x, s.b.x) >= xMax || Math.max(s.a.x, s.b.x) <= xMin) continue;
+            const sy = (s.a.y + s.b.y) / 2;
+            const dist = newPerp - sy;
+            if (Math.abs(dist) < MIN_CABLE_GAP) {
+              newPerp = sy + (dist >= 0 ? MIN_CABLE_GAP : -MIN_CABLE_GAP);
+            }
+          }
+        } else {
+          const yMin = Math.min(seg.a.y, seg.b.y);
+          const yMax = Math.max(seg.a.y, seg.b.y);
+          for (const s of otherSegsForSnap) {
+            if (!s.isV) continue;
+            // Ignorer les segments sans chevauchement vertical
+            if (Math.min(s.a.y, s.b.y) >= yMax || Math.max(s.a.y, s.b.y) <= yMin) continue;
+            const sx = (s.a.x + s.b.x) / 2;
+            const dist = newPerp - sx;
+            if (Math.abs(dist) < MIN_CABLE_GAP) {
+              newPerp = sx + (dist >= 0 ? MIN_CABLE_GAP : -MIN_CABLE_GAP);
+            }
+          }
+        }
         if (isAReal && isBReal) {
           if (isH) {
             next[seg.indexA - 1] = { ...next[seg.indexA - 1], y: newPerp };
@@ -639,7 +694,7 @@ const allNodes = useAppStore((s) => s.nodes);
         <path
           d={path}
           stroke="transparent"
-          strokeWidth={14}
+          strokeWidth={10}
           fill="none"
           style={{ pointerEvents: "stroke" }}
         />
@@ -695,7 +750,7 @@ const allNodes = useAppStore((s) => s.nodes);
                 x2={seg.b.x}
                 y2={seg.b.y}
                 stroke="transparent"
-                strokeWidth={14}
+                strokeWidth={10}
                 style={{ cursor, pointerEvents: "stroke" }}
                 onMouseDown={(e) => onSegmentMouseDown(seg, e)}
               />
