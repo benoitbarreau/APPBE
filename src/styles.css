@@ -6706,3 +6706,169 @@ select {
   flex-shrink: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL GÉNÉRIQUE (titre + bouton fermer + boutons action)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.modal-close-btn:hover { background: #f3f4f6; color: var(--text); }
+
+.modal-btn {
+  padding: 8px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.modal-btn:hover:not(:disabled) { background: #f0f3f8; }
+.modal-btn.primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.modal-btn.primary:hover:not(:disabled) { background: #1d5fd6; }
+.modal-btn.secondary { color: var(--muted); }
+.modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL IMPORT IMAGE
+   ═══════════════════════════════════════════════════════════════════ */
+
+.image-import-modal {
+  padding: 0;
+  overflow: hidden;
+}
+
+.image-import-modal .modal-header {
+  padding: 14px 20px;
+}
+
+/* Onglets Fichier / URL */
+.image-import-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.image-import-tab {
+  flex: 1;
+  padding: 10px;
+  background: #f9fafb;
+  border: none;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.image-import-tab:last-child { border-right: none; }
+.image-import-tab:hover { background: #f3f4f6; color: var(--text); }
+.image-import-tab.active {
+  background: #fff;
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.image-import-body {
+  padding: 18px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Zone de dépôt / aperçu */
+.image-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #f9fafb;
+  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+  gap: 6px;
+}
+.image-drop-zone:hover {
+  border-color: var(--primary);
+  background: #eff6ff;
+}
+.image-drop-icon { font-size: 32px; }
+.image-drop-hint { font-size: 13px; color: var(--muted); }
+.image-drop-formats { font-size: 11px; color: #9ca3af; }
+.image-drop-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Zone URL */
+.image-url-zone { display: flex; flex-direction: column; gap: 0; }
+.image-url-row { display: flex; gap: 8px; }
+.image-url-input {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+}
+.image-url-input:focus { border-color: var(--primary); }
+.image-url-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.image-url-btn:hover { background: #1d5fd6; }
+
+/* Message d'erreur */
+.image-import-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* Sélecteur de calque */
+.image-import-layer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.image-import-layer-label {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Pied de modal */
+.image-import-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+

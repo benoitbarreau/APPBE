@@ -19,6 +19,7 @@ import { Cartouche } from "./components/Cartouche";
 import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
+import { ImageImportModal } from "./components/ImageImportModal";
 import { useAppStore, getFlushedTabs } from "./store";
 import { layoutNodes } from "./layout";
 import {
@@ -140,6 +141,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const updateCable = useAppStore((s) => s.updateCable);
   const addTextNode = useAppStore((s) => s.addTextNode);
   const addShapeNode = useAppStore((s) => s.addShapeNode);
+  const addImageNode = useAppStore((s) => s.addImageNode);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
   const setVersionsMeta = useAppStore((s) => s.setVersionsMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
@@ -232,6 +234,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       }
     } catch { /* viewport indisponible, fallback */ }
     addShapeNode(shape, position);
+  };
+
+  // ── Modal import image ─────────────────────────────────────────────────
+  const [imageImportOpen, setImageImportOpen] = useState(false);
+
+  const handleAddImageNode = () => {
+    setImageImportOpen(true);
   };
 
   const handleAdd = (productId: string) => {
@@ -650,6 +659,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               onAutoLayout={handleAutoLayout}
               onAddTextNode={handleAddTextNode}
               onAddShapeNode={handleAddShapeNode}
+              onAddImageNode={handleAddImageNode}
             />
           ) : (
             <button
@@ -985,6 +995,40 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       )}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
       {adminOpen && <AdminSettings onClose={() => setAdminOpen(false)} />}
+      {imageImportOpen && (
+        <ImageImportModal
+          onClose={() => setImageImportOpen(false)}
+          onInsert={(src, srcType, layer) => {
+            let position = { x: 200, y: 200 };
+            try {
+              const vp = reactFlow.getViewport();
+              const canvas = document.querySelector(".react-flow") as HTMLElement | null;
+              if (canvas) {
+                const cw = canvas.clientWidth;
+                const ch = canvas.clientHeight;
+                position = {
+                  x: (cw / 2 - vp.x) / vp.zoom - 150,
+                  y: (ch / 2 - vp.y) / vp.zoom - 100,
+                };
+              }
+            } catch { /* fallback */ }
+            addImageNode({
+              position,
+              width: 300,
+              height: 200,
+              src,
+              srcType,
+              layer,
+              borderStyle: "none",
+              borderColor: "#000000",
+              borderWidth: 0,
+              borderRadius: 0,
+              opacity: 1,
+            });
+            setImageImportOpen(false);
+          }}
+        />
+      )}
       {unsavedModalOpen && (
         <UnsavedChangesModal
           saving={saving}

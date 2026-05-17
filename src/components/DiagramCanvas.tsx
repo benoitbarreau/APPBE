@@ -46,6 +46,7 @@ import { PageNode } from "./PageNode";
 import { CableEdge } from "./CableEdge";
 import { TextNodeComponent } from "./TextNode";
 import { ShapeNodeComponent } from "./ShapeNode";
+import { ImageNodeComponent } from "./ImageNode";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
 // ── Rendu des guides d'alignement (à l'intérieur du contexte ReactFlow) ──────
@@ -102,7 +103,7 @@ function AlignGuides({ guides }: { guides: Guide[] }) {
   );
 }
 
-const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent, shape: ShapeNodeComponent };
+const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent, shape: ShapeNodeComponent, image: ImageNodeComponent };
 const edgeTypes = { cable: CableEdge };
 
 export function DiagramCanvas({
@@ -114,6 +115,7 @@ export function DiagramCanvas({
   const cables = useAppStore((s) => s.cables);
   const textNodes = useAppStore((s) => s.textNodes);
   const shapeNodes = useAppStore((s) => s.shapeNodes);
+  const imageNodes = useAppStore((s) => s.imageNodes);
   const products = useAppStore((s) => s.products);
   const signals = useAppStore((s) => s.signals);
   const updateNode = useAppStore((s) => s.updateNode);
@@ -124,6 +126,7 @@ export function DiagramCanvas({
   const removeTextNode = useAppStore((s) => s.removeTextNode);
   const updateShapeNode = useAppStore((s) => s.updateShapeNode);
   const removeShapeNode = useAppStore((s) => s.removeShapeNode);
+  const updateImageNode = useAppStore((s) => s.updateImageNode);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
@@ -137,11 +140,12 @@ export function DiagramCanvas({
   const [guides, setGuides] = useState<Guide[]>([]);
   const snapTargetRef = useRef<{ x?: number; y?: number } | null>(null);
 
-  // ── Sélection locale (blocs texte et forme) — non persistée dans le store ──
+  // ── Sélection locale (blocs texte, forme et image) — non persistée dans le store ──
   // `selected: false` codé en dur empêchait le NodeResizer d'apparaître.
   // On track l'ID sélectionné ici pour le passer dans la prop `selected`.
   const [selectedTextNodeId,  setSelectedTextNodeId]  = useState<string | null>(null);
   const [selectedShapeNodeId, setSelectedShapeNodeId] = useState<string | null>(null);
+  const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(null);
 
   // ── Dimensions réelles des blocs produit (mesurées par React Flow) ──────────
   // Permet de calculer la grille de pages avec les vraies hauteurs au lieu des
@@ -244,9 +248,26 @@ export function DiagramCanvas({
       style: { width: sn.width, height: sn.height },
     }));
 
+    // Blocs image :
+    // - layer "background" → zIndex négatif (-800 + zOrder) : derrière les produits, devant les formes
+    // - layer "foreground" → zIndex positif (1500 + zOrder) : devant les produits, derrière les textes
+    const imageRfNodes = (imageNodes ?? []).map((img) => ({
+      id: img.id,
+      type: "image" as const,
+      position: img.position,
+      data: img as unknown as Record<string, unknown>,
+      selected: img.id === selectedImageNodeId,
+      zIndex: img.layer === "background" ? img.zOrder - 800 : 1500 + img.zOrder,
+      style: { width: img.width, height: img.height },
+    }));
+
+    const bgImages = imageRfNodes.filter((n) => (n.data as unknown as { layer: string }).layer === "background");
+    const fgImages = imageRfNodes.filter((n) => (n.data as unknown as { layer: string }).layer === "foreground");
+
     return [
       ...pages,
       ...shapeRfNodes,   // formes en arrière-plan (zIndex -1000 à ~-971)
+      ...bgImages,       // images arrière-plan (zIndex -800+)
       ...nodes.map((n) => ({
         id: n.id,
         type: "product",
@@ -254,12 +275,13 @@ export function DiagramCanvas({
         data: { nodeId: n.id },
         selected: n.id === selectedNodeId,
       })),
+      ...fgImages,       // images premier plan (zIndex 1500+)
       ...textRfNodes,    // textes au premier plan (zIndex 2000)
     ];
   // measuredVersion : compteur incrémenté quand React Flow mesure un bloc produit
   // → force le recalcul des pages avec les vraies dimensions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, textNodes, shapeNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, products, measuredVersion]);
+  }, [nodes, textNodes, shapeNodes, imageNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, selectedImageNodeId, products, measuredVersion]);
 
   // Helper : calcule guides d'alignement + cible de snap pour une position candidate.
   // Appelé depuis onNodeDrag (drag natif React Flow sur les blocs produit).
@@ -386,6 +408,7 @@ export function DiagramCanvas({
         const targetId  = "id" in change ? (change as { id: string }).id : null;
         const isTextNode  = !!targetId && textNodes.some((tn) => tn.id === targetId);
         const isShapeNode = !!targetId && (shapeNodes ?? []).some((sn) => sn.id === targetId);
+        const isImageNode = !!targetId && (imageNodes ?? []).some((n) => n.id === targetId);
         const isProduct   = !!targetId && nodes.some((n) => n.id === targetId);
 
         if (change.type === "position" && change.position) {
@@ -395,6 +418,8 @@ export function DiagramCanvas({
             updateTextNode(change.id, { position: updated.position });
           } else if (isShapeNode) {
             updateShapeNode(change.id, { position: updated.position });
+          } else if (isImageNode) {
+            updateImageNode(change.id, { position: updated.position });
           } else if (isProduct) {
             updateNode(updated.id, { position: updated.position });
           }
@@ -413,6 +438,11 @@ export function DiagramCanvas({
               });
             } else if (isShapeNode) {
               updateShapeNode(change.id, {
+                width:  Math.round(change.dimensions.width),
+                height: Math.round(change.dimensions.height),
+              });
+            } else if (isImageNode) {
+              updateImageNode(change.id, {
                 width:  Math.round(change.dimensions.width),
                 height: Math.round(change.dimensions.height),
               });
@@ -437,6 +467,8 @@ export function DiagramCanvas({
             removeTextNode(change.id);
           } else if (isShapeNode) {
             removeShapeNode(change.id);
+          } else if (isImageNode) {
+            // Les images se suppriment depuis la toolbar (bouton ✕) — on ignore ici
           } else if (isProduct) {
             removeNode(change.id);
             // Nettoyer la dimension mesurée du nœud supprimé
@@ -453,13 +485,15 @@ export function DiagramCanvas({
             setSelectedTextNodeId(change.selected ? change.id : null);
           } else if (isShapeNode) {
             setSelectedShapeNodeId(change.selected ? change.id : null);
+          } else if (isImageNode) {
+            setSelectedImageNodeId(change.selected ? change.id : null);
           } else if (isProduct) {
             setSelectedNode(change.selected ? change.id : null);
           }
         }
       }
     },
-    [rfNodes, nodes, textNodes, shapeNodes, updateNode, updateTextNode, updateShapeNode, removeNode, removeTextNode, removeShapeNode, setSelectedNode],
+    [rfNodes, nodes, textNodes, shapeNodes, imageNodes, updateNode, updateTextNode, updateShapeNode, updateImageNode, removeNode, removeTextNode, removeShapeNode, setSelectedNode],
   );
 
   const onEdgesChange = useCallback(
@@ -534,6 +568,7 @@ export function DiagramCanvas({
     window.dispatchEvent(new CustomEvent("exitTextEdit"));
     setSelectedTextNodeId(null);
     setSelectedShapeNodeId(null);
+    setSelectedImageNodeId(null);
   }, []);
 
   const onReconnect = useCallback(

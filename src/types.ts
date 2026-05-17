@@ -246,6 +246,7 @@ export interface Tab {
   zones: Zone[]
   textNodes?: TextNodeData[]
   shapeNodes?: ShapeNodeData[]
+  imageNodes?: ImageNodeData[]
   // ── Champs Tableau IP (présents pour onglets IP uniquement) ──────────
   rows?: IPTableRow[]
   network?: IPNetworkInfo
@@ -290,6 +291,27 @@ export const DEFAULT_IP_NETWORK: IPNetworkInfo = {
   dns: '',
   passerelle: '',
   ntp: '',
+}
+
+/** Bloc image importable (SVG, PNG, JPEG, GIF, WebP) positionnable sur le canvas. */
+export interface ImageNodeData {
+  id: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  /** Source encodée : 'base64' (data URL) ou 'url' (lien externe). */
+  srcType: 'base64' | 'url';
+  src: string;
+  /** Calque : 'background' (derrière les produits) ou 'foreground' (devant). */
+  layer: 'background' | 'foreground';
+  /** Ordre d'empilement entre images du même calque. */
+  zOrder: number;
+  borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  /** Opacité de 0 à 1. */
+  opacity: number;
 }
 
 /** Bloc forme (rectangle ou ellipse) positionnable sur le canvas.

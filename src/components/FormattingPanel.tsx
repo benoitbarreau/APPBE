@@ -5,9 +5,10 @@ interface FormattingPanelProps {
   onAutoLayout: () => void;
   onAddTextNode: () => void;
   onAddShapeNode: (shape: "rectangle" | "ellipse") => void;
+  onAddImageNode: () => void;
 }
 
-export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAddShapeNode }: FormattingPanelProps) {
+export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAddShapeNode, onAddImageNode }: FormattingPanelProps) {
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
   const shapeMenuWrapRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +76,15 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAdd
             </div>
           )}
         </div>
+
+        {/* Bouton "Image" */}
+        <button
+          className="formatting-panel-btn"
+          onClick={onAddImageNode}
+          title="Importer une image (PNG, JPEG, SVG, GIF, WebP)"
+        >
+          🖼 + Image
+        </button>
       </div>
     </div>
   );

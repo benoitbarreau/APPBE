@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   Cable,
+  ImageNodeData,
   IPNetworkInfo,
   IPTableColumnConfig,
   IPTableRow,
@@ -73,6 +74,7 @@ interface State {
   zones: Zone[];
   textNodes: TextNodeData[];
   shapeNodes: ShapeNodeData[];
+  imageNodes: ImageNodeData[];
   // ── Données partagées entre onglets ───────────────────────────────────
   signals: Record<string, SignalDef>;
   /** Configuration des colonnes du Tableau IP (ordre, visibilité, custom).
@@ -152,6 +154,12 @@ interface State {
   removeShapeNode: (id: string) => void;
   bringShapeForward: (id: string) => void;
   sendShapeBackward: (id: string) => void;
+
+  addImageNode: (image: Omit<ImageNodeData, 'id' | 'zOrder'>) => string;
+  updateImageNode: (id: string, patch: Partial<ImageNodeData>) => void;
+  removeImageNode: (id: string) => void;
+  bringImageForward: (id: string) => void;
+  sendImageBackward: (id: string) => void;
 
   addNode: (productId: string, position: { x: number; y: number }) => string;
   addBlankBlock: (position: { x: number; y: number }) => void;
@@ -324,12 +332,12 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
  * PAS pertinent — on conserve l'onglet tel quel.
  */
 // Les zones sont globales au projet (s.zones) — on ne les stocke PAS
-// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes/shapeNodes.
-const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes" | "shapeNodes">): Tab[] =>
+// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes/shapeNodes/imageNodes.
+const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes" | "shapeNodes" | "imageNodes">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes };
+    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes, imageNodes: s.imageNodes };
   });
 
 /**
@@ -383,6 +391,7 @@ export const useAppStore = create<State>()(
         cables: [],
         textNodes: [],
         shapeNodes: [],
+        imageNodes: [],
         signals: { ...DEFAULT_SIGNAL_DEFS },
         ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
         zones: [...DEFAULT_ZONES],
@@ -408,6 +417,7 @@ export const useAppStore = create<State>()(
               cables: [],
               textNodes: [],
               shapeNodes: [],
+              imageNodes: [],
               zones: [...DEFAULT_ZONES],
               selectedNodeId: null,
               selectedCableId: null,
@@ -631,6 +641,7 @@ export const useAppStore = create<State>()(
               cables: newActive.cables ?? [],
               textNodes: newActive.textNodes ?? [],
               shapeNodes: newActive.shapeNodes ?? [],
+              imageNodes: newActive.imageNodes ?? [],
               // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
@@ -865,6 +876,7 @@ export const useAppStore = create<State>()(
             // Zones globales : pas besoin de les copier par onglet.
             const newTextNodes = (source.textNodes ?? []).map((n) => ({ ...n, id: uid() }));
             const newShapeNodes = (source.shapeNodes ?? []).map((n) => ({ ...n, id: uid() }));
+            const newImageNodes = (source.imageNodes ?? []).map((n) => ({ ...n, id: uid() }));
             const newTab: Tab = {
               id: uid(),
               name: `Copie de ${source.name}`,
@@ -873,6 +885,7 @@ export const useAppStore = create<State>()(
               zones: [],
               textNodes: newTextNodes,
               shapeNodes: newShapeNodes,
+              imageNodes: newImageNodes,
             };
 
             // Insérer juste après l'onglet source
@@ -890,6 +903,7 @@ export const useAppStore = create<State>()(
               cables: newCables,
               textNodes: newTextNodes,
               shapeNodes: newShapeNodes,
+              imageNodes: newImageNodes,
               // s.zones inchangé (zones globales)
               selectedNodeId: null,
               selectedCableId: null,
@@ -936,6 +950,7 @@ export const useAppStore = create<State>()(
               cables: target.cables ?? [],
               textNodes: target.textNodes ?? [],
               shapeNodes: target.shapeNodes ?? [],
+              imageNodes: target.imageNodes ?? [],
               selectedNodeId: null,
               selectedCableId: null,
             };
@@ -1033,6 +1048,72 @@ export const useAppStore = create<State>()(
                 if (sn.id === id) return { ...sn, zOrder: nextLower.zOrder };
                 if (sn.id === nextLower.id) return { ...sn, zOrder: current.zOrder };
                 return sn;
+              }),
+            };
+          }),
+
+        // ── Blocs image ─────────────────────────────────────────────────
+
+        addImageNode: (image) => {
+          const id = uid();
+          set((s) => {
+            const images = s.imageNodes ?? [];
+            const sameLayer = images.filter((n) => n.layer === image.layer);
+            const maxOrder = sameLayer.length > 0
+              ? Math.max(...sameLayer.map((n) => n.zOrder))
+              : -1;
+            const newImage: ImageNodeData = {
+              ...image,
+              id,
+              zOrder: maxOrder + 1,
+            };
+            return { imageNodes: [...images, newImage] };
+          });
+          return id;
+        },
+
+        updateImageNode: (id, patch) =>
+          set((s) => ({
+            imageNodes: (s.imageNodes ?? []).map((n) => n.id === id ? { ...n, ...patch } : n),
+          })),
+
+        removeImageNode: (id) =>
+          set((s) => ({ imageNodes: (s.imageNodes ?? []).filter((n) => n.id !== id) })),
+
+        bringImageForward: (id) =>
+          set((s) => {
+            const images = s.imageNodes ?? [];
+            const current = images.find((n) => n.id === id);
+            if (!current) return {};
+            const sameLayer = images.filter((n) => n.layer === current.layer && n.id !== id);
+            const nextHigher = sameLayer
+              .filter((n) => n.zOrder > current.zOrder)
+              .sort((a, b) => a.zOrder - b.zOrder)[0];
+            if (!nextHigher) return {};
+            return {
+              imageNodes: images.map((n) => {
+                if (n.id === id) return { ...n, zOrder: nextHigher.zOrder };
+                if (n.id === nextHigher.id) return { ...n, zOrder: current.zOrder };
+                return n;
+              }),
+            };
+          }),
+
+        sendImageBackward: (id) =>
+          set((s) => {
+            const images = s.imageNodes ?? [];
+            const current = images.find((n) => n.id === id);
+            if (!current) return {};
+            const sameLayer = images.filter((n) => n.layer === current.layer && n.id !== id);
+            const nextLower = sameLayer
+              .filter((n) => n.zOrder < current.zOrder)
+              .sort((a, b) => b.zOrder - a.zOrder)[0];
+            if (!nextLower) return {};
+            return {
+              imageNodes: images.map((n) => {
+                if (n.id === id) return { ...n, zOrder: nextLower.zOrder };
+                if (n.id === nextLower.id) return { ...n, zOrder: current.zOrder };
+                return n;
               }),
             };
           }),
@@ -1428,6 +1509,7 @@ export const useAppStore = create<State>()(
             cables: activeTab.cables,
             textNodes: activeTab.textNodes ?? [],
             shapeNodes: activeTab.shapeNodes ?? [],
+            imageNodes: activeTab.imageNodes ?? [],
             zones: projectZones,
             signals: effectiveSignals,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
@@ -1457,6 +1539,7 @@ export const useAppStore = create<State>()(
             cables: [],
             textNodes: [],
             shapeNodes: [],
+            imageNodes: [],
             zones: [...DEFAULT_ZONES],
             ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
