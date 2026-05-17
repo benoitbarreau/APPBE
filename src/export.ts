@@ -560,8 +560,8 @@ function drawCableEntry(
   const midY   = Math.round(ey + eh / 2);
   const lineX1 = ex + pad;
   const lineX2 = ex + ew - pad;
-  const arrLen = 6 * sc;    // flèche plus petite
-  const arrH   = 3 * sc;
+  const arrLen = 3 * sc;    // flèche réduite de moitié
+  const arrH   = 1.5 * sc;
 
   // Ligne colorée
   ctx.strokeStyle = def.color;
@@ -624,19 +624,16 @@ function drawCableLegend(
   const bodyY = ly + hdrH;
   const bodyH = lh - hdrH;
 
-  // Fond blanc + bordure extérieure
+  // Fond blanc + bordure extérieure (même visuel que le cartouche de droite)
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(lx, ly, lw, lh);
   ctx.strokeStyle = "#000000";
   ctx.lineWidth   = bw;
   ctx.strokeRect(lx + bw / 2, ly + bw / 2, lw - bw, lh - bw);
 
-  // En-tête bleu foncé (identique au cartouche)
-  ctx.fillStyle = "#1c2a4a";
-  ctx.fillRect(lx + bw / 2, ly + bw / 2, lw - bw, hdrH - bw / 2);
-
+  // En-tête : fond blanc, texte noir gras (même police/taille que les lignes du cartouche)
   ctx.font         = `bold ${11 * sc}px Arial, sans-serif`;
-  ctx.fillStyle    = "#ffffff";
+  ctx.fillStyle    = "#000000";
   ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("LÉGENDE DES LIAISONS CÂBLES", lx + lw / 2, ly + hdrH / 2);
