@@ -839,7 +839,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 <button
                   className="tab-name"
                   draggable={false}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    // Fit view automatique sur les onglets synoptiques uniquement
+                    if (!isIPTableTab(tab) && !isBayTab(tab)) {
+                      requestAnimationFrame(() =>
+                        requestAnimationFrame(() =>
+                          setTimeout(() => reactFlow.fitView({ duration: 300, padding: 0.08 }), 50)
+                        )
+                      );
+                    }
+                  }}
                   onDoubleClick={() => startTabEdit(tab.id, tab.name)}
                   title="Double-clic pour renommer"
                 >
