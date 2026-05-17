@@ -27,11 +27,11 @@ const IP_DUP_COLS = new Set(["ip", "ipDante", "ipDanteSec"]);
 
 interface NetworkField { key: keyof typeof NET_FIELDS; label: string }
 const NET_FIELDS = {
-  plageIp: "PLAGE IP", dhcp: "DHCP", dns: "DNS",
+  plageIp: "PLAGE IP", dhcp: "MASQUE", dns: "DNS",
   passerelle: "PASSERELLE", ntp: "NTP",
 } as const;
 const NET_LIST: NetworkField[] = [
-  { key: "plageIp", label: "PLAGE IP" }, { key: "dhcp",      label: "DHCP" },
+  { key: "plageIp", label: "PLAGE IP" }, { key: "dhcp",      label: "MASQUE" },
   { key: "dns",     label: "DNS" },      { key: "passerelle", label: "PASSERELLE" },
   { key: "ntp",     label: "NTP" },
 ];
