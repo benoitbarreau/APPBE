@@ -560,12 +560,12 @@ function drawCableEntry(
   const midY   = Math.round(ey + eh / 2);
   const lineX1 = ex + pad;
   const lineX2 = ex + ew - pad;
-  const arrLen = 3 * sc;    // flèche réduite de moitié
-  const arrH   = 1.5 * sc;
+  const arrLen = 5 * sc;    // flèche petite mais visible
+  const arrH   = 2.5 * sc;
 
   // Ligne colorée
   ctx.strokeStyle = def.color;
-  ctx.lineWidth   = 2 * sc;
+  ctx.lineWidth   = 1.5 * sc;
   ctx.beginPath();
   ctx.moveTo(lineX1, midY);
   ctx.lineTo(lineX2, midY);
