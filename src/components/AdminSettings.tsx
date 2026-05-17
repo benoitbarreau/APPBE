@@ -384,8 +384,8 @@ export function AdminSettings({ onClose }: { onClose: () => void }) {
                 <div className="help-contact">
                   <strong>Une question ?</strong>
                   <br />
-                  <a href="mailto:contact@videosynergie.com">
-                    contact@videosynergie.com
+                  <a href="mailto:admin.synox@gmail.com">
+                    admin.synox@gmail.com
                   </a>
                 </div>
               </div>
