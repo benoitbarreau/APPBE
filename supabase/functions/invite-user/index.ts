@@ -24,7 +24,7 @@ const CORS_HEADERS = {
 }
 
 const APP_URL = 'https://benoitbarreau.github.io/APPBE/'
-const FROM_EMAIL = 'SynoX-AV <onboarding@resend.dev>'
+const FROM_EMAIL = 'SynoX-AV <noreply@videosynergie.com>'
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
