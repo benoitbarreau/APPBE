@@ -2,15 +2,16 @@
  * Edge Function : invite-user
  *
  * Permet à un administrateur de créer un compte utilisateur de deux façons :
- *   - "invite"   → envoie un email d'invitation avec un lien de définition de MDP
+ *   - "invite"   → génère un lien d'invitation et l'envoie via l'API Resend
  *   - "password" → crée le compte directement avec un mot de passe provisoire
  *
  * Corps de la requête POST :
  *   { email: string, role: "user"|"admin", fullName?: string,
  *     method: "invite"|"password", password?: string }
  *
- * Variables d'environnement Supabase (automatiquement disponibles) :
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Secrets Supabase requis (partagés avec notify-admin-new-user) :
+ *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  — injectés automatiquement
+ *   RESEND_API_KEY                            — clé API Resend
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -22,6 +23,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const APP_URL = 'https://benoitbarreau.github.io/APPBE/'
+const FROM_EMAIL = 'SynoX-AV <onboarding@resend.dev>'
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -29,18 +33,82 @@ function json(body: unknown, status = 200) {
   })
 }
 
-serve(async (req: Request) => {
-  // Preflight CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS })
-  }
+function inviteEmailHtml(inviteLink: string, fullName?: string): string {
+  const greeting = fullName ? `Bonjour ${fullName},` : 'Bonjour,'
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f6f8;font-family:system-ui,-apple-system,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+        <tr>
+          <td style="background:#1e40af;padding:24px 32px">
+            <span style="color:#fff;font-size:20px;font-weight:700">SynoX-AV</span>
+            <span style="color:#93c5fd;font-size:14px;margin-left:12px">Invitation</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Invitation à rejoindre SynoX-AV</h2>
+            <p style="margin:0 0 8px;color:#6b7280;font-size:14px">${greeting}</p>
+            <p style="margin:0 0 24px;color:#6b7280;font-size:14px">
+              Vous avez été invité(e) à accéder à la plateforme SynoX-AV de création de synoptiques audiovisuels.
+              Cliquez sur le bouton ci-dessous pour créer votre mot de passe et accéder à votre compte.
+            </p>
+            <a href="${inviteLink}"
+               style="display:inline-block;padding:12px 24px;background:#1e40af;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">
+              Accepter l'invitation →
+            </a>
+            <p style="margin:24px 0 0;color:#9ca3af;font-size:12px">
+              Ce lien est valable 24 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb">
+            <p style="margin:0;color:#9ca3af;font-size:12px">
+              Cet e-mail a été envoyé automatiquement par SynoX-AV. Ne pas y répondre.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
 
-  if (req.method !== 'POST') {
-    return json({ error: 'Méthode non autorisée' }, 405)
+async function sendInviteEmail(
+  resendKey: string,
+  to: string,
+  inviteLink: string,
+  fullName?: string,
+): Promise<void> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [to],
+      subject: 'Vous avez été invité(e) à utiliser SynoX-AV',
+      html: inviteEmailHtml(inviteLink, fullName),
+    }),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Resend API error: ${errText}`)
   }
+}
+
+serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+  if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
 
   try {
-    // ── Lecture du corps ───────────────────────────────────────────────
     const { email, role, fullName, method, password } = await req.json() as {
       email?: string
       role?: 'user' | 'admin'
@@ -56,28 +124,22 @@ serve(async (req: Request) => {
       return json({ error: 'Le mot de passe provisoire doit faire au moins 6 caractères' }, 400)
     }
 
-    // ── Client admin (SERVICE_ROLE — bypass RLS) ───────────────────────
+    // ── Client admin (SERVICE_ROLE) ────────────────────────────────────
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
-    // ── Vérifier que l'appelant est un admin authentifié ──────────────
-    const authHeader = req.headers.get('Authorization') ?? ''
-    const token = authHeader.replace('Bearer ', '').trim()
-
+    // ── Vérifier que l'appelant est admin ──────────────────────────────
+    const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '').trim()
     if (!token) return json({ error: 'Non authentifié' }, 401)
 
     const { data: { user: caller }, error: callerErr } = await supabaseAdmin.auth.getUser(token)
     if (callerErr || !caller) return json({ error: 'Non authentifié' }, 401)
 
     const { data: callerProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', caller.id)
-      .single()
-
+      .from('profiles').select('role').eq('id', caller.id).single()
     if (callerProfile?.role !== 'admin') {
       return json({ error: 'Accès refusé : réservé aux administrateurs' }, 403)
     }
@@ -86,15 +148,24 @@ serve(async (req: Request) => {
     let userId: string
 
     if (method === 'invite') {
-      // Envoie un email d'invitation avec un lien pour définir le MDP
-      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName ?? null },
-        redirectTo: 'https://benoitbarreau.github.io/APPBE/',
+      // Générer le lien d'invitation (ne déclenche pas de SMTP Supabase)
+      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: {
+          redirectTo: APP_URL,
+          data: { full_name: fullName ?? null },
+        },
       })
-      if (error) throw error
-      userId = data.user.id
+      if (linkErr) throw linkErr
+      userId = linkData.user.id
+
+      // Envoyer l'email via l'API Resend (pas de SMTP)
+      const resendKey = Deno.env.get('RESEND_API_KEY') ?? ''
+      if (!resendKey) throw new Error('RESEND_API_KEY non configuré dans les secrets Supabase')
+      await sendInviteEmail(resendKey, email, linkData.properties.action_link, fullName)
     } else {
-      // Crée le compte directement avec mot de passe provisoire
+      // Création directe avec mot de passe provisoire
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
@@ -105,9 +176,7 @@ serve(async (req: Request) => {
       userId = data.user.id
     }
 
-    // ── Mise à jour du profil (créé par le trigger handle_new_user) ────
-    // On attend 600 ms que le trigger INSERT INTO profiles se propage,
-    // puis on upsert pour être sûr d'avoir les bonnes valeurs de rôle.
+    // ── Mise à jour du profil ──────────────────────────────────────────
     await new Promise<void>(resolve => setTimeout(resolve, 600))
 
     await supabaseAdmin.from('profiles').upsert({
