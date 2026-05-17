@@ -11,6 +11,7 @@ import {
 import type { CatalogBrand, CatalogCategory } from '../lib/catalogMetaApi'
 import type { InviteMethod } from '../lib/inviteApi'
 import { inviteUser, generatePassword } from '../lib/inviteApi'
+import { UserEditModal } from '../components/auth/UserEditModal'
 import { useAppStore, useCatalogMeta } from '../store'
 import { BUILTIN_CATALOG } from '../catalog'
 import {
@@ -368,6 +369,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [editingProfile, setEditingProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
     setLoadingUsers(true)
@@ -392,6 +394,11 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const deleteUser = async (id: string) => {
     await supabase.rpc('admin_delete_user', { target_user_id: id })
     setProfiles(prev => prev.filter(p => p.id !== id))
+  }
+
+  const handleUserSaved = (updated: Profile) => {
+    setProfiles(prev => prev.map(p => p.id === updated.id ? updated : p))
+    // Ne pas fermer la modal pour permettre de continuer l'édition
   }
 
   const filtered = filterStatus === 'all' ? profiles : profiles.filter(p => p.status === filterStatus)
@@ -667,6 +674,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                     onUpdateStatus={updateStatus}
                     onUpdateRole={updateRole}
                     onDeleteUser={deleteUser}
+                    onEditUser={setEditingProfile}
                   />
               }
             </>
@@ -897,6 +905,16 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
           <button onClick={onClose}>Fermer</button>
         </div>
       </div>
+
+      {/* ── Modal d'édition utilisateur ── */}
+      {editingProfile && (
+        <UserEditModal
+          profile={editingProfile}
+          isSelf={editingProfile.id === currentProfile?.id}
+          onClose={() => setEditingProfile(null)}
+          onSaved={handleUserSaved}
+        />
+      )}
     </div>
   )
 }

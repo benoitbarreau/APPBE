@@ -27,12 +27,14 @@ export function UserTable({
   onUpdateStatus,
   onUpdateRole,
   onDeleteUser,
+  onEditUser,
 }: {
   profiles: Profile[]
   currentUserId: string
   onUpdateStatus: (id: string, status: UserStatus) => Promise<void>
   onUpdateRole: (id: string, role: UserRole) => Promise<void>
   onDeleteUser: (id: string) => Promise<void>
+  onEditUser: (profile: Profile) => void
 }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -113,59 +115,68 @@ export function UserTable({
                   {fmtLastLogin(p.last_sign_in_at)}
                 </td>
                 <td>
-                  {isSelf ? (
-                    <span className="muted user-table-self-label">Votre compte</span>
-                  ) : (
-                    <div className="user-table-actions">
-                      {p.status !== 'approved' && (
-                        <button
-                          className="primary"
-                          onClick={() => void onUpdateStatus(p.id, 'approved')}
-                        >
-                          Valider
-                        </button>
-                      )}
-                      {p.status !== 'rejected' && (
-                        <button
-                          className="danger"
-                          onClick={() => void onUpdateStatus(p.id, 'rejected')}
-                        >
-                          Refuser
-                        </button>
-                      )}
-                      {p.status !== 'pending' && (
-                        <button onClick={() => void onUpdateStatus(p.id, 'pending')}>
-                          En attente
-                        </button>
-                      )}
+                  <div className="user-table-actions">
+                    {/* Bouton Modifier — disponible pour tous, y compris son propre compte */}
+                    <button
+                      className="user-table-edit-btn"
+                      onClick={() => onEditUser(p)}
+                      title="Modifier ce compte"
+                    >
+                      ✎ Modifier
+                    </button>
 
-                      {/* Suppression — uniquement pour les utilisateurs refusés */}
-                      {p.status === 'rejected' && !isConfirming && (
-                        <button
-                          className="danger"
-                          title="Supprimer définitivement ce compte"
-                          onClick={() => setConfirmDeleteId(p.id)}
-                        >
-                          🗑
-                        </button>
-                      )}
-                      {p.status === 'rejected' && isConfirming && (
-                        <div className="user-table-confirm-delete">
-                          <span>Supprimer&nbsp;?</span>
+                    {!isSelf && (
+                      <>
+                        {p.status !== 'approved' && (
+                          <button
+                            className="primary"
+                            onClick={() => void onUpdateStatus(p.id, 'approved')}
+                          >
+                            Valider
+                          </button>
+                        )}
+                        {p.status !== 'rejected' && (
                           <button
                             className="danger"
-                            disabled={deleting}
-                            onClick={() => void handleDelete(p.id)}
+                            onClick={() => void onUpdateStatus(p.id, 'rejected')}
                           >
-                            Oui
+                            Refuser
                           </button>
-                          <button onClick={() => setConfirmDeleteId(null)}>
-                            Non
+                        )}
+                        {p.status !== 'pending' && (
+                          <button onClick={() => void onUpdateStatus(p.id, 'pending')}>
+                            En attente
                           </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+
+                        {/* Suppression — uniquement pour les utilisateurs refusés */}
+                        {p.status === 'rejected' && !isConfirming && (
+                          <button
+                            className="danger"
+                            title="Supprimer définitivement ce compte"
+                            onClick={() => setConfirmDeleteId(p.id)}
+                          >
+                            🗑
+                          </button>
+                        )}
+                        {p.status === 'rejected' && isConfirming && (
+                          <div className="user-table-confirm-delete">
+                            <span>Supprimer&nbsp;?</span>
+                            <button
+                              className="danger"
+                              disabled={deleting}
+                              onClick={() => void handleDelete(p.id)}
+                            >
+                              Oui
+                            </button>
+                            <button onClick={() => setConfirmDeleteId(null)}>
+                              Non
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
