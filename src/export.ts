@@ -547,23 +547,25 @@ function getPageSignalDefs(
   return Object.values(signals).filter((def) => signalIds.has(def.id));
 }
 
-/** Dessine une entrée câble : ligne colorée + flèche + badge centré. */
+/** Dessine une entrée câble : ligne colorée + flèche + badge centré.
+ *  Le texte affiché est def.defaultCable (colonne "Type de câble par défaut"). */
 function drawCableEntry(
   ctx: CanvasRenderingContext2D,
   def: SignalDef,
   ex: number, ey: number, ew: number, eh: number,
   sc: number,
 ): void {
-  const pad    = 12 * sc;
+  const text   = def.defaultCable || def.label;   // texte du badge
+  const pad    = 10 * sc;
   const midY   = Math.round(ey + eh / 2);
   const lineX1 = ex + pad;
   const lineX2 = ex + ew - pad;
-  const arrLen = 9 * sc;
-  const arrH   = 4.5 * sc;
+  const arrLen = 6 * sc;    // flèche plus petite
+  const arrH   = 3 * sc;
 
   // Ligne colorée
   ctx.strokeStyle = def.color;
-  ctx.lineWidth   = 2.5 * sc;
+  ctx.lineWidth   = 2 * sc;
   ctx.beginPath();
   ctx.moveTo(lineX1, midY);
   ctx.lineTo(lineX2, midY);
@@ -580,15 +582,15 @@ function drawCableEntry(
 
   // Badge centré sur la ligne
   ctx.font = `bold ${11 * sc}px Arial, sans-serif`;
-  const textW  = ctx.measureText(def.label).width;
-  const bPadX  = 7 * sc;
-  const bPadY  = 3 * sc;
-  const bW     = textW + bPadX * 2;
-  const bH     = 13 * sc + bPadY * 2;
+  const textW   = ctx.measureText(text).width;
+  const bPadX   = 6 * sc;
+  const bPadY   = 2.5 * sc;
+  const bW      = textW + bPadX * 2;
+  const bH      = 13 * sc + bPadY * 2;
   const badgeCX = Math.round((lineX1 + lineX2) / 2);
   const badgeX  = badgeCX - Math.round(bW / 2);
   const badgeY  = midY - Math.round(bH / 2);
-  const radius  = 3 * sc;
+  const radius  = 2.5 * sc;
 
   // Fond blanc (efface la ligne derrière le badge)
   ctx.fillStyle = "#ffffff";
@@ -597,15 +599,15 @@ function drawCableEntry(
 
   // Bordure colorée
   ctx.strokeStyle = def.color;
-  ctx.lineWidth   = 1.5 * sc;
+  ctx.lineWidth   = sc;
   rrPath(ctx, badgeX, badgeY, bW, bH, radius);
   ctx.stroke();
 
-  // Texte du label
+  // Texte
   ctx.fillStyle    = def.color;
   ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(def.label, badgeCX, midY);
+  ctx.fillText(text, badgeCX, midY);
   ctx.textAlign    = "left";
   ctx.textBaseline = "alphabetic";
 }
@@ -649,10 +651,11 @@ function drawCableLegend(
   ctx.lineTo(lx + lw, bodyY);
   ctx.stroke();
 
-  // Grille d'entrées : max 5 colonnes, autant de lignes que nécessaire
+  // Grille d'entrées équilibrée (max 5 colonnes, remplissage uniforme)
+  // ROWS = ceil(N/5), COLS = ceil(N/ROWS) → minimum de cases vides
   const N    = defs.length;
-  const COLS = Math.min(N, 5);
-  const ROWS = Math.ceil(N / COLS);
+  const ROWS = Math.max(1, Math.ceil(N / 5));
+  const COLS = Math.ceil(N / ROWS);
   const entW = lw / COLS;
   const entH = bodyH / ROWS;
 
@@ -663,6 +666,13 @@ function drawCableLegend(
       entW, entH, sc,
     );
   }
+}
+
+/** Nombre de colonnes optimal pour N entrées (max 5 col, remplissage uniforme). */
+function legendCols(N: number): number {
+  if (N === 0) return 0;
+  const rows = Math.max(1, Math.ceil(N / 5));
+  return Math.ceil(N / rows);
 }
 
 // ── Composition d'une page A3 ─────────────────────────────────────────────
@@ -701,8 +711,10 @@ async function composePage(
     await drawCartouche(ctx, cartouche, carX, botY, carW, botH, sc);
   }
 
-  // Légende câbles (gauche, 42 % si des câbles sont présents sur la page)
-  const legW = signalDefs.length > 0 ? Math.round(W * 0.42) : 0;
+  // Légende câbles : largeur adaptative = COLS × largeur_colonne (max ~40 % sur 5 col)
+  const ENTRY_COL_W = Math.round(W * 0.40 / 5);   // ~396 px (2x) par colonne
+  const legColCount = legendCols(signalDefs.length);
+  const legW = legColCount > 0 ? legColCount * ENTRY_COL_W : 0;
   if (legW > 0) {
     drawCableLegend(ctx, signalDefs, 0, botY, legW, botH, sc);
   }
