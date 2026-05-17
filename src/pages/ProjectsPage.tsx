@@ -5,6 +5,7 @@ import { listProjects, fetchProject, deleteProject, saveProject, setProjectArchi
 import type { ProjectRow, VersionMeta } from '../lib/projectsApi'
 import { ShareModal } from '../components/ShareModal'
 import { AdminSettings } from '../components/AdminSettings'
+import type { Panel } from '../components/AdminSettings'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -21,7 +22,7 @@ const fmt = (iso: string) =>
   })
 
 export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion }: Props) {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, isPasswordRecovery, clearPasswordRecovery } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -31,6 +32,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   const [creatingNew, setCreatingNew] = useState(false)
   const [shareProject, setShareProject] = useState<{ id: string; name: string } | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [accountInitialPanel, setAccountInitialPanel] = useState<Panel>('info')
   const [search, setSearch] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [sharedExpanded, setSharedExpanded] = useState(false)
@@ -58,6 +60,15 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   }
 
   useEffect(() => { loadProjects(showArchived) }, [showArchived])
+
+  // Ouvre automatiquement "Mon compte / Mot de passe" après un clic sur "Mot de passe oublié"
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setAccountInitialPanel('password')
+      setAccountOpen(true)
+      clearPasswordRecovery()
+    }
+  }, [isPasswordRecovery]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focus auto sur l'input quand le dialog s'ouvre
   useEffect(() => {
@@ -462,7 +473,10 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
 
       {/* ── Modal Mon compte ── */}
       {accountOpen && (
-        <AdminSettings onClose={() => setAccountOpen(false)} />
+        <AdminSettings
+          onClose={() => { setAccountOpen(false); setAccountInitialPanel('info'); }}
+          initialPanel={accountInitialPanel}
+        />
       )}
     </div>
   )

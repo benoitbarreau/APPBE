@@ -34,6 +34,10 @@ interface AuthContextValue {
   signUp: (email: string, password: string, fullName: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  /** Vrai quand l'utilisateur vient de cliquer sur un lien "Mot de passe oublié". */
+  isPasswordRecovery: boolean
+  /** À appeler après avoir ouvert la modal de changement de mot de passe. */
+  clearPasswordRecovery: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -107,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initError, setInitError] = useState<string | null>(null)
   /** Compteur incrémenté pour forcer un nouveau bootstrap. */
   const [retryToken, setRetryToken] = useState(0)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
   // UserId pour lequel le profil a déjà été chargé avec succès
   const profileFetchedFor = useRef<string | null>(null)
@@ -192,6 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return
       if (event === 'INITIAL_SESSION') return
 
+      // Lien "Mot de passe oublié" cliqué → signaler à l'UI
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+      }
+
       const currentUser = session?.user ?? null
       setUser(currentUser)
 
@@ -232,6 +242,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setInitError(null)
     setRetryToken((n) => n + 1)
   }
+
+  const clearPasswordRecovery = () => setIsPasswordRecovery(false)
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -295,6 +307,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signOut,
         refreshProfile,
+        isPasswordRecovery,
+        clearPasswordRecovery,
       }}
     >
       {children}

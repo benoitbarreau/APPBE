@@ -2,11 +2,11 @@ import { useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/useAuth";
 
-type Panel = "info" | "name" | "password" | "company" | "help";
+export type Panel = "info" | "name" | "password" | "company" | "help";
 
-export function AdminSettings({ onClose }: { onClose: () => void }) {
+export function AdminSettings({ onClose, initialPanel = "info" }: { onClose: () => void; initialPanel?: Panel }) {
   const { user, profile, signOut, refreshProfile } = useAuth();
-  const [panel, setPanel] = useState<Panel>("info");
+  const [panel, setPanel] = useState<Panel>(initialPanel);
 
   // L'utilisateur est "externe" si son email n'est pas @videosynergie.com
   const isExternal = !(user?.email ?? "").endsWith("@videosynergie.com");
