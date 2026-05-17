@@ -2659,6 +2659,16 @@ select {
   text-align: center;
   line-height: 1.5;
 }
+.auth-hint-spam {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
 
 .auth-divider {
   height: 1px;

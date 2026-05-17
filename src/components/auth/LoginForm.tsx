@@ -66,6 +66,9 @@ export function LoginForm() {
           <div className="auth-success">
             Si ce compte existe, un email de réinitialisation a été envoyé.
           </div>
+          <div className="auth-hint-spam">
+            📧 Pensez à vérifier vos <strong>courriers indésirables</strong> ou <strong>spams</strong> si vous ne recevez rien dans les prochaines minutes.
+          </div>
           <button
             className="auth-btn-secondary"
             style={{ width: '100%' }}
