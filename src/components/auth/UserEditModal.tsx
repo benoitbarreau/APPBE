@@ -12,10 +12,12 @@ interface UserEditModalProps {
 
 export function UserEditModal({ profile, isSelf, onClose, onSaved }: UserEditModalProps) {
   // ── Champs du compte ─────────────────────────────────────────────
-  const [fullName, setFullName] = useState(profile.full_name ?? '')
-  const [email,    setEmail]    = useState(profile.email)
-  const [role,     setRole]     = useState<UserRole>(profile.role)
-  const [status,   setStatus]   = useState<UserStatus>(profile.status)
+  const [fullName,       setFullName]       = useState(profile.full_name ?? '')
+  const [email,          setEmail]          = useState(profile.email)
+  const [role,           setRole]           = useState<UserRole>(profile.role)
+  const [status,         setStatus]         = useState<UserStatus>(profile.status)
+  const [companyName,    setCompanyName]    = useState(profile.company_name ?? '')
+  const [companyLogoUrl, setCompanyLogoUrl] = useState(profile.company_logo_url ?? '')
 
   const [savingInfo,  setSavingInfo]  = useState(false)
   const [infoError,   setInfoError]   = useState<string | null>(null)
@@ -39,10 +41,15 @@ export function UserEditModal({ profile, isSelf, onClose, onSaved }: UserEditMod
       const trimmedEmail = email.trim()
       const trimmedName  = fullName.trim()
 
-      if (trimmedEmail && trimmedEmail !== profile.email) updates.email = trimmedEmail
-      if (trimmedName !== (profile.full_name ?? ''))       updates.fullName = trimmedName || null
-      if (role   !== profile.role)   updates.role = role
-      if (status !== profile.status) updates.status = status
+      const trimmedCompany = companyName.trim()
+      const trimmedLogo    = companyLogoUrl.trim()
+
+      if (trimmedEmail && trimmedEmail !== profile.email)           updates.email = trimmedEmail
+      if (trimmedName !== (profile.full_name ?? ''))                updates.fullName = trimmedName || null
+      if (role   !== profile.role)                                  updates.role = role
+      if (status !== profile.status)                                updates.status = status
+      if (trimmedCompany !== (profile.company_name ?? ''))          updates.companyName = trimmedCompany || null
+      if (trimmedLogo    !== (profile.company_logo_url ?? ''))      updates.companyLogoUrl = trimmedLogo || null
 
       if (Object.keys(updates).length === 0) {
         setSavingInfo(false)
@@ -53,10 +60,12 @@ export function UserEditModal({ profile, isSelf, onClose, onSaved }: UserEditMod
 
       const updatedProfile: Profile = {
         ...profile,
-        full_name: updates.fullName !== undefined ? (updates.fullName ?? null) : profile.full_name,
-        email:     updates.email    !== undefined ? updates.email              : profile.email,
-        role:      updates.role     !== undefined ? updates.role               : profile.role,
-        status:    updates.status   !== undefined ? updates.status             : profile.status,
+        full_name:        updates.fullName       !== undefined ? (updates.fullName ?? null)       : profile.full_name,
+        email:            updates.email          !== undefined ? updates.email                     : profile.email,
+        role:             updates.role           !== undefined ? updates.role                      : profile.role,
+        status:           updates.status         !== undefined ? updates.status                    : profile.status,
+        company_name:     updates.companyName    !== undefined ? (updates.companyName ?? null)     : profile.company_name,
+        company_logo_url: updates.companyLogoUrl !== undefined ? (updates.companyLogoUrl ?? null)  : profile.company_logo_url,
       }
       onSaved(updatedProfile)
       setInfoSuccess(true)
@@ -132,6 +141,41 @@ export function UserEditModal({ profile, isSelf, onClose, onSaved }: UserEditMod
                 value={email}
                 onChange={e => setEmail(e.target.value)}
               />
+            </div>
+
+            <div className="user-edit-row-2col">
+              <div className="user-edit-field">
+                <label className="user-edit-label">Société</label>
+                <input
+                  type="text"
+                  className="user-edit-input"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  placeholder="Nom de la société"
+                />
+              </div>
+
+              <div className="user-edit-field">
+                <label className="user-edit-label">URL du logo</label>
+                <div className="user-edit-logo-row">
+                  {companyLogoUrl.trim() && (
+                    <img
+                      src={companyLogoUrl.trim()}
+                      alt="Logo"
+                      className="user-edit-logo-preview"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      onLoad={e => { (e.target as HTMLImageElement).style.display = '' }}
+                    />
+                  )}
+                  <input
+                    type="url"
+                    className="user-edit-input"
+                    value={companyLogoUrl}
+                    onChange={e => setCompanyLogoUrl(e.target.value)}
+                    placeholder="https://…/logo.png"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="user-edit-row-2col">

@@ -6,6 +6,8 @@ export interface AdminUserUpdates {
   fullName?: string | null
   role?: 'user' | 'admin'
   status?: 'pending' | 'approved' | 'rejected'
+  companyName?: string | null
+  companyLogoUrl?: string | null
 }
 
 /**
@@ -22,11 +24,13 @@ export async function adminUpdateUser(
   }>('admin-update-user', {
     body: {
       userId,
-      email:    updates.email,
-      password: updates.password,
-      fullName: updates.fullName,
-      role:     updates.role,
-      status:   updates.status,
+      email:          updates.email,
+      password:       updates.password,
+      fullName:       updates.fullName,
+      role:           updates.role,
+      status:         updates.status,
+      companyName:    updates.companyName,
+      companyLogoUrl: updates.companyLogoUrl,
     },
   })
 

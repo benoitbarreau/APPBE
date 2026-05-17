@@ -43,13 +43,15 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
 
   try {
-    const { userId, email, password, fullName, role, status } = await req.json() as {
+    const { userId, email, password, fullName, role, status, companyName, companyLogoUrl } = await req.json() as {
       userId?: string
       email?: string
       password?: string
       fullName?: string | null
       role?: 'user' | 'admin'
       status?: 'pending' | 'approved' | 'rejected'
+      companyName?: string | null
+      companyLogoUrl?: string | null
     }
 
     if (!userId) {
@@ -100,6 +102,8 @@ serve(async (req: Request) => {
     if (fullName !== undefined) profileUpdates.full_name = fullName?.trim() || null
     if (role !== undefined) profileUpdates.role = role
     if (status !== undefined) profileUpdates.status = status
+    if (companyName !== undefined) profileUpdates.company_name = companyName?.trim() || null
+    if (companyLogoUrl !== undefined) profileUpdates.company_logo_url = companyLogoUrl?.trim() || null
 
     if (Object.keys(profileUpdates).length > 0) {
       const { error: profileErr } = await supabaseAdmin
