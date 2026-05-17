@@ -33,6 +33,8 @@ function json(body: unknown, status = 200) {
   })
 }
 
+const GUIDE_URL = 'https://benoitbarreau.github.io/APPBE/guide-utilisateur.html'
+
 function inviteEmailHtml(inviteLink: string, fullName?: string): string {
   const greeting = fullName ? `Bonjour ${fullName},` : 'Bonjour,'
   return `<!DOCTYPE html>
@@ -50,18 +52,35 @@ function inviteEmailHtml(inviteLink: string, fullName?: string): string {
         </tr>
         <tr>
           <td style="padding:32px">
-            <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Invitation à rejoindre SynoX-AV</h2>
-            <p style="margin:0 0 8px;color:#6b7280;font-size:14px">${greeting}</p>
-            <p style="margin:0 0 24px;color:#6b7280;font-size:14px">
-              Vous avez été invité(e) à accéder à la plateforme SynoX-AV de création de synoptiques audiovisuels.
-              Cliquez sur le bouton ci-dessous pour créer votre mot de passe et accéder à votre compte.
+            <h2 style="margin:0 0 16px;font-size:18px;color:#111827">Invitation à rejoindre SynoX-AV</h2>
+            <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6">${greeting}</p>
+            <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6">
+              Vous avez été invité(e) à créer un compte utilisateur sur
+              <a href="${APP_URL}" style="color:#1e40af">${APP_URL}</a>.
+            </p>
+            <p style="margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6">
+              Pour accepter cette invitation et finaliser la création de votre compte,
+              cliquez sur le lien ci-dessous :
             </p>
             <a href="${inviteLink}"
                style="display:inline-block;padding:12px 24px;background:#1e40af;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">
               Accepter l'invitation →
             </a>
-            <p style="margin:24px 0 0;color:#9ca3af;font-size:12px">
-              Ce lien est valable 24 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+            <p style="margin:24px 0 12px;color:#374151;font-size:14px;line-height:1.6">
+              Vous pouvez également consulter le guide utilisateur de SynoX-AV
+              en cliquant sur le lien suivant :
+            </p>
+            <a href="${GUIDE_URL}"
+               style="color:#1e40af;font-size:14px;font-weight:500">
+              Consulter le guide utilisateur
+            </a>
+            <p style="margin:24px 0 12px;color:#6b7280;font-size:13px;line-height:1.6">
+              Si vous n'êtes pas à l'origine de cette demande ou si vous pensez avoir reçu
+              cet e-mail par erreur, vous pouvez simplement l'ignorer.
+            </p>
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6">
+              Cordialement,<br>
+              <strong>L'équipe SynoX-AV</strong>
             </p>
           </td>
         </tr>
