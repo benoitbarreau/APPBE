@@ -911,7 +911,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             {activeIsIPTab ? (
               <IPTableEditor tabId={activeTabId} />
             ) : activeIsBayTab ? (
-              <BayCanvas tabId={activeTabId} />
+              <>
+                <BayCanvas tabId={activeTabId} />
+                <Cartouche />
+              </>
             ) : (
               <>
                 <DiagramCanvas onEditInstance={(id) => setEditingInstance(id)} />

@@ -18,6 +18,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const addRackToTab = useAppStore((s) => s.addRackToTab);
   const removeRackFromTab = useAppStore((s) => s.removeRackFromTab);
   const projectMeta = useAppStore((s) => s.projectMeta);
+  const currentProjectName = useAppStore((s) => s.currentProjectName);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeRackId, setActiveRackId] = useState<string | null>(null);
   const [addRackOpen, setAddRackOpen] = useState(false);
@@ -43,14 +44,15 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const totalItems = racks.reduce((n, r) => n + r.items.length, 0);
   const selectedRack = racks.find((r) => r.id === activeRackId) ?? null;
 
+  // Identique à buildCartoucheForTab dans App.tsx (champ "lot" = nom de l'onglet)
   const cartouche: CartoucheData = {
     client:     projectMeta.client,
     lieu:       projectMeta.lieu,
-    campus:     projectMeta.campus,
-    tabName:    tab.name,       // nom de l'onglet = "lot" dans le cartouche
-    date:       projectMeta.date,
+    campus:     currentProjectName || projectMeta.campus || "Sans titre",
+    tabName:    tab.name,
+    date:       projectMeta.date || new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
     authorName: projectMeta.authorName,
-    version:    projectMeta.version,
+    version:    projectMeta.version || "V1.0",
   };
 
   return (

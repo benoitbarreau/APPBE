@@ -235,7 +235,7 @@ function hidePageBoundaries(): () => void {
  *   avec CORS. Le blob URL résultant est same-origin → toDataURL() toujours
  *   autorisé, même pour des images cross-origin (Supabase Storage).
  */
-async function loadImage(src: string): Promise<HTMLImageElement> {
+export async function loadImage(src: string): Promise<HTMLImageElement> {
   // Tenter fetch CORS en premier (cross-origin et same-origin fonctionnent)
   try {
     const resp = await fetch(src, { mode: "cors", cache: "no-cache" });
@@ -294,7 +294,7 @@ function clipText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 // ── Dessin du cartouche ───────────────────────────────────────────────────
 
-async function drawCartouche(
+export async function drawCartouche(
   ctx: CanvasRenderingContext2D,
   data: CartoucheData,
   cx: number, cy: number, cw: number, ch: number,
@@ -441,7 +441,7 @@ async function drawCartouche(
 
 // ── Dessin de la mention légale ───────────────────────────────────────────
 
-function drawConfidentialityNotice(
+export function drawConfidentialityNotice(
   ctx: CanvasRenderingContext2D,
   botY: number,
   botH: number,
