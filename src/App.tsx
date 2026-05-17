@@ -492,6 +492,19 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     }
   };
 
+  // Fit view automatique à l'ouverture d'un projet (changement de currentProjectId)
+  useEffect(() => {
+    if (!currentProjectId) return;
+    const s = useAppStore.getState();
+    const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
+    if (!activeTab || isIPTableTab(activeTab) || isBayTab(activeTab)) return;
+    const timer = setTimeout(
+      () => reactFlow.fitView({ duration: 300, padding: 0.08 }),
+      400,
+    );
+    return () => clearTimeout(timer);
+  }, [currentProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [formattingOpen, setFormattingOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
