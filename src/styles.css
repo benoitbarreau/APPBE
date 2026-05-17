@@ -3452,6 +3452,60 @@ select {
   gap: 16px;
 }
 
+/* ── Section "Projets partagés" repliable ── */
+.projects-shared-section {
+  margin-top: 24px;
+}
+.projects-shared-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #111);
+  gap: 8px;
+  transition: background 0.15s;
+  text-align: left;
+}
+.projects-shared-toggle:hover {
+  background: var(--hover, #f5f5f5);
+}
+.projects-shared-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.projects-shared-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.projects-shared-chevron {
+  font-size: 16px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.projects-shared-chevron.open {
+  transform: rotate(180deg);
+}
+.projects-shared-section .projects-grid {
+  margin-top: 12px;
+}
+
 .project-card {
   background: var(--panel);
   border: 1px solid var(--border);

@@ -33,6 +33,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   const [accountOpen, setAccountOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [sharedExpanded, setSharedExpanded] = useState(false)
 
   // ── Dialog « Nouveau projet » ──
   const [showNewDialog, setShowNewDialog] = useState(false)
@@ -183,6 +184,98 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     )
   })
 
+  // Partition : mes projets / projets des autres (partagés ou vue admin)
+  const myFilteredProjects    = filteredProjects.filter(p =>  isOwned(p))
+  const otherFilteredProjects = filteredProjects.filter(p => !isOwned(p))
+
+  const renderCard = (p: ProjectRow) => {
+    const owned     = isOwned(p)
+    const manage    = canManage(p)
+    const adminMode = isAdminIntervention(p)
+    const cardClass = adminMode
+      ? 'project-card project-card-admin'
+      : owned
+        ? 'project-card'
+        : 'project-card project-card-shared'
+    return (
+      <div key={p.id} className={cardClass}>
+        <div className="project-card-main">
+          <div className="project-card-body">
+            {(p.client_name || p.lieu) && (
+              <div className="project-card-context">
+                {p.client_name && <span className="project-card-client">{p.client_name}</span>}
+                {p.client_name && p.lieu && <span className="project-card-context-sep">·</span>}
+                {p.lieu && <span className="project-card-lieu">{p.lieu}</span>}
+              </div>
+            )}
+            <div className="project-card-name" title={p.name}>{p.name}</div>
+            {adminMode && p.profiles && (
+              <div className="project-card-owner">
+                Créé par {p.profiles.full_name ?? p.profiles.email}
+                <span className="project-admin-chip" title="Vous intervenez en tant qu'administrateur sur ce projet">
+                  🛡 Admin
+                </span>
+              </div>
+            )}
+            {!owned && !adminMode && p.profiles && (
+              <div className="project-card-owner">Par {p.profiles.full_name ?? p.profiles.email}</div>
+            )}
+            <div className="project-card-date">Modifié le {fmt(p.updated_at)}</div>
+          </div>
+          {manage && (
+            <div className="project-card-actions">
+              {!p.archived && (
+                <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
+                  Partager
+                </button>
+              )}
+              <button
+                className="btn-archive"
+                onClick={() => void handleArchive(p)}
+                disabled={archivingId === p.id}
+                title={p.archived ? 'Désarchiver ce projet' : 'Archiver ce projet'}
+              >
+                {archivingId === p.id ? '…' : p.archived ? 'Désarchiver' : 'Archiver'}
+              </button>
+              <button className="danger" onClick={() => void handleDelete(p)} disabled={deletingId === p.id} title="Supprimer ce projet">
+                {deletingId === p.id ? '…' : '🗑'}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="project-card-versions">
+          {!owned && !adminMode && <span className="project-shared-badge">PARTAGÉ</span>}
+          {!p.archived && (p.versions_meta ?? []).map((vm) => (
+            <button
+              key={vm.id}
+              className="version-badge"
+              title={`Ouvrir la version ${vm.version} — ${fmtVersion(vm.savedAt)}`}
+              onClick={() => handleOpenVersionClick(vm, p)}
+            >
+              {vm.version}
+            </button>
+          ))}
+          {!p.archived && (
+            <button className="version-badge version-badge-current" title="Version en cours" onClick={() => void handleOpen(p)}>
+              En cours
+            </button>
+          )}
+          {p.archived && <span className="version-badge-archived">Archivé</span>}
+          {!p.archived && (
+            <button
+              className="primary version-open-btn"
+              onClick={() => void handleOpen(p)}
+              disabled={loadingId === p.id}
+              title="Ouvrir la version en cours"
+            >
+              {loadingId === p.id ? '…' : 'Ouvrir →'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="projects-page">
       {/* ── Header ── */}
@@ -290,112 +383,43 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
 
           {/* Grid */}
           {filteredProjects.length > 0 && (
-            <div className="projects-grid">
-              {filteredProjects.map(p => {
-                const owned       = isOwned(p)
-                const manage      = canManage(p)
-                const adminMode   = isAdminIntervention(p)
-                const cardClass   = adminMode
-                  ? 'project-card project-card-admin'
-                  : owned
-                    ? 'project-card'
-                    : 'project-card project-card-shared'
-                return (
-                  <div key={p.id} className={cardClass}>
-                    {/* ── Contenu principal ── */}
-                    <div className="project-card-main">
-                      <div className="project-card-body">
-                        {/* Client et lieu au-dessus du nom */}
-                        {(p.client_name || p.lieu) && (
-                          <div className="project-card-context">
-                            {p.client_name && <span className="project-card-client">{p.client_name}</span>}
-                            {p.client_name && p.lieu && <span className="project-card-context-sep">·</span>}
-                            {p.lieu && <span className="project-card-lieu">{p.lieu}</span>}
-                          </div>
-                        )}
-                        <div className="project-card-name" title={p.name}>{p.name}</div>
-                        {/* Affichage du créateur :
-                            - admin sur projet d'un autre : nom + chip "Admin"
-                            - non-admin sur projet partagé : "Par <nom>"
-                            - admin sur son propre projet : rien (c'est lui)
-                            - non-admin sur son propre projet : rien */}
-                        {adminMode && p.profiles && (
-                          <div className="project-card-owner">
-                            Créé par {p.profiles.full_name ?? p.profiles.email}
-                            <span className="project-admin-chip" title="Vous intervenez en tant qu'administrateur sur ce projet">
-                              🛡 Admin
-                            </span>
-                          </div>
-                        )}
-                        {!owned && !adminMode && p.profiles && (
-                          <div className="project-card-owner">Par {p.profiles.full_name ?? p.profiles.email}</div>
-                        )}
-                        <div className="project-card-date">Modifié le {fmt(p.updated_at)}</div>
-                      </div>
-                      {/* Boutons d'action — visibles dès que l'utilisateur peut gérer.
-                          L'admin voit donc ces boutons sur les projets d'autres utilisateurs. */}
-                      {manage && (
-                        <div className="project-card-actions">
-                          {!p.archived && (
-                            <button className="btn-share" onClick={() => setShareProject({ id: p.id, name: p.name })} title="Partager ce projet">
-                              Partager
-                            </button>
-                          )}
-                          <button
-                            className="btn-archive"
-                            onClick={() => void handleArchive(p)}
-                            disabled={archivingId === p.id}
-                            title={p.archived ? 'Désarchiver ce projet' : 'Archiver ce projet'}
-                          >
-                            {archivingId === p.id ? '…' : p.archived ? 'Désarchiver' : 'Archiver'}
-                          </button>
-                          <button className="danger" onClick={() => void handleDelete(p)} disabled={deletingId === p.id} title="Supprimer ce projet">
-                            {deletingId === p.id ? '…' : '🗑'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Colonne droite : versions + Ouvrir en bas ── */}
-                    <div className="project-card-versions">
-                      {/* Badge "PARTAGÉ" uniquement pour les vrais partages
-                          (non-admin recevant un projet d'un autre via le module Partage). */}
-                      {!owned && !adminMode && <span className="project-shared-badge">PARTAGÉ</span>}
-
-                      {/* Versions archivées */}
-                      {!p.archived && (p.versions_meta ?? []).map((vm) => (
-                        <button
-                          key={vm.id}
-                          className="version-badge"
-                          title={`Ouvrir la version ${vm.version} — ${fmtVersion(vm.savedAt)}`}
-                          onClick={() => handleOpenVersionClick(vm, p)}
-                        >
-                          {vm.version}
-                        </button>
-                      ))}
-                      {!p.archived && (
-                        <button className="version-badge version-badge-current" title="Version en cours" onClick={() => void handleOpen(p)}>
-                          En cours
-                        </button>
-                      )}
-                      {p.archived && <span className="version-badge-archived">Archivé</span>}
-
-                      {/* Bouton Ouvrir en bas de colonne */}
-                      {!p.archived && (
-                        <button
-                          className="primary version-open-btn"
-                          onClick={() => void handleOpen(p)}
-                          disabled={loadingId === p.id}
-                          title="Ouvrir la version en cours"
-                        >
-                          {loadingId === p.id ? '…' : 'Ouvrir →'}
-                        </button>
-                      )}
-                    </div>
+            showArchived ? (
+              /* Vue archives : grille unique sans partition */
+              <div className="projects-grid">
+                {filteredProjects.map(p => renderCard(p))}
+              </div>
+            ) : (
+              <>
+                {/* Mes projets */}
+                {myFilteredProjects.length > 0 && (
+                  <div className="projects-grid">
+                    {myFilteredProjects.map(p => renderCard(p))}
                   </div>
-                )
-              })}
-            </div>
+                )}
+
+                {/* Projets partagés / autres utilisateurs — repliable */}
+                {otherFilteredProjects.length > 0 && (
+                  <div className="projects-shared-section">
+                    <button
+                      className="projects-shared-toggle"
+                      onClick={() => setSharedExpanded(v => !v)}
+                      aria-expanded={sharedExpanded}
+                    >
+                      <span className="projects-shared-toggle-label">
+                        Projets partagés
+                        <span className="projects-shared-count">{otherFilteredProjects.length}</span>
+                      </span>
+                      <span className={`projects-shared-chevron${sharedExpanded ? ' open' : ''}`}>▾</span>
+                    </button>
+                    {sharedExpanded && (
+                      <div className="projects-grid">
+                        {otherFilteredProjects.map(p => renderCard(p))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )
           )}
         </div>
       </main>
