@@ -66,6 +66,13 @@ function buildRows(racks: Rack[]): TRow[] {
 
 // ── Composition de la page ────────────────────────────────────────────────────
 
+/** Masque temporairement le bouton "+ Ajouter une baie" pendant la capture. */
+function hideAddRackButton(): () => void {
+  const els = Array.from(document.querySelectorAll<HTMLElement>(".bay-add-rack-col"));
+  els.forEach((el) => { el.style.visibility = "hidden"; });
+  return () => els.forEach((el) => { el.style.visibility = ""; });
+}
+
 async function composeBayPage(
   cartouche: CartoucheData,
 ): Promise<string> {
@@ -79,12 +86,18 @@ async function composeBayPage(
   const rackEl = document.querySelector<HTMLElement>(".bay-racks-row");
   if (!rackEl) throw new Error("Visuel de la baie introuvable. Assurez-vous d'être sur l'onglet Baie.");
 
-  const rackPng = await toPng(rackEl, {
-    backgroundColor: "#f5f6f8",
-    pixelRatio: PIX,
-    cacheBust: true,
-    skipFonts: true,
-  });
+  const restoreBtn = hideAddRackButton();
+  let rackPng: string;
+  try {
+    rackPng = await toPng(rackEl, {
+      backgroundColor: "#ffffff",   // fond blanc
+      pixelRatio: PIX,
+      cacheBust: true,
+      skipFonts: true,
+    });
+  } finally {
+    restoreBtn();
+  }
 
   // 2. Canvas A3 identique aux synoptiques
   const canvas = document.createElement("canvas");
