@@ -7066,3 +7066,172 @@ select {
 }
 .user-edit-pwd-toggle:hover { background: #eff6ff; border-color: #93c5fd; }
 
+/* ── Export baie ──────────────────────────────────────────────────────────── */
+
+.bay-export-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.bay-export-group {
+  display: flex;
+  gap: 5px;
+}
+
+.bay-export-btn {
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.bay-export-btn:hover:not(:disabled) { background: #f0f3f8; border-color: #b3bcc8; }
+.bay-export-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.bay-print-btn {
+  background: #fff;
+  color: var(--text);
+}
+.bay-print-btn:hover:not(:disabled) { background: #f0f3f8; }
+
+.bay-export-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  z-index: 500;
+  min-width: 200px;
+  padding: 4px;
+}
+.bay-export-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.bay-export-dropdown button:hover { background: #f0f3f8; }
+
+.bay-export-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 6px;
+}
+
+.bay-export-error {
+  font-size: 11px;
+  color: var(--danger);
+  max-width: 240px;
+  text-align: right;
+  line-height: 1.4;
+}
+
+/* ── Modal logo (export baie) ─────────────────────────────────────────────── */
+
+.bay-logo-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 440px;
+  max-width: 95vw;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bay-logo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bay-logo-modal-hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.bay-logo-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bay-logo-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.bay-logo-file-input {
+  font-size: 12px;
+}
+.bay-logo-url-input {
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+  width: 100%;
+}
+.bay-logo-url-input:focus { border-color: var(--primary); }
+
+.bay-logo-or {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bay-logo-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bay-logo-preview-img {
+  max-height: 52px;
+  max-width: 160px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f9fafb;
+  padding: 4px;
+}
+.bay-logo-clear-btn {
+  font-size: 11px;
+  color: var(--danger);
+  background: none;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.bay-logo-clear-btn:hover { background: #fef2f2; }
+
+.bay-logo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+

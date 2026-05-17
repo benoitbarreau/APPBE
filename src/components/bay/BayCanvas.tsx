@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useAppStore } from "../../store";
 import { ensureRacks, isBayTab } from "../../types";
+import type { CartoucheData } from "../../export";
 import { BayProductLibrary } from "./BayProductLibrary";
 import { RackView } from "./RackView";
 import { BayItemProperties } from "./BayItemProperties";
 import { BayCreateModal } from "./BayCreateModal";
+import { BayExportMenu } from "./BayExportMenu";
 
 interface BayCanvasProps {
   tabId: string;
@@ -15,6 +17,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const syncBayItems = useAppStore((s) => s.syncBayItems);
   const addRackToTab = useAppStore((s) => s.addRackToTab);
   const removeRackFromTab = useAppStore((s) => s.removeRackFromTab);
+  const projectMeta = useAppStore((s) => s.projectMeta);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeRackId, setActiveRackId] = useState<string | null>(null);
   const [addRackOpen, setAddRackOpen] = useState(false);
@@ -40,6 +43,16 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const totalItems = racks.reduce((n, r) => n + r.items.length, 0);
   const selectedRack = racks.find((r) => r.id === activeRackId) ?? null;
 
+  const cartouche: CartoucheData = {
+    client:     projectMeta.client,
+    lieu:       projectMeta.lieu,
+    campus:     projectMeta.campus,
+    tabName:    tab.name,       // nom de l'onglet = "lot" dans le cartouche
+    date:       projectMeta.date,
+    authorName: projectMeta.authorName,
+    version:    projectMeta.version,
+  };
+
   return (
     <div className="bay-canvas">
       {/* ── Info bar ─────────────────────────────────────────────────────── */}
@@ -60,6 +73,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
         >
           {synced ? "✓ Synchronisé" : "⟳ Synchroniser"}
         </button>
+        <BayExportMenu racks={racks} cartouche={cartouche} tabName={tab.name} />
       </div>
 
       {/* ── Main layout ──────────────────────────────────────────────────── */}
