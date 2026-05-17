@@ -127,6 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setInitializing(true)
       setInitError(null)
 
+      // Détection immédiate d'un lien "Mot de passe oublié" dans l'URL.
+      // On lit le hash AVANT tout await pour ne pas rater le token.
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      if (hashParams.get('type') === 'recovery') {
+        setIsPasswordRecovery(true)
+      }
+
       // Filet de sécurité : aucune init ne doit dépasser 6 s.
       timeoutId = setTimeout(() => {
         if (cancelled) return
