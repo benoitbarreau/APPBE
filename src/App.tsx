@@ -431,6 +431,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       const state = useAppStore.getState();
       await printDiagram(reactFlow, {
         cartouche: buildCartoucheForTab(state.activeTabId),
+        cables:    state.cables,
+        signals:   state.signals,
       });
     } catch (e) {
       alert("Echec impression : " + (e instanceof Error ? e.message : String(e)));
@@ -442,6 +444,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handlePrintAllTabs = async () => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
+    const signals = state.signals;
     // Filtrer les onglets Tableau IP et Baie — ils ont leur propre export
     const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t) && !isBayTab(t));
     let totalPages = 0;
@@ -453,7 +456,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
       let pageNum = 1;
       for (const tab of flushedTabs) {
         await switchTabAndWait(tab.id);
-        const nodes = useAppStore.getState().nodes;
+        const tabState = useAppStore.getState();
+        const nodes = tabState.nodes;
+        const cables = tabState.cables;
         const pages = computePageRects(nodes);
         const cartouche = buildCartoucheForTab(tab.id);
         for (const page of pages) {
@@ -462,6 +467,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               cartouche,
               pageNum,
               totalPages,
+              cables,
+              signals,
             }),
           );
           pageNum++;
@@ -523,6 +530,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         format,
         filename: `${refLabel}.${format}`,
         cartouche: buildCartoucheForTab(state.activeTabId),
+        cables:    state.cables,
+        signals:   state.signals,
       });
     } catch (e) {
       alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
@@ -532,6 +541,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
+    const signals = state.signals;
     // Filtrer les onglets Tableau IP et Baie — ils ont leur propre export
     const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t) && !isBayTab(t));
     const refLabel =
@@ -549,7 +559,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         let pageNum = 1;
         for (const tab of flushedTabs) {
           await switchTabAndWait(tab.id);
-          const nodes = useAppStore.getState().nodes;
+          const tabState = useAppStore.getState();
+          const nodes = tabState.nodes;
+          const cables = tabState.cables;
           const pages = computePageRects(nodes);
           const cartouche = buildCartoucheForTab(tab.id);
           for (const page of pages) {
@@ -558,6 +570,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
                 cartouche,
                 pageNum,
                 totalPages,
+                cables,
+                signals,
               }),
             );
             pageNum++;
@@ -568,7 +582,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         let pageNum = 1;
         for (const tab of flushedTabs) {
           await switchTabAndWait(tab.id);
-          const nodes = useAppStore.getState().nodes;
+          const tabState = useAppStore.getState();
+          const nodes = tabState.nodes;
+          const cables = tabState.cables;
           const pages = computePageRects(nodes);
           const cartouche = buildCartoucheForTab(tab.id);
           const tabSlug = (tab.trade || tab.name)
@@ -585,6 +601,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
               pageNum,
               totalPages,
               format: format as "png" | "jpeg" | "svg",
+              cables,
+              signals,
             });
             downloadFile(url, filename, format);
             pageNum++;

@@ -2,6 +2,7 @@ import { toPng, toJpeg, toSvg } from "html-to-image";
 import jsPDF from "jspdf";
 import { getViewportForBounds } from "@xyflow/react";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "./page";
+import type { Cable, SignalDef } from "./types";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "pdf";
 
@@ -22,11 +23,15 @@ interface ExportOptions {
   cartouche?: CartoucheData;
   startPageNum?: number;   // numéro de la 1ère page (défaut 1)
   totalPages?: number;     // nombre total de pages (pour numérotation)
+  cables?: Cable[];        // câbles de l'onglet courant
+  signals?: Record<string, SignalDef>;  // définitions des signaux
 }
 
 interface PrintOptions {
   background?: string;
   cartouche?: CartoucheData;
+  cables?: Cable[];
+  signals?: Record<string, SignalDef>;
 }
 
 interface ReactFlowAccess {
@@ -445,8 +450,9 @@ export function drawConfidentialityNotice(
   ctx: CanvasRenderingContext2D,
   botY: number,
   botH: number,
-  availW: number,  // largeur disponible (jusqu'au cartouche)
+  availW: number,       // x du bord droit de la zone (= carX)
   sc: number,
+  startX: number = 0,  // x du bord gauche (= legW quand la légende est présente)
 ): void {
   const fontSize = 7 * sc;
   ctx.font = `italic ${fontSize}px Arial, sans-serif`;
@@ -454,19 +460,21 @@ export function drawConfidentialityNotice(
   ctx.textBaseline = "bottom";
   ctx.textAlign = "center";
 
-  const maxW = availW - 40 * sc;
-  const lines = wrapText(ctx, CONFIDENTIALITY_NOTICE, maxW);
-  const lineH = fontSize * 1.5;
+  const zoneW   = availW - startX;
+  const maxW    = zoneW - 40 * sc;
+  const centerX = startX + zoneW / 2;
+  const lines   = wrapText(ctx, CONFIDENTIALITY_NOTICE, maxW);
+  const lineH   = fontSize * 1.5;
 
   lines.forEach((line, i) => {
     ctx.fillText(
       line,
-      availW / 2,
+      centerX,
       botY + botH - 6 * sc - (lines.length - 1 - i) * lineH,
     );
   });
 
-  ctx.textAlign = "left";
+  ctx.textAlign    = "left";
   ctx.textBaseline = "alphabetic";
 }
 
@@ -479,15 +487,182 @@ function drawPageNumber(
   botY: number,
   botH: number,
   sc: number,
+  offsetX: number = 0,  // décalé si légende présente
 ): void {
   if (totalPages <= 1) return;
   ctx.font = `bold ${10 * sc}px Arial, sans-serif`;
   ctx.fillStyle = "#374151";
   ctx.textBaseline = "bottom";
   ctx.textAlign = "left";
-  // Bas à gauche
-  ctx.fillText(`PAGE ${pageNum}`, 18 * sc, botY + botH - 8 * sc);
+  ctx.fillText(`PAGE ${pageNum}`, offsetX + 18 * sc, botY + botH - 8 * sc);
   ctx.textBaseline = "alphabetic";
+}
+
+// ── Légende câbles ────────────────────────────────────────────────────────
+
+/** Chemin arrondi sans ctx.roundRect (compat maximale). */
+function rrPath(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y,     x + w, y + r,     r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x,     y + h, x,     y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x,     y,     x + r, y,         r);
+  ctx.closePath();
+}
+
+/**
+ * Filtre les câbles présents sur une page et retourne
+ * les SignalDef correspondantes (dans l'ordre de signals).
+ */
+function getPageSignalDefs(
+  cables: Cable[],
+  nodes: RFNodeLike[],
+  page: PageRect,
+  signals: Record<string, SignalDef>,
+): SignalDef[] {
+  const nodeMap = new Map<string, RFNodeLike>();
+  for (const n of nodes) { if (n.id) nodeMap.set(n.id, n); }
+
+  const onPage = (n: RFNodeLike | undefined): boolean => {
+    if (!n?.position) return false;
+    const { x, y } = n.position;
+    return x >= page.x && x < page.x + page.width
+        && y >= page.y && y < page.y + page.height;
+  };
+
+  const signalIds = new Set<string>();
+  for (const cable of cables) {
+    if (onPage(nodeMap.get(cable.fromNodeId)) || onPage(nodeMap.get(cable.toNodeId))) {
+      signalIds.add(cable.signal);
+    }
+  }
+  return Object.values(signals).filter((def) => signalIds.has(def.id));
+}
+
+/** Dessine une entrée câble : ligne colorée + flèche + badge centré. */
+function drawCableEntry(
+  ctx: CanvasRenderingContext2D,
+  def: SignalDef,
+  ex: number, ey: number, ew: number, eh: number,
+  sc: number,
+): void {
+  const pad    = 12 * sc;
+  const midY   = Math.round(ey + eh / 2);
+  const lineX1 = ex + pad;
+  const lineX2 = ex + ew - pad;
+  const arrLen = 9 * sc;
+  const arrH   = 4.5 * sc;
+
+  // Ligne colorée
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth   = 2.5 * sc;
+  ctx.beginPath();
+  ctx.moveTo(lineX1, midY);
+  ctx.lineTo(lineX2, midY);
+  ctx.stroke();
+
+  // Pointe de flèche (triangle plein, pointe à droite)
+  ctx.fillStyle = def.color;
+  ctx.beginPath();
+  ctx.moveTo(lineX2,          midY);
+  ctx.lineTo(lineX2 - arrLen, midY - arrH);
+  ctx.lineTo(lineX2 - arrLen, midY + arrH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Badge centré sur la ligne
+  ctx.font = `bold ${11 * sc}px Arial, sans-serif`;
+  const textW  = ctx.measureText(def.label).width;
+  const bPadX  = 7 * sc;
+  const bPadY  = 3 * sc;
+  const bW     = textW + bPadX * 2;
+  const bH     = 13 * sc + bPadY * 2;
+  const badgeCX = Math.round((lineX1 + lineX2) / 2);
+  const badgeX  = badgeCX - Math.round(bW / 2);
+  const badgeY  = midY - Math.round(bH / 2);
+  const radius  = 3 * sc;
+
+  // Fond blanc (efface la ligne derrière le badge)
+  ctx.fillStyle = "#ffffff";
+  rrPath(ctx, badgeX, badgeY, bW, bH, radius);
+  ctx.fill();
+
+  // Bordure colorée
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth   = 1.5 * sc;
+  rrPath(ctx, badgeX, badgeY, bW, bH, radius);
+  ctx.stroke();
+
+  // Texte du label
+  ctx.fillStyle    = def.color;
+  ctx.textAlign    = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(def.label, badgeCX, midY);
+  ctx.textAlign    = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
+/** Dessine le bloc complet de légende câbles (header + grille d'entrées). */
+function drawCableLegend(
+  ctx: CanvasRenderingContext2D,
+  defs: SignalDef[],
+  lx: number, ly: number, lw: number, lh: number,
+  sc: number,
+): void {
+  const bw    = 1.5 * sc;
+  const hdrH  = Math.round(lh * 0.27);   // ~27 % pour le titre
+  const bodyY = ly + hdrH;
+  const bodyH = lh - hdrH;
+
+  // Fond blanc + bordure extérieure
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(lx, ly, lw, lh);
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth   = bw;
+  ctx.strokeRect(lx + bw / 2, ly + bw / 2, lw - bw, lh - bw);
+
+  // En-tête bleu foncé (identique au cartouche)
+  ctx.fillStyle = "#1c2a4a";
+  ctx.fillRect(lx + bw / 2, ly + bw / 2, lw - bw, hdrH - bw / 2);
+
+  ctx.font         = `bold ${11 * sc}px Arial, sans-serif`;
+  ctx.fillStyle    = "#ffffff";
+  ctx.textAlign    = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("LÉGENDE DES LIAISONS CÂBLES", lx + lw / 2, ly + hdrH / 2);
+  ctx.textAlign    = "left";
+  ctx.textBaseline = "alphabetic";
+
+  // Séparateur header / body
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth   = bw;
+  ctx.beginPath();
+  ctx.moveTo(lx, bodyY);
+  ctx.lineTo(lx + lw, bodyY);
+  ctx.stroke();
+
+  // Grille d'entrées : max 5 colonnes, autant de lignes que nécessaire
+  const N    = defs.length;
+  const COLS = Math.min(N, 5);
+  const ROWS = Math.ceil(N / COLS);
+  const entW = lw / COLS;
+  const entH = bodyH / ROWS;
+
+  for (let i = 0; i < N; i++) {
+    drawCableEntry(
+      ctx, defs[i],
+      lx + (i % COLS) * entW, bodyY + Math.floor(i / COLS) * entH,
+      entW, entH, sc,
+    );
+  }
 }
 
 // ── Composition d'une page A3 ─────────────────────────────────────────────
@@ -497,12 +672,13 @@ async function composePage(
   cartouche: CartoucheData | undefined,
   pageNum: number,
   totalPages: number,
+  signalDefs: SignalDef[] = [],
 ): Promise<string> {
   const diagImg = await loadImage(diagramDataUrl);
   const sc = PIX;
   const W = RASTER_W * sc;    // 4960
   const H = RASTER_H * sc;    // 3508
-  const botH = BOTTOM_H * sc; // 400
+  const botH = BOTTOM_H * sc; // 320
   const botY = H - botH;
 
   const canvas = document.createElement("canvas");
@@ -525,11 +701,17 @@ async function composePage(
     await drawCartouche(ctx, cartouche, carX, botY, carW, botH, sc);
   }
 
-  // Mention légale (centré dans la zone gauche)
-  drawConfidentialityNotice(ctx, botY, botH, carX, sc);
+  // Légende câbles (gauche, 42 % si des câbles sont présents sur la page)
+  const legW = signalDefs.length > 0 ? Math.round(W * 0.42) : 0;
+  if (legW > 0) {
+    drawCableLegend(ctx, signalDefs, 0, botY, legW, botH, sc);
+  }
 
-  // Numéro de page (si plusieurs pages) — bas à gauche
-  drawPageNumber(ctx, pageNum, totalPages, botY, botH, sc);
+  // Mention légale (entre légende et cartouche)
+  drawConfidentialityNotice(ctx, botY, botH, carX, sc, legW);
+
+  // Numéro de page (bas à gauche de la zone notice, décalé si légende)
+  drawPageNumber(ctx, pageNum, totalPages, botY, botH, sc, legW);
 
   return canvas.toDataURL("image/png");
 }
@@ -616,7 +798,7 @@ async function snapshotFull(
  * Utilisable depuis App.tsx pour l'export multi-onglets.
  */
 export async function captureAndComposePage(
-  _rf: ReactFlowAccess,
+  rf: ReactFlowAccess,
   page: PageRect,
   opts: {
     background?: string;
@@ -624,12 +806,19 @@ export async function captureAndComposePage(
     pageNum: number;
     totalPages: number;
     format?: "png" | "jpeg" | "svg";
+    cables?: Cable[];
+    signals?: Record<string, SignalDef>;
   },
 ): Promise<string> {
-  const { background = "#ffffff", cartouche, pageNum, totalPages, format = "png" } = opts;
+  const {
+    background = "#ffffff", cartouche, pageNum, totalPages, format = "png",
+    cables = [], signals = {},
+  } = opts;
   if (format === "svg") return snapshotFull("svg", page, background);
+  const allNodes = rf.getNodes() as RFNodeLike[];
+  const signalDefs = getPageSignalDefs(cables, allNodes, page, signals);
   const diag = await snapshotDiagram("png", page, background);
-  return composePage(diag, cartouche, pageNum, totalPages);
+  return composePage(diag, cartouche, pageNum, totalPages, signalDefs);
 }
 
 /**
@@ -664,12 +853,13 @@ export async function exportDiagram(
     cartouche,
     startPageNum = 1,
     totalPages,
+    cables = [],
+    signals = {},
   } = opts;
 
-  const allNodes = rf.getNodes();
+  const allNodes = rf.getNodes() as RFNodeLike[];
   const productNodes = allNodes.filter(
-    (n) => typeof (n as { id?: string }).id === "string" &&
-           !(n as { id: string }).id.startsWith(PAGE_NODE_ID),
+    (n) => typeof n.id === "string" && !n.id.startsWith(PAGE_NODE_ID),
   );
   if (productNodes.length === 0) throw new Error("Aucun produit sur le synoptique");
 
@@ -679,8 +869,9 @@ export async function exportDiagram(
   const buildPage = async (p: PageRect, localIdx: number): Promise<string> => {
     const pageNum = startPageNum + localIdx;
     if (format === "svg") return snapshotFull("svg", p, background);
+    const signalDefs = getPageSignalDefs(cables, allNodes, p, signals);
     const diag = await snapshotDiagram("png", p, background);
-    return composePage(diag, cartouche, pageNum, effectiveTotalPages);
+    return composePage(diag, cartouche, pageNum, effectiveTotalPages, signalDefs);
   };
 
   if (format === "pdf") {
@@ -802,12 +993,11 @@ export async function printDiagram(
   rf: ReactFlowAccess,
   opts: PrintOptions = {},
 ): Promise<void> {
-  const { background = "#ffffff", cartouche } = opts;
+  const { background = "#ffffff", cartouche, cables = [], signals = {} } = opts;
 
-  const allNodes = rf.getNodes();
+  const allNodes = rf.getNodes() as RFNodeLike[];
   const productNodes = allNodes.filter(
-    (n) => typeof (n as { id?: string }).id === "string" &&
-           !(n as { id: string }).id.startsWith(PAGE_NODE_ID),
+    (n) => typeof n.id === "string" && !n.id.startsWith(PAGE_NODE_ID),
   );
   if (productNodes.length === 0) throw new Error("Aucun produit sur le synoptique");
 
@@ -816,8 +1006,9 @@ export async function printDiagram(
 
   const dataUrls: string[] = [];
   for (let i = 0; i < pages.length; i++) {
+    const signalDefs = getPageSignalDefs(cables, allNodes, pages[i], signals);
     const diag = await snapshotDiagram("png", pages[i], background);
-    dataUrls.push(await composePage(diag, cartouche, i + 1, totalPages));
+    dataUrls.push(await composePage(diag, cartouche, i + 1, totalPages, signalDefs));
   }
 
   await openPrintPreview(dataUrls, totalPages);
