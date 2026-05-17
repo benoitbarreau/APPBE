@@ -555,13 +555,15 @@ function drawCableEntry(
   ex: number, ey: number, ew: number, eh: number,
   sc: number,
 ): void {
-  const text   = def.defaultCable || def.label;   // texte du badge
-  const pad    = 10 * sc;
-  const midY   = Math.round(ey + eh / 2);
-  const lineX1 = ex + pad;
-  const lineX2 = ex + ew - pad;
-  const arrLen = 5 * sc;    // flèche petite mais visible
-  const arrH   = 2.5 * sc;
+  const text    = def.defaultCable || def.label;  // texte du badge
+  const midY    = Math.round(ey + eh / 2);
+  // Flèche centrée, longueur = 50 % de la cellule
+  const lineLen = ew * 0.5;
+  const lineCX  = ex + ew / 2;
+  const lineX1  = Math.round(lineCX - lineLen / 2);
+  const lineX2  = Math.round(lineCX + lineLen / 2);
+  const arrLen  = 5 * sc;
+  const arrH    = 2.5 * sc;
 
   // Ligne colorée
   ctx.strokeStyle = def.color;
@@ -587,7 +589,7 @@ function drawCableEntry(
   const bPadY   = 2.5 * sc;
   const bW      = textW + bPadX * 2;
   const bH      = 13 * sc + bPadY * 2;
-  const badgeCX = Math.round((lineX1 + lineX2) / 2);
+  const badgeCX = Math.round(lineCX);
   const badgeX  = badgeCX - Math.round(bW / 2);
   const badgeY  = midY - Math.round(bH / 2);
   const radius  = 2.5 * sc;
@@ -611,6 +613,8 @@ function drawCableEntry(
   ctx.textAlign    = "left";
   ctx.textBaseline = "alphabetic";
 }
+
+const LEGEND_SEP_COLOR = "#d1d5db";
 
 /** Dessine le bloc complet de légende câbles (header + grille d'entrées). */
 function drawCableLegend(
@@ -648,28 +652,38 @@ function drawCableLegend(
   ctx.lineTo(lx + lw, bodyY);
   ctx.stroke();
 
-  // Grille d'entrées équilibrée (max 5 colonnes, remplissage uniforme)
-  // ROWS = ceil(N/5), COLS = ceil(N/ROWS) → minimum de cases vides
+  // Grille colonne-major : max 3 items par colonne, COLS = ceil(N/3)
   const N    = defs.length;
-  const ROWS = Math.max(1, Math.ceil(N / 5));
-  const COLS = Math.ceil(N / ROWS);
+  const COLS = Math.ceil(N / 3);
+  const ROWS = Math.min(N, 3);
   const entW = lw / COLS;
   const entH = bodyH / ROWS;
 
+  // Séparateurs verticaux (entre colonnes)
+  ctx.strokeStyle = LEGEND_SEP_COLOR;
+  ctx.lineWidth   = sc;
+  for (let c = 1; c < COLS; c++) {
+    const sx = lx + c * entW;
+    ctx.beginPath(); ctx.moveTo(sx, bodyY); ctx.lineTo(sx, ly + lh); ctx.stroke();
+  }
+  // Séparateurs horizontaux (entre lignes)
+  for (let r = 1; r < ROWS; r++) {
+    const sy = bodyY + r * entH;
+    ctx.beginPath(); ctx.moveTo(lx, sy); ctx.lineTo(lx + lw, sy); ctx.stroke();
+  }
+
+  // Entrées en ordre colonne-major (les 3 premières dans la col 0, etc.)
   for (let i = 0; i < N; i++) {
-    drawCableEntry(
-      ctx, defs[i],
-      lx + (i % COLS) * entW, bodyY + Math.floor(i / COLS) * entH,
-      entW, entH, sc,
-    );
+    const col = Math.floor(i / 3);
+    const row = i % 3;
+    drawCableEntry(ctx, defs[i], lx + col * entW, bodyY + row * entH, entW, entH, sc);
   }
 }
 
-/** Nombre de colonnes optimal pour N entrées (max 5 col, remplissage uniforme). */
+/** Nombre de colonnes pour N entrées (max 3 items par colonne, ordre colonne-major). */
 function legendCols(N: number): number {
   if (N === 0) return 0;
-  const rows = Math.max(1, Math.ceil(N / 5));
-  return Math.ceil(N / rows);
+  return Math.ceil(N / 3);
 }
 
 // ── Composition d'une page A3 ─────────────────────────────────────────────
