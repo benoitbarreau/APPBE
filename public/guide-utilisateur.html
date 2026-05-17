@@ -42,17 +42,56 @@
   .toolbar {
     position: sticky; top: 0; z-index: 50;
     background: var(--primary); color: #fff;
-    padding: 10px 18px; text-align: center;
+    padding: 10px 18px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    display: flex; align-items: center; gap: 12px;
   }
+  .toolbar-left { display: flex; align-items: center; gap: 10px; }
   .toolbar button {
     background: #fff; color: var(--primary);
     border: none; border-radius: 4px;
     padding: 6px 14px; font-weight: 700;
-    cursor: pointer; font-size: 11pt;
+    cursor: pointer; font-size: 11pt; white-space: nowrap;
   }
   .toolbar button:hover { background: #eef4ff; }
-  .toolbar small { opacity: 0.85; margin-left: 12px; font-size: 10pt; }
+  .toolbar small { opacity: 0.85; font-size: 10pt; }
+
+  /* ── Recherche dans le guide ────────────────────────────────── */
+  .search-wrap {
+    display: flex; align-items: center; gap: 8px;
+    margin-left: auto; flex-shrink: 0;
+  }
+  .search-input {
+    padding: 5px 12px;
+    border: 2px solid #22c55e;
+    border-radius: 6px;
+    font-size: 11pt;
+    width: 230px;
+    background: rgba(255,255,255,0.97);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-input::placeholder { color: #6b7280; }
+  .search-input:focus {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+  }
+  .search-count {
+    font-size: 10pt; color: rgba(255,255,255,0.88);
+    white-space: nowrap; min-width: 100px; text-align: left;
+  }
+  mark.search-hl {
+    background: #fef08a; color: var(--text);
+    border-radius: 2px; padding: 0 1px;
+  }
+  .guide-chapter.search-hidden { display: none; }
+  .search-no-results {
+    display: none; text-align: center;
+    padding: 48px 20px; color: var(--muted); font-style: italic;
+    font-size: 13pt;
+  }
+  .search-no-results.visible { display: block; }
 
   .container {
     max-width: 800px;
@@ -334,8 +373,21 @@
 
 <!-- Barre d'outils visible uniquement à l'écran -->
 <div class="toolbar no-print">
-  <button onclick="window.print()">🖨 Enregistrer en PDF</button>
-  <small>Astuce : dans la fenêtre d'impression, choisissez « Enregistrer au format PDF » comme destination.</small>
+  <div class="toolbar-left">
+    <button onclick="window.print()">🖨 Enregistrer en PDF</button>
+    <small>Astuce : choisissez « Enregistrer au format PDF » comme destination.</small>
+  </div>
+  <div class="search-wrap">
+    <input
+      type="search"
+      id="guideSearch"
+      class="search-input"
+      placeholder="🔍 Rechercher dans le guide…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <span id="searchCount" class="search-count"></span>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -1787,12 +1839,153 @@
 </div>
 
 <script>
-  // Petit confort : Ctrl+P déclenche bien l'impression sans la barre d'outils
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "p") {
-      // laisse le navigateur gérer
+(function () {
+  /* ── 1. Regrouper les éléments en chapitres ───────────────────────
+     Chaque chapitre = tout ce qui se trouve entre deux .page-break.
+     On enveloppe chaque groupe dans un <div class="guide-chapter">.
+  ─────────────────────────────────────────────────────────────────── */
+  function buildChapters(container) {
+    const children = Array.from(container.children);
+    const groups = [];
+    let current = null;
+
+    for (const el of children) {
+      if (el.classList.contains('page-break')) {
+        current = [el];
+        groups.push(current);
+      } else if (current) {
+        current.push(el);
+      } else {
+        // Éléments avant le premier page-break (page de garde)
+        current = [el];
+        groups.push(current);
+      }
     }
-  });
+
+    const chapters = groups.map(group => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'guide-chapter';
+      container.insertBefore(wrapper, group[0]);
+      group.forEach(el => wrapper.appendChild(el));
+      return wrapper;
+    });
+
+    // Message "aucun résultat"
+    const noRes = document.createElement('p');
+    noRes.className = 'search-no-results';
+    noRes.textContent = 'Aucun résultat pour cette recherche.';
+    container.appendChild(noRes);
+
+    return { chapters, noRes };
+  }
+
+  /* ── 2. Surlignage des occurrences ───────────────────────────────── */
+  function removeHighlights(root) {
+    root.querySelectorAll('mark.search-hl').forEach(m => {
+      m.replaceWith(document.createTextNode(m.textContent));
+    });
+    root.normalize();
+  }
+
+  function highlightIn(root, lowerTerm, termLen) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      const n = walker.currentNode;
+      const tag = n.parentNode && n.parentNode.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK') continue;
+      if (n.textContent.toLowerCase().includes(lowerTerm)) nodes.push(n);
+    }
+    let count = 0;
+    for (const node of nodes) {
+      const text = node.textContent;
+      const lower = text.toLowerCase();
+      const frag = document.createDocumentFragment();
+      let pos = 0, idx;
+      while ((idx = lower.indexOf(lowerTerm, pos)) !== -1) {
+        if (idx > pos) frag.appendChild(document.createTextNode(text.slice(pos, idx)));
+        const mark = document.createElement('mark');
+        mark.className = 'search-hl';
+        mark.textContent = text.slice(idx, idx + termLen);
+        frag.appendChild(mark);
+        pos = idx + termLen;
+        count++;
+      }
+      if (pos < text.length) frag.appendChild(document.createTextNode(text.slice(pos)));
+      node.parentNode.replaceChild(frag, node);
+    }
+    return count;
+  }
+
+  /* ── 3. Initialisation ───────────────────────────────────────────── */
+  function init() {
+    const container = document.querySelector('.container');
+    const input = document.getElementById('guideSearch');
+    const countEl = document.getElementById('searchCount');
+    if (!container || !input) return;
+
+    const { chapters, noRes } = buildChapters(container);
+    // Le premier chapitre est la page de garde — on la garde à part
+    const coverChapter = chapters[0];
+
+    input.addEventListener('input', function () {
+      const raw = this.value.trim();
+
+      // Réinitialiser
+      chapters.forEach(ch => {
+        removeHighlights(ch);
+        ch.classList.remove('search-hidden');
+      });
+      noRes.classList.remove('visible');
+      countEl.textContent = '';
+
+      if (!raw || raw.length < 2) return;
+
+      const lowerTerm = raw.toLowerCase();
+      const termLen = raw.length;
+      let totalOcc = 0;
+      let visibleChapters = 0;
+
+      chapters.forEach((ch, i) => {
+        // Toujours masquer la page de garde et le sommaire pendant la recherche
+        if (i <= 1) {
+          ch.classList.add('search-hidden');
+          return;
+        }
+        const hasMatch = ch.textContent.toLowerCase().includes(lowerTerm);
+        if (hasMatch) {
+          totalOcc += highlightIn(ch, lowerTerm, termLen);
+          visibleChapters++;
+        } else {
+          ch.classList.add('search-hidden');
+        }
+      });
+
+      if (visibleChapters === 0) {
+        noRes.classList.add('visible');
+        countEl.textContent = 'Aucun résultat';
+      } else {
+        const s = totalOcc > 1 ? 's' : '';
+        countEl.textContent = `${totalOcc} occurrence${s} · ${visibleChapters} section${visibleChapters > 1 ? 's' : ''}`;
+      }
+    });
+
+    // Effacer avec Échap
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        this.value = '';
+        this.dispatchEvent(new Event('input'));
+        this.blur();
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
 </script>
 
 </body>
