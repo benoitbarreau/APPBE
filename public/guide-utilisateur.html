@@ -486,6 +486,18 @@
   <li><strong>Voir les versions archivées</strong> : un projet conserve les 3 dernières versions sauvegardées.</li>
 </ul>
 
+<h3>Mes projets et projets partagés</h3>
+<p>La liste est organisée en deux zones :</p>
+<ul>
+  <li><strong>En haut</strong> : vos propres projets, triés du plus récemment modifié.</li>
+  <li><strong>En bas</strong> : une section <em>« Projets partagés »</em> repliable qui contient les projets qu'un collègue ou un administrateur vous a donnés en accès. Elle est repliée par défaut — cliquez sur le bandeau pour la déployer.</li>
+</ul>
+
+<div class="box">
+  <p class="box-title">ℹ️ Vue administrateur</p>
+  <p>Si vous avez le rôle <em>admin</em>, la section « Projets partagés » affiche <strong>tous</strong> les projets du parc (tous utilisateurs confondus). Vous pouvez agir dessus comme si vous en étiez le propriétaire.</p>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════
      4. ÉCRAN PRINCIPAL
      ═══════════════════════════════════════════════════════════ -->
@@ -696,6 +708,19 @@
   <li><strong>Ajouter un coude</strong> : cliquez sur un des petits cercles blancs sur le tracé et glissez.</li>
   <li><strong>Supprimer un coude</strong> : clic-droit dessus.</li>
 </ul>
+
+<h3>Rendu visuel des câbles</h3>
+<p>Les câbles sont toujours <strong>orthogonaux</strong> (segments horizontaux ou verticaux uniquement). Pour rendre les tracés plus agréables à lire :</p>
+<ul>
+  <li>Les <strong>angles intermédiaires sont arrondis</strong> à 6 px — les coudes ne sont jamais des angles droits secs.</li>
+  <li>Les <strong>croisements</strong> entre câbles sont indiqués par un petit arc de décrochement pour les distinguer visuellement d'une connexion.</li>
+  <li>Une <strong>distance minimale de 10 px</strong> est maintenue entre deux câbles parallèles : lors d'un déplacement manuel ou d'un auto-placement, les câbles ne se superposent pas et restent lisibles.</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 Snap magnétique lors du déplacement</p>
+  <p>Quand vous glissez un segment de câble, il « snape » automatiquement à 10 px des câbles voisins parallèles pour maintenir l'espacement régulier.</p>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════
      7. APPARENCE D'UN CABLE
@@ -1359,8 +1384,22 @@
   <li><strong>Le câble par défaut</strong> proposé à la création (ex. « RJ45 », « STP22-2 »).</li>
 </ul>
 
-<h3>Réinitialiser la légende</h3>
-<p>Le bouton <span class="btn-mock">↻ Réinitialiser</span> en haut du panneau remplace votre légende actuelle par la liste standard de 10 types (HDMI, RJ45/IP, USB, RS232, DTP/XTP/HDBaseT, eBUS/Cresnet, Audio, HP, Secteur, SFP/Fibre). Une confirmation s'affiche et signale les éventuels câbles existants utilisant des types qui vont disparaître — ces câbles perdront leur couleur et leur préfixe (à réassigner manuellement).</p>
+<h3>Droits selon votre rôle</h3>
+<table>
+  <tr><th>Action</th><th>Utilisateur standard</th><th>Administrateur</th></tr>
+  <tr><td>Voir les 10 types par défaut</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Modifier / supprimer un type par défaut</td><td>— (lecture seule)</td><td>✓ (modification globale)</td></tr>
+  <tr><td>Ajouter un type personnalisé</td><td>✓ (par projet uniquement)</td><td>✓ (global, visible partout)</td></tr>
+  <tr><td>Bouton ↻ Réinitialiser</td><td>—</td><td>✓</td></tr>
+</table>
+
+<div class="box">
+  <p class="box-title">ℹ️ Types personnalisés d'un utilisateur standard</p>
+  <p>Les types que vous ajoutez sont <strong>par projet</strong> : ils ne sont visibles que dans le projet en cours, pas dans vos autres projets.</p>
+</div>
+
+<h3>Réinitialiser la légende (admin uniquement)</h3>
+<p>Le bouton <span class="btn-mock">↻ Réinitialiser</span> en haut du panneau remplace la légende actuelle par la liste standard de 10 types (HDMI, RJ45/IP, USB, RS232, DTP/XTP/HDBaseT, eBUS/Cresnet, Audio, HP, Secteur, SFP/Fibre). Une confirmation s'affiche et signale les éventuels câbles existants utilisant des types qui vont disparaître — ces câbles perdront leur couleur et leur préfixe (à réassigner manuellement).</p>
 
 <div class="box warn">
   <p class="box-title">⚠️ Avant de réinitialiser</p>
@@ -1523,7 +1562,7 @@
 
 <div class="box tip">
   <p class="box-title">💡 Côté collègue</p>
-  <p>Sur ses cartes de projet « partagé », un libellé indique le nom du propriétaire d'origine (« Par … »). Le projet reste la propriété de son créateur — même si le collègue en mode Éditeur peut le modifier.</p>
+  <p>Le projet apparaît dans la section <em>« Projets partagés »</em> (repliable) en bas de la liste des projets, avec un libellé indiquant le nom du propriétaire d'origine (« Par … »). Le projet reste la propriété de son créateur — même si le collègue en mode Éditeur peut le modifier.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -1718,8 +1757,8 @@
 </div>
 
 <div class="box tip">
-  <p class="box-title">💡 Réutiliser une zone</p>
-  <p>Les zones que vous créez sont sauvegardées sur votre compte. Elles seront proposées automatiquement dans tous vos futurs projets.</p>
+  <p class="box-title">💡 Zones par projet</p>
+  <p>Les zones sont propres à chaque projet. Deux zones de départ (<em>Baie</em> et <em>Régie</em>) sont créées automatiquement sur tout nouveau projet — vous pouvez les renommer, en supprimer ou en ajouter d'autres.</p>
 </div>
 
 <div class="box tip">
