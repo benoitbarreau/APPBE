@@ -1046,6 +1046,11 @@
   <tr><td>Lot dédié</td><td>Le « Lot » est propre à chaque onglet — modifiable depuis le cartouche.</td></tr>
 </table>
 
+<div class="box tip">
+  <p class="box-title">💡 Recentrage automatique (Fit View)</p>
+  <p>Chaque fois que vous cliquez sur un onglet <strong>Synoptique</strong>, la vue se recentre et s'adapte automatiquement au contenu en 300 ms. C'est également le cas à l'ouverture d'un projet — vous voyez toujours l'intégralité du schéma sans avoir à zoomer manuellement.</p>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════
      12. MODULE BAIE (RACK)
      ═══════════════════════════════════════════════════════════ -->
@@ -1114,6 +1119,17 @@
 
 <h3>Synchroniser depuis les synoptiques</h3>
 <p>Le bouton <span class="btn-mock">⟳ Synchroniser</span> en haut de l'onglet recharge les labels et références depuis les synoptiques pour les équipements liés. Utile si vous avez modifié des labels sur le synoptique et voulez que la baie soit à jour.</p>
+
+<h3>Exporter la baie</h3>
+<p>La barre de l'onglet Baie propose ses propres boutons d'export indépendants :</p>
+<table>
+  <tr><th>Format</th><th>Description</th></tr>
+  <tr><td><strong>PDF</strong></td><td>Plan de baie au format A3 paysage avec cartouche et mention légale, prêt à imprimer ou archiver.</td></tr>
+  <tr><td><strong>JPEG</strong></td><td>Image haute résolution de la baie (fond blanc).</td></tr>
+  <tr><td><strong>CSV</strong></td><td>Tableau des équipements : Position U, Hauteur, Fabricant, Référence, Label, IP, Port switch, VLAN, N° série. Ouvrable dans Excel.</td></tr>
+  <tr><td><strong>XLS</strong></td><td>Même tableau au format Excel natif avec en-têtes mis en forme (fond bleu marine).</td></tr>
+  <tr><td><strong>🖨 Imprimer</strong></td><td>Aperçu plein-écran avec bouton d'impression, format A3 paysage.</td></tr>
+</table>
 
 <div class="box tip">
   <p class="box-title">💡 Astuce d'ergonomie</p>
@@ -1450,6 +1466,16 @@
   <p>Les types que vous ajoutez sont <strong>par projet</strong> : ils ne sont visibles que dans le projet en cours, pas dans vos autres projets.</p>
 </div>
 
+<h3>La légende dans les exports et impressions</h3>
+<p>Lors d'un export PDF, JPEG ou d'une impression (synoptique), la légende des types de câbles s'affiche automatiquement <strong>à gauche de la bande inférieure</strong> de chaque page — uniquement si des câbles sont présents sur cette page.</p>
+<ul>
+  <li><strong>Filtrée par page</strong> : seuls les types de câbles réellement tracés sur la page courante apparaissent.</li>
+  <li>Le texte affiché correspond à la colonne <strong>« Câble par défaut »</strong> de chaque type (ex. « RJ45 », « HDMI 2.0 », « STP22-2 »).</li>
+  <li>Disposition : maximum 3 entrées par colonne, colonnes remplies de haut en bas.</li>
+  <li>La largeur s'adapte automatiquement au nombre de types présents.</li>
+  <li>Si aucun câble n'est tracé sur la page, la légende n'apparaît pas.</li>
+</ul>
+
 <h3>Réinitialiser la légende (admin uniquement)</h3>
 <p>Le bouton <span class="btn-mock">↻ Réinitialiser</span> en haut du panneau remplace la légende actuelle par la liste standard de 10 types (HDMI, RJ45/IP, USB, RS232, DTP/XTP/HDBaseT, eBUS/Cresnet, Audio, HP, Secteur, SFP/Fibre). Une confirmation s'affiche et signale les éventuels câbles existants utilisant des types qui vont disparaître — ces câbles perdront leur couleur et leur préfixe (à réassigner manuellement).</p>
 
@@ -1625,8 +1651,53 @@
 
 <p>SynoX produit des documents professionnels au format <strong>A3 paysage</strong>, prêts à diffuser.</p>
 
-<h3>Bouton « Exporter »</h3>
+<h3>Mise en page de chaque page exportée</h3>
+<p>Chaque page A3 est composée de deux zones :</p>
+<ul>
+  <li><strong>Zone de dessin</strong> (partie haute) : le synoptique ou la baie, centré et agrandi au maximum.</li>
+  <li><strong>Bande inférieure</strong> découpée en trois colonnes :<br>
+    — <strong>Légende des câbles</strong> (gauche) : les types de câbles présents sur cette page uniquement.<br>
+    — <strong>Mention légale</strong> (centre) : texte de confidentialité automatique.<br>
+    — <strong>Cartouche</strong> (droite, 25 % de la largeur) : métadonnées du projet.
+  </li>
+</ul>
 
+<div class="figure">
+  <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="200" fill="#fafbfd"/>
+    <!-- Page outline -->
+    <rect x="20" y="10" width="560" height="175" fill="#fff" stroke="#d6dbe2" rx="2"/>
+    <!-- Drawing zone -->
+    <rect x="20" y="10" width="560" height="125" fill="#f0f4ff" stroke="#d6dbe2"/>
+    <text x="300" y="78" font-size="11" font-weight="700" text-anchor="middle" fill="#5a6472">Zone de dessin (synoptique / baie)</text>
+    <!-- Bottom band -->
+    <rect x="20" y="135" width="560" height="50" fill="#fff" stroke="#d6dbe2"/>
+    <!-- Legend zone -->
+    <rect x="20" y="135" width="130" height="50" fill="#eef2f7" stroke="#d6dbe2"/>
+    <text x="85" y="155" font-size="9" font-weight="700" text-anchor="middle" fill="#5a6472">Légende câbles</text>
+    <text x="85" y="168" font-size="8" text-anchor="middle" fill="#888">filtrée par page</text>
+    <!-- Legal zone -->
+    <rect x="150" y="135" width="290" height="50" fill="#fff" stroke="#d6dbe2"/>
+    <text x="295" y="163" font-size="9" text-anchor="middle" fill="#888">Mention légale</text>
+    <!-- Cartouche zone -->
+    <rect x="440" y="135" width="140" height="50" fill="#1c2a4a" rx="0"/>
+    <text x="510" y="163" font-size="9" font-weight="700" text-anchor="middle" fill="#fff">Cartouche (25 %)</text>
+  </svg>
+  <span class="caption">Structure d'une page A3 exportée</span>
+</div>
+
+<h3>Légende des liaisons câbles (synoptiques)</h3>
+<p>La légende s'affiche automatiquement à gauche de la bande inférieure lorsque des câbles sont présents sur la page :</p>
+<ul>
+  <li><strong>Filtrée par page</strong> : seuls les types de câbles tracés sur chaque page sont affichés.</li>
+  <li>Le texte des badges correspond à la colonne <strong>« Câble par défaut »</strong> de votre panneau Légende (ex. « RJ45 », « HDMI 2.0 »).</li>
+  <li>Disposition : maximum 3 entrées par colonne, colonnes remplies de haut en bas.</li>
+  <li>La largeur de la zone s'adapte automatiquement au nombre de types présents.</li>
+  <li>Si aucun câble n'est tracé sur la page → la légende n'apparaît pas.</li>
+</ul>
+
+<h3>Export depuis un onglet Synoptique</h3>
+<p>Cliquez sur <span class="btn-mock">⬇ Exporter ▾</span> dans la barre d'outils pour choisir le format :</p>
 <table>
   <tr><th>Format</th><th>Quand l'utiliser</th></tr>
   <tr><td><strong>PNG</strong></td><td>Image haute résolution, idéale pour insertion dans un document Word ou PowerPoint.</td></tr>
@@ -1636,11 +1707,22 @@
   <tr><td><strong>JSON (projet complet)</strong></td><td>Sauvegarde locale du projet entier (catalogue + tabs). Utile pour partager un projet hors-ligne.</td></tr>
 </table>
 
-<h3>Bouton « Imprimer »</h3>
-<p>Ouvre un aperçu d'impression directement dans le navigateur. Vous pouvez ensuite imprimer ou enregistrer en PDF.</p>
+<h3>Bouton « Imprimer » (synoptique)</h3>
+<p>Ouvre un aperçu d'impression directement dans le navigateur. Vous pouvez ensuite imprimer ou enregistrer en PDF via la boîte de dialogue système.</p>
+
+<h3>Export depuis un onglet Baie</h3>
+<p>La barre de l'onglet Baie dispose de ses propres boutons d'export :</p>
+<table>
+  <tr><th>Format</th><th>Description</th></tr>
+  <tr><td><strong>PDF</strong></td><td>Plan de baie A3 paysage avec cartouche et mention légale.</td></tr>
+  <tr><td><strong>JPEG</strong></td><td>Image haute résolution de la baie, fond blanc.</td></tr>
+  <tr><td><strong>CSV</strong></td><td>Tableau des équipements (Position U, Hauteur, Fabricant, Référence, Label, IP, Port switch, VLAN, N° série) — ouvrable dans Excel.</td></tr>
+  <tr><td><strong>XLS</strong></td><td>Même tableau au format Excel natif, en-têtes mis en forme.</td></tr>
+  <tr><td><strong>🖨 Imprimer</strong></td><td>Aperçu plein-écran, format A3 paysage.</td></tr>
+</table>
 
 <h3>Exporter un seul onglet ou tout le projet</h3>
-<p>Si votre projet a plusieurs onglets, une fenêtre vous demande quoi exporter :</p>
+<p>Si votre projet a plusieurs onglets Synoptique, une fenêtre vous demande quoi exporter :</p>
 <ul>
   <li><strong>Synoptique actuel</strong> : seul l'onglet visible est exporté.</li>
   <li><strong>Tout le projet</strong> : tous les onglets sont exportés à la suite, avec un cartouche adapté à chacun et une numérotation de pages globale.</li>
