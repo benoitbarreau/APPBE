@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAppStore } from "../../store";
+import { useEditorState } from "../../store";
 import { ensureRacks, isBayTab } from "../../types";
 import type { CartoucheData } from "../../export";
 import { BayProductLibrary } from "./BayProductLibrary";
@@ -19,6 +20,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const removeRackFromTab = useAppStore((s) => s.removeRackFromTab);
   const projectMeta = useAppStore((s) => s.projectMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
+  const readOnly = useEditorState((s) => s.readOnly);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeRackId, setActiveRackId] = useState<string | null>(null);
   const [addRackOpen, setAddRackOpen] = useState(false);
@@ -63,24 +65,29 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
           {racks.length} baie{racks.length > 1 ? "s" : ""}
         </span>
         <span className="bay-infobar-hint">
-          Glisser un équipement depuis la bibliothèque · Cliquer sur une baie pour la sélectionner
+          {readOnly
+            ? "👁 Mode Lecteur — consultation et export uniquement"
+            : "Glisser un équipement depuis la bibliothèque · Cliquer sur une baie pour la sélectionner"}
         </span>
         <span className="bay-infobar-count">
           {totalItems} équipement{totalItems > 1 ? "s" : ""}
         </span>
-        <button
-          className={`bay-sync-btn${synced ? " synced" : ""}`}
-          onClick={handleSync}
-          title="Resynchroniser les labels et références depuis les synoptiques"
-        >
-          {synced ? "✓ Synchronisé" : "⟳ Synchroniser"}
-        </button>
+        {!readOnly && (
+          <button
+            className={`bay-sync-btn${synced ? " synced" : ""}`}
+            onClick={handleSync}
+            title="Resynchroniser les labels et références depuis les synoptiques"
+          >
+            {synced ? "✓ Synchronisé" : "⟳ Synchroniser"}
+          </button>
+        )}
         <BayExportMenu racks={racks} cartouche={cartouche} tabName={tab.name} />
       </div>
 
       {/* ── Main layout ──────────────────────────────────────────────────── */}
       <div className="bay-layout">
-        <BayProductLibrary tabId={tabId} activeRackId={effectiveRackId} />
+        {/* Bibliothèque masquée en mode lecteur */}
+        {!readOnly && <BayProductLibrary tabId={tabId} activeRackId={effectiveRackId} />}
 
         <div className="bay-center">
           <div className="bay-racks-row">
@@ -92,7 +99,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
                 selectedItemId={selectedItemId}
                 onSelectItem={(itemId) => handleSelectItem(rack.id, itemId)}
                 onRackClick={() => setActiveRackId(rack.id)}
-                canDelete={racks.length > 1}
+                canDelete={!readOnly && racks.length > 1}
                 onDeleteRack={() => {
                   if (activeRackId === rack.id) {
                     setSelectedItemId(null);
@@ -101,20 +108,23 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
                   removeRackFromTab(tabId, rack.id);
                 }}
                 isActive={effectiveRackId === rack.id}
+                readOnly={readOnly}
               />
             ))}
 
-            {/* Bouton ajouter une baie */}
-            <div className="bay-add-rack-col">
-              <button
-                className="bay-add-rack-btn"
-                onClick={() => setAddRackOpen(true)}
-                title="Ajouter une baie dans cet onglet"
-              >
-                <span className="bay-add-rack-icon">+</span>
-                Ajouter une baie
-              </button>
-            </div>
+            {/* Bouton ajouter une baie — masqué en mode lecteur */}
+            {!readOnly && (
+              <div className="bay-add-rack-col">
+                <button
+                  className="bay-add-rack-btn"
+                  onClick={() => setAddRackOpen(true)}
+                  title="Ajouter une baie dans cet onglet"
+                >
+                  <span className="bay-add-rack-icon">+</span>
+                  Ajouter une baie
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useAppStore } from "../../store";
+import { useAppStore, useEditorState } from "../../store";
 import type { Rack, RackAnnotations, RackItem, Tab } from "../../types";
 import { ensureRacks, isIPTableTab } from "../../types";
 
@@ -25,6 +25,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
   const removeRackItem = useAppStore((s) => s.removeRackItem);
   const updateIPRow    = useAppStore((s) => s.updateIPRow);
   const allTabs        = useAppStore((s) => s.tabs);
+  const readOnly       = useEditorState((s) => s.readOnly);
 
   // Cherche l'item dans la baie sélectionnée, ou dans toutes les baies de l'onglet
   const item = (rack?.items ?? ensureRacks(tab).flatMap((r) => r.items))
@@ -54,12 +55,12 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
   }, [allTabs, item]);
 
   const patchItem = (patch: Partial<RackItem>) => {
-    if (!item) return;
+    if (!item || readOnly) return;
     updateRackItem(tab.id, item.id, patch);
   };
 
   const patchAnnotation = (key: keyof RackAnnotations, value: string) => {
-    if (!item) return;
+    if (!item || readOnly) return;
     updateRackItem(tab.id, item.id, {
       annotations: { ...(item.annotations ?? {}), [key]: value || undefined },
     });
@@ -80,6 +81,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
 
   /** Mise à jour d'un champ : route vers Tableau IP pour IP/Série quand lié. */
   const setFieldValue = (key: keyof RackAnnotations, value: string) => {
+    if (readOnly) return;
     if (key === "ip" && ipLink) {
       updateIPRow(ipLink.tabId, ipLink.rowId, { ip: value });
       return;
@@ -107,7 +109,9 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
     <div className="bay-prop-overlay" onMouseDown={onDeselect}>
     <div className="bay-properties" onMouseDown={(e) => e.stopPropagation()}>
       <div className="bay-props-header">
-        <h3 className="bay-props-title">Propriétés</h3>
+        <h3 className="bay-props-title">
+          Propriétés{readOnly && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, opacity: 0.65 }}>👁 lecture seule</span>}
+        </h3>
         <button className="bay-props-close" onClick={onDeselect} title="Fermer (Echap)">✕</button>
       </div>
 
@@ -118,6 +122,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           value={item.label ?? ""}
           onChange={(e) => patchItem({ label: e.target.value || undefined })}
           placeholder={item.reference ?? "—"}
+          readOnly={readOnly}
+          disabled={readOnly}
         />
       </div>
 
@@ -143,6 +149,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
               const v = parseInt(e.target.value);
               if (v >= 1 && v <= rackHeightU) patchItem({ uStart: v });
             }}
+            readOnly={readOnly}
+            disabled={readOnly}
           />
         </div>
         <div>
@@ -156,6 +164,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
               const v = parseInt(e.target.value);
               if (v >= 1) patchItem({ heightU: v });
             }}
+            readOnly={readOnly}
+            disabled={readOnly}
           />
         </div>
       </div>
@@ -166,6 +176,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           <select
             value={item.widthCols}
             onChange={(e) => patchItem({ widthCols: parseInt(e.target.value) as 1 | 2 | 4 })}
+            disabled={readOnly}
           >
             <option value={4}>Pleine largeur</option>
             <option value={2}>Demi-largeur</option>
@@ -177,6 +188,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           <select
             value={item.colStart}
             onChange={(e) => patchItem({ colStart: parseInt(e.target.value) as 0 | 1 | 2 | 3 })}
+            disabled={readOnly}
           >
             <option value={0}>0</option>
             {item.widthCols <= 2 && <option value={1}>1</option>}
@@ -193,6 +205,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
             type="color"
             value={item.color ?? "#444444"}
             onChange={(e) => patchItem({ color: e.target.value })}
+            disabled={readOnly}
           />
         </div>
         <div className="bay-prop-lock">
@@ -201,6 +214,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
               type="checkbox"
               checked={item.locked ?? false}
               onChange={(e) => patchItem({ locked: e.target.checked })}
+              disabled={readOnly}
             />
             &nbsp;Verrouillé
           </label>
@@ -225,23 +239,27 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
               value={valueFor(key)}
               onChange={(e) => setFieldValue(key, e.target.value)}
               placeholder="—"
+              readOnly={readOnly}
+              disabled={readOnly}
             />
           </div>
         );
       })}
 
-      {/* ── Actions ────────────────────────────────────────────────────── */}
-      <div className="bay-prop-actions">
-        <button
-          className="bay-prop-delete"
-          onClick={() => {
-            removeRackItem(tab.id, item.id);
-            onDeselect();
-          }}
-        >
-          🗑 Supprimer
-        </button>
-      </div>
+      {/* ── Actions — masquées en mode lecteur ─────────────────────────── */}
+      {!readOnly && (
+        <div className="bay-prop-actions">
+          <button
+            className="bay-prop-delete"
+            onClick={() => {
+              removeRackItem(tab.id, item.id);
+              onDeselect();
+            }}
+          >
+            🗑 Supprimer
+          </button>
+        </div>
+      )}
     </div>
     </div>,
     document.body,

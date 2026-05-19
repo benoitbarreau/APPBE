@@ -26,9 +26,10 @@ interface RackViewProps {
   canDelete: boolean;
   onDeleteRack: () => void;
   isActive: boolean;
+  readOnly?: boolean;
 }
 
-export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick, canDelete, onDeleteRack, isActive }: RackViewProps) {
+export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick, canDelete, onDeleteRack, isActive, readOnly = false }: RackViewProps) {
   const addRackItem = useAppStore((s) => s.addRackItem);
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const renameRack = useAppStore((s) => s.renameRack);
@@ -73,6 +74,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
 
   // ── Drop from library ────────────────────────────────────────────────────
   const handleDragOver = (e: React.DragEvent) => {
+    if (readOnly) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     const dragItem = getDragItem();
@@ -90,6 +92,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (readOnly) return;
     e.preventDefault();
     setDragOverU(null);
     const dragItem = getDragItem();
@@ -110,7 +113,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
 
   // ── Drag item within rack ────────────────────────────────────────────────
   const handleItemDragStart = (e: React.DragEvent, item: RackItem) => {
-    if (item.locked) { e.preventDefault(); return; }
+    if (readOnly || item.locked) { e.preventDefault(); return; }
     e.dataTransfer.effectAllowed = "move";
     setDraggingId(item.id);
     // Provide drag data (ghost image handled by browser)
@@ -123,6 +126,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   };
 
   const handleRackDragOver = (e: React.DragEvent) => {
+    if (readOnly) return;
     e.preventDefault();
     const currentDragging = draggingIdRef.current;
     if (!currentDragging) { handleDragOver(e); return; }
@@ -134,6 +138,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   };
 
   const handleRackDrop = (e: React.DragEvent) => {
+    if (readOnly) return;
     e.preventDefault();
     const currentDragging = draggingIdRef.current;
     if (!currentDragging) { handleDrop(e); return; }
@@ -179,10 +184,12 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
         <input
           className="rack-name-input"
           value={rack.name}
-          onChange={(e) => renameRack(tab.id, rack.id, e.target.value)}
+          onChange={readOnly ? undefined : (e) => renameRack(tab.id, rack.id, e.target.value)}
+          readOnly={readOnly}
           onClick={(e) => e.stopPropagation()}
           placeholder="Nom de la baie"
-          title="Cliquer pour renommer la baie"
+          title={readOnly ? rack.name : "Cliquer pour renommer la baie"}
+          style={readOnly ? { cursor: "default", pointerEvents: "none" } : undefined}
         />
         {canDelete && (
           <button
@@ -268,6 +275,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
                 left={itemLeft(item)}
                 width={itemWidth(item)}
                 height={itemHeight(item)}
+                readOnly={readOnly}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectItem(item.id === selectedItemId ? null : item.id);
@@ -300,12 +308,13 @@ interface RackItemCardProps {
   left: number;
   width: number;
   height: number;
+  readOnly?: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
 }
 
-function RackItemCard({ item, selected, dragging, top, left, width, height, onClick, onDragStart, onDragEnd }: RackItemCardProps) {
+function RackItemCard({ item, selected, dragging, top, left, width, height, readOnly = false, onClick, onDragStart, onDragEnd }: RackItemCardProps) {
   const bg = item.color ?? "#3a3d44";
   const textColor = isLightHex(bg) ? "#1c1f24" : "#ffffff";
 
@@ -327,7 +336,7 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, onCl
         color: textColor,
         borderColor: selected ? "#4da6ff" : "rgba(255,255,255,0.15)",
       }}
-      draggable={!item.locked}
+      draggable={!readOnly && !item.locked}
       onClick={onClick}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
