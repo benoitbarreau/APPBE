@@ -33,16 +33,21 @@ AS $$
   );
 $$;
 
--- Renvoie les IDs de projets partagés avec l'utilisateur courant
+-- Vérifie si un projet est partagé avec l'utilisateur courant
 -- (lit project_shares SANS RLS grâce à SECURITY DEFINER)
-CREATE OR REPLACE FUNCTION public.list_shared_project_ids()
-RETURNS SETOF uuid
+-- NOTE : SETOF n'est pas autorisé dans les expressions de policy → fonction booléenne scalaire
+CREATE OR REPLACE FUNCTION public.is_shared_with_me(p_project_id uuid)
+RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT project_id FROM project_shares WHERE user_id = auth.uid();
+  SELECT EXISTS (
+    SELECT 1 FROM project_shares
+    WHERE project_id = p_project_id
+      AND user_id = auth.uid()
+  );
 $$;
 
 -- Vérifie si l'utilisateur courant est éditeur partagé sur un projet
@@ -93,10 +98,10 @@ DROP POLICY IF EXISTS "shared_users_select"   ON public.projects;
 DROP POLICY IF EXISTS "shared_editors_update" ON public.projects;
 
 -- Les utilisateurs partagés voient les projets partagés avec eux
--- list_shared_project_ids() → SECURITY DEFINER → zéro récursion
+-- is_shared_with_me() → SECURITY DEFINER → zéro récursion
 CREATE POLICY "shared_users_select"
   ON public.projects FOR SELECT
-  USING (id = ANY(public.list_shared_project_ids()));
+  USING (public.is_shared_with_me(id));
 
 -- Les éditeurs partagés peuvent sauvegarder le projet
 -- is_shared_editor() → SECURITY DEFINER → zéro récursion
@@ -114,4 +119,4 @@ ORDER BY tablename, policyname;
 
 SELECT proname, prosecdef
 FROM pg_proc
-WHERE proname IN ('is_project_owner', 'list_shared_project_ids', 'is_shared_editor');
+WHERE proname IN ('is_project_owner', 'is_shared_with_me', 'is_shared_editor');
