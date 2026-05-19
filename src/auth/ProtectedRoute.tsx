@@ -216,12 +216,12 @@ export function ProtectedRoute() {
     }
   }
 
-  /** Ouvre la version courante (normale, éditable) */
-  const handleOpenEditor = () => {
-    setReadOnly(false)
-    setReadOnlyVersion(undefined)
+  /** Ouvre la version courante — éditeur complet ou mode lecteur selon le rôle partagé */
+  const handleOpenEditor = (readOnly = false, label?: string) => {
+    setReadOnly(readOnly)
+    setReadOnlyVersion(label)
     setPage('editor')
-    persistView('editor', false)
+    persistView('editor', readOnly, label)
   }
 
   /** Retour à la liste — utilisé par App.onBackToProjects */

@@ -713,7 +713,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
         {/* ── Bannière lecture seule ─────────────────────────────────────── */}
         {readOnly && (
           <div className="readonly-banner">
-            🔒 Lecture seule — Version {readOnlyVersion ?? "archivée"} — Cette version ne peut pas être modifiée
+            {readOnlyVersion === 'Mode Lecteur'
+              ? '👁 Mode Lecteur — Vous pouvez consulter et exporter ce projet, mais pas le modifier'
+              : `🔒 Lecture seule — Version ${readOnlyVersion ?? 'archivée'} — Cette version ne peut pas être modifiée`
+            }
             <button onClick={onBackToProjects} className="readonly-back-btn">
               ← Retour aux projets
             </button>

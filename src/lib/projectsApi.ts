@@ -44,7 +44,10 @@ export interface ProjectRow {
 
 const pgErr = (e: { message: string }) => new Error(e.message)
 
-const PROJECT_SELECT = 'id, user_id, name, created_at, updated_at, versions_meta, client_name, lieu, archived, profiles(email, full_name)'
+// !left force un LEFT OUTER JOIN — sans ça PostgREST utilise un INNER JOIN
+// (FK NOT NULL), ce qui filtre les projets partagés quand l'utilisateur ne
+// peut pas voir le profil du propriétaire via RLS.
+const PROJECT_SELECT = 'id, user_id, name, created_at, updated_at, versions_meta, client_name, lieu, archived, profiles!left(email, full_name)'
 
 /** Liste les projets actifs (archived = false) ou archivés (archived = true) */
 export async function listProjects(archived = false): Promise<ProjectRow[]> {
@@ -256,4 +259,19 @@ export async function addProjectShare(
 export async function removeProjectShare(shareId: string): Promise<void> {
   const { error } = await supabase.from('project_shares').delete().eq('id', shareId)
   if (error) throw pgErr(error)
+}
+
+/**
+ * Renvoie le rôle de l'utilisateur courant sur un projet partagé.
+ * Retourne null si l'utilisateur n'est pas dans la table project_shares
+ * (ex. il est propriétaire ou admin — pas un partagé).
+ */
+export async function getMyShareRole(projectId: string): Promise<'editor' | 'viewer' | null> {
+  const { data, error } = await supabase
+    .from('project_shares')
+    .select('role')
+    .eq('project_id', projectId)
+    .limit(1)
+  if (error || !data || data.length === 0) return null
+  return (data[0] as { role: 'editor' | 'viewer' }).role
 }

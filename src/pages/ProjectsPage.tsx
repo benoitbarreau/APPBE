@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useAppStore } from '../store'
-import { listProjects, fetchProject, deleteProject, saveProject, setProjectArchived } from '../lib/projectsApi'
+import { listProjects, fetchProject, deleteProject, saveProject, setProjectArchived, getMyShareRole } from '../lib/projectsApi'
 import type { ProjectRow, VersionMeta } from '../lib/projectsApi'
 import { ShareModal } from '../components/ShareModal'
 import { AdminSettings } from '../components/AdminSettings'
@@ -10,7 +10,7 @@ import type { Panel } from '../components/AdminSettings'
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
 interface Props {
-  onOpenEditor: () => void
+  onOpenEditor: (readOnly?: boolean, label?: string) => void
   onOpenAdminDashboard?: () => void
   onOpenVersion?: (versionId: string, projectId: string, projectName: string) => void
 }
@@ -101,7 +101,14 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     try {
       const { name, data } = await fetchProject(row.id)
       loadProjectData(row.id, name, data, row.versions_meta ?? [])
-      onOpenEditor()
+
+      // Projet partagé (non propriétaire et non admin) → vérifier le rôle
+      if (!isOwned(row) && !isAdmin) {
+        const shareRole = await getMyShareRole(row.id)
+        onOpenEditor(shareRole === 'viewer', shareRole === 'viewer' ? 'Mode Lecteur' : undefined)
+      } else {
+        onOpenEditor()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur lors de l'ouverture")
     } finally {
