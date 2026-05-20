@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { NodeResizer, NodeToolbar, Position } from "@xyflow/react";
+import { Handle, NodeResizer, NodeToolbar, Position } from "@xyflow/react";
 import { useAppStore } from "../store";
 import type { ShapeNodeData } from "../types";
 
@@ -269,6 +269,12 @@ export function ShapeNodeComponent({ id, data, selected }: {
       </NodeToolbar>
 
       {isCloud ? cloudElement : <div style={boxStyle} />}
+
+      {/* ── Handles de connexion (visibles au survol via CSS) ───────────── */}
+      <Handle type="source" position={Position.Top}    id="out:shape-n" className="shape-handle" />
+      <Handle type="source" position={Position.Right}  id="out:shape-e" className="shape-handle" />
+      <Handle type="source" position={Position.Bottom} id="out:shape-s" className="shape-handle" />
+      <Handle type="source" position={Position.Left}   id="out:shape-w" className="shape-handle" />
     </>
   );
 }

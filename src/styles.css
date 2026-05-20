@@ -6523,6 +6523,31 @@ select {
   border-color: transparent;
 }
 
+/* ── Handles de connexion sur les blocs forme ───────────────────────────── */
+/* Cachés par défaut, révélés au survol du nœud ou quand il est sélectionné */
+.react-flow__node-shape .shape-handle {
+  width: 10px;
+  height: 10px;
+  background: #2f6fed;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+.react-flow__node-shape:hover .shape-handle,
+.react-flow__node-shape.selected .shape-handle {
+  opacity: 1;
+}
+/* Agrandissement au survol direct du handle pour faciliter la prise */
+.react-flow__node-shape .shape-handle:hover {
+  opacity: 1;
+  width: 14px;
+  height: 14px;
+  background: #1a56db;
+  cursor: crosshair;
+}
+
 /* ── Barre d'outils texte flottante 2 lignes (NodeToolbar) ──────────────── */
 .text-toolbar {
   background: #fff;

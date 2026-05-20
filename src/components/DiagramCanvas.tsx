@@ -513,6 +513,35 @@ export function DiagramCanvas({
       const from = parseHandle(conn.sourceHandle);
       const to = parseHandle(conn.targetHandle);
       if (!from || !to) return;
+
+      // ── Connexion impliquant un bloc forme ───────────────────────────────
+      const isShapeSource = (shapeNodes ?? []).some((sn) => sn.id === conn.source);
+      const isShapeTarget = (shapeNodes ?? []).some((sn) => sn.id === conn.target);
+      if (isShapeSource || isShapeTarget) {
+        // Récupère le signal depuis le port produit si l'autre extrémité en est un
+        let signal: SignalType = "";
+        if (!isShapeSource) {
+          const fromNode = nodes.find((n) => n.id === conn.source);
+          const fromPort = findPort(products.find((p) => p.id === fromNode?.productId), from.portId);
+          if (fromPort) signal = fromPort.signal;
+        } else if (!isShapeTarget) {
+          const toNode = nodes.find((n) => n.id === conn.target);
+          const toPort = findPort(products.find((p) => p.id === toNode?.productId), to.portId);
+          if (toPort) signal = toPort.signal;
+        }
+        addCable({
+          fromNodeId: conn.source,
+          fromPortId: from.portId,
+          fromPortSide: from.side,
+          toNodeId: conn.target,
+          toPortId: to.portId,
+          toPortSide: to.side,
+          signal,
+        });
+        return;
+      }
+
+      // ── Connexion normale entre produits ─────────────────────────────────
       const fromNode = nodes.find((n) => n.id === conn.source);
       const toNode = nodes.find((n) => n.id === conn.target);
       if (!fromNode || !toNode) return;
@@ -543,7 +572,7 @@ export function DiagramCanvas({
         signal,
       });
     },
-    [nodes, products, signals, addCable, showCompatError],
+    [nodes, products, signals, shapeNodes, addCable, showCompatError],
   );
 
   const onEdgeDoubleClick = useCallback(
@@ -577,6 +606,35 @@ export function DiagramCanvas({
       const from = parseHandle(newConnection.sourceHandle);
       const to = parseHandle(newConnection.targetHandle);
       if (!from || !to) return;
+
+      // ── Reconnexion impliquant un bloc forme ─────────────────────────────
+      const isShapeSource = (shapeNodes ?? []).some((sn) => sn.id === newConnection.source);
+      const isShapeTarget = (shapeNodes ?? []).some((sn) => sn.id === newConnection.target);
+      if (isShapeSource || isShapeTarget) {
+        let signal: SignalType = "";
+        if (!isShapeSource) {
+          const fromNode = nodes.find((n) => n.id === newConnection.source);
+          const fromPort = findPort(products.find((p) => p.id === fromNode?.productId), from.portId);
+          if (fromPort) signal = fromPort.signal;
+        } else if (!isShapeTarget) {
+          const toNode = nodes.find((n) => n.id === newConnection.target);
+          const toPort = findPort(products.find((p) => p.id === toNode?.productId), to.portId);
+          if (toPort) signal = toPort.signal;
+        }
+        updateCable(oldEdge.id, {
+          fromNodeId: newConnection.source,
+          fromPortId: from.portId,
+          fromPortSide: from.side,
+          toNodeId: newConnection.target,
+          toPortId: to.portId,
+          toPortSide: to.side,
+          signal,
+          waypoints: [],
+        });
+        return;
+      }
+
+      // ── Reconnexion normale entre produits ───────────────────────────────
       const fromNode = nodes.find((n) => n.id === newConnection.source);
       const toNode   = nodes.find((n) => n.id === newConnection.target);
       if (!fromNode || !toNode) return;
@@ -607,7 +665,7 @@ export function DiagramCanvas({
         waypoints: [],
       });
     },
-    [nodes, products, signals, updateCable, showCompatError],
+    [nodes, products, signals, shapeNodes, updateCable, showCompatError],
   );
 
   return (
