@@ -28,6 +28,47 @@ export function ShapeNodeComponent({ id, data, selected }: {
   const borderRadius = data.borderRadius ?? 0;
   const borderWidth  = data.borderWidth  ?? 1;
   const isEllipse    = data.shape === "ellipse";
+  const isCloud      = data.shape === "cloud";
+
+  // ── Path SVG du nuage (viewBox 0 0 100 60) ──────────────────────────────
+  // Symétrique : 3 bosses en haut, fond plat de x=15 à x=85.
+  // vector-effect="non-scaling-stroke" → épaisseur de trait constante en px écran.
+  const CLOUD_PATH =
+    "M 15,52 " +
+    "C 5,52 0,44 0,36 " +
+    "C 0,26 8,19 18,21 " +
+    "C 16,9 24,3 34,3 " +
+    "C 40,0 48,2 50,8 " +
+    "C 52,2 60,0 66,3 " +
+    "C 76,3 84,9 82,21 " +
+    "C 92,19 100,26 100,36 " +
+    "C 100,44 95,52 85,52 " +
+    "Z";
+
+  const cloudStrokeDasharray =
+    data.borderStyle === "dashed" ? "10 5" :
+    data.borderStyle === "dotted" ? "2 5"  :
+    undefined;
+
+  const cloudElement = (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 60"
+      preserveAspectRatio="none"
+      style={{ display: "block", overflow: "visible" }}
+    >
+      <path
+        d={CLOUD_PATH}
+        fill={data.background === "transparent" ? "transparent" : data.background}
+        stroke={data.borderStyle === "none" || borderWidth === 0 ? "none" : data.borderColor}
+        strokeWidth={borderWidth}
+        strokeDasharray={cloudStrokeDasharray}
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
 
   const boxStyle: React.CSSProperties = {
     width:        "100%",
@@ -71,9 +112,9 @@ export function ShapeNodeComponent({ id, data, selected }: {
           <div className="text-toolbar-row">
             <span className="text-toolbar-row-label">Forme</span>
 
-            {/* Bascule Rectangle / Ellipse */}
+            {/* Bascule Rectangle / Ellipse / Nuage */}
             <button
-              className={`text-toolbar-btn${!isEllipse ? " active" : ""}`}
+              className={`text-toolbar-btn${!isEllipse && !isCloud ? " active" : ""}`}
               onClick={() => update({ shape: "rectangle" })}
               title="Rectangle"
             >▭</button>
@@ -82,6 +123,11 @@ export function ShapeNodeComponent({ id, data, selected }: {
               onClick={() => update({ shape: "ellipse" })}
               title="Ellipse"
             >⬭</button>
+            <button
+              className={`text-toolbar-btn${isCloud ? " active" : ""}`}
+              onClick={() => update({ shape: "cloud" })}
+              title="Nuage"
+            >☁</button>
 
             <span className="text-toolbar-sep" />
 
@@ -191,7 +237,7 @@ export function ShapeNodeComponent({ id, data, selected }: {
             >⊘</button>
 
             {/* Coins arrondis — uniquement pour les rectangles */}
-            {!isEllipse && (
+            {!isEllipse && !isCloud && (
               <>
                 <span className="text-toolbar-sep" />
                 <label className="text-toolbar-radius-wrap" title={`Coins arrondis : ${borderRadius}px`}>
@@ -222,7 +268,7 @@ export function ShapeNodeComponent({ id, data, selected }: {
         </div>
       </NodeToolbar>
 
-      <div style={boxStyle} />
+      {isCloud ? cloudElement : <div style={boxStyle} />}
     </>
   );
 }

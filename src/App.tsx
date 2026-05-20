@@ -219,7 +219,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     });
   };
 
-  const handleAddShapeNode = (shape: "rectangle" | "ellipse") => {
+  const handleAddShapeNode = (shape: "rectangle" | "ellipse" | "cloud") => {
     let position = { x: 200, y: 200 };
     try {
       const vp = reactFlow.getViewport();

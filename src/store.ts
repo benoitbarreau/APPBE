@@ -149,7 +149,7 @@ interface State {
   updateTextNode: (id: string, patch: Partial<TextNodeData>) => void;
   removeTextNode: (id: string) => void;
 
-  addShapeNode: (shape: 'rectangle' | 'ellipse', position: { x: number; y: number }) => string;
+  addShapeNode: (shape: 'rectangle' | 'ellipse' | 'cloud', position: { x: number; y: number }) => string;
   updateShapeNode: (id: string, patch: Partial<ShapeNodeData>) => void;
   removeShapeNode: (id: string) => void;
   bringShapeForward: (id: string) => void;

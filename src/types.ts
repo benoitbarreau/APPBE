@@ -321,12 +321,12 @@ export interface ShapeNodeData {
   position: { x: number; y: number };
   width: number;
   height: number;
-  shape: 'rectangle' | 'ellipse';
+  shape: 'rectangle' | 'ellipse' | 'cloud';
   background: string;
   borderStyle: 'none' | 'solid' | 'dashed' | 'dotted';
   borderColor: string;
   borderWidth: number;
-  /** Rayon des coins arrondis en px (ignoré si shape === 'ellipse'). */
+  /** Rayon des coins arrondis en px (ignoré si shape === 'ellipse' | 'cloud'). */
   borderRadius: number;
   /** Ordre d'empilement entre formes : plus la valeur est haute, plus la forme est au premier plan. */
   zOrder: number;

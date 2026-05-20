@@ -4,7 +4,7 @@ interface FormattingPanelProps {
   onCollapse: () => void;
   onAutoLayout: () => void;
   onAddTextNode: () => void;
-  onAddShapeNode: (shape: "rectangle" | "ellipse") => void;
+  onAddShapeNode: (shape: "rectangle" | "ellipse" | "cloud") => void;
   onAddImageNode: () => void;
 }
 
@@ -72,6 +72,11 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAdd
                 onClick={() => { setShapeMenuOpen(false); onAddShapeNode("ellipse"); }}
               >
                 ⬭ Ellipse
+              </button>
+              <button
+                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("cloud"); }}
+              >
+                ☁ Nuage
               </button>
             </div>
           )}
