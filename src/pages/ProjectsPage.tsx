@@ -13,6 +13,7 @@ interface Props {
   onOpenEditor: (readOnly?: boolean, label?: string) => void
   onOpenAdminDashboard?: () => void
   onOpenVersion?: (versionId: string, projectId: string, projectName: string) => void
+  onOpenReferentiel?: () => void
 }
 
 const fmt = (iso: string) =>
@@ -21,7 +22,7 @@ const fmt = (iso: string) =>
     hour: '2-digit', minute: '2-digit',
   })
 
-export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion }: Props) {
+export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion, onOpenReferentiel }: Props) {
   const { profile, signOut, isPasswordRecovery, clearPasswordRecovery } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
@@ -302,6 +303,16 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
           <img src={logoUrl} alt="SynoX" className="projects-page-logo" />
           <span className="projects-page-title">SynoX</span>
         </div>
+
+        <nav className="ref-main-nav">
+          <button className="ref-nav-btn ref-nav-btn-active">
+            Projets en cours
+          </button>
+          <button className="ref-nav-btn" onClick={onOpenReferentiel}>
+            Référentiel
+          </button>
+        </nav>
+
         <div className="projects-page-user">
           <button
             onClick={() => void signOut()}
