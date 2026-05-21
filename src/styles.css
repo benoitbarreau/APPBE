@@ -7406,6 +7406,102 @@ select {
   background: #fafbfc;
 }
 
+/* Logo client dans la carte */
+.ref-client-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ref-client-card-identity { flex: 1; min-width: 0; }
+.ref-client-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
+}
+.ref-client-logo-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Logo dans le formulaire d'édition */
+.ref-logo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f8f9fc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.ref-logo-upload-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+.ref-logo-upload-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ref-logo-preview {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.ref-logo-placeholder {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+.ref-logo-upload-btns { display: flex; gap: 6px; }
+
+/* Liste projets à lier */
+.ref-link-project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.ref-link-project-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f8f9fc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ref-link-project-name { flex: 1; font-weight: 600; }
+.ref-link-project-meta { font-size: 11px; color: var(--muted); }
+
 /* ── Sites ── */
 .ref-sites-list {
   display: flex;

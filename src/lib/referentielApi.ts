@@ -11,6 +11,8 @@ export interface Client {
   phone: string | null
   email: string | null
   notes: string | null
+  logo_url: string | null
+  logo_storage_path: string | null
   created_at: string
   updated_at: string
 }
@@ -192,6 +194,45 @@ export async function updateRoom(
 
 export async function deleteRoom(id: string): Promise<void> {
   const { error } = await supabase.from('rooms').delete().eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+// ── Logo client ────────────────────────────────────────────────────────────
+
+export async function uploadClientLogo(
+  userId: string,
+  clientId: string,
+  file: File,
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const ext = file.name.split('.').pop() ?? 'png'
+  const storagePath = `${userId}/${clientId}/logo.${ext}`
+
+  // Supprimer l'ancien logo s'il existe (upsert manuel)
+  await supabase.storage.from('client-logos').remove([storagePath]).catch(() => {})
+
+  const { error } = await supabase.storage
+    .from('client-logos')
+    .upload(storagePath, file, { upsert: true })
+  if (error) throw new Error(error.message)
+
+  const { data } = supabase.storage.from('client-logos').getPublicUrl(storagePath)
+  // Ajoute un timestamp pour forcer le rechargement du cache navigateur
+  const publicUrl = `${data.publicUrl}?t=${Date.now()}`
+
+  await supabase
+    .from('clients')
+    .update({ logo_url: publicUrl, logo_storage_path: storagePath, updated_at: now() })
+    .eq('id', clientId)
+
+  return { storagePath, publicUrl }
+}
+
+export async function deleteClientLogo(clientId: string, storagePath: string): Promise<void> {
+  await supabase.storage.from('client-logos').remove([storagePath]).catch(() => {})
+  const { error } = await supabase
+    .from('clients')
+    .update({ logo_url: null, logo_storage_path: null, updated_at: now() })
+    .eq('id', clientId)
   if (error) throw pgErr(error)
 }
 

@@ -6,10 +6,13 @@ import {
   listRooms, createRoom, updateRoom, deleteRoom,
   listDocuments, createDocument, deleteDocument,
   uploadDocument, getSignedUrl, deleteStorageFile,
-  listProjectsByRoom,
+  listProjectsByRoom, linkProjectToRoom,
+  uploadClientLogo, deleteClientLogo,
   listContacts, createContact, updateContact, deleteContact,
   type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject, type Contact, type ContactEntityType,
 } from '../lib/referentielApi'
+import { listProjects } from '../lib/projectsApi'
+import type { ProjectRow } from '../lib/projectsApi'
 import { AdminSettings } from '../components/AdminSettings'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
@@ -34,6 +37,7 @@ const ROOM_TYPES = ['Salle de réunion', 'Salle de conférence', 'Auditorium', '
 interface Props {
   onOpenProjects: () => void
   onOpenAdminDashboard?: () => void
+  onNewProjectFromRoom?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
 }
 
 // ── Composant modal générique ──────────────────────────────────────────────
@@ -56,21 +60,35 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 interface ClientFormProps {
   initial?: Partial<Client>
+  clientId?: string
   onSave: (data: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>
+  onLogoUploaded?: (url: string, path: string) => void
   onCancel: () => void
   saving: boolean
 }
 
-function ClientForm({ initial, onSave, onCancel, saving }: ClientFormProps) {
+function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, saving }: ClientFormProps) {
+  const { user } = useAuth()
   const [name, setName]       = useState(initial?.name ?? '')
   const [code, setCode]       = useState(initial?.code ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
   const [phone, setPhone]     = useState(initial?.phone ?? '')
   const [email, setEmail]     = useState(initial?.email ?? '')
   const [notes, setNotes]     = useState(initial?.notes ?? '')
-  const nameRef = useRef<HTMLInputElement>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(initial?.logo_url ?? null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const nameRef    = useRef<HTMLInputElement>(null)
+  const logoRef    = useRef<HTMLInputElement>(null)
 
   useEffect(() => { nameRef.current?.focus() }, [])
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setLogoFile(f)
+    setLogoPreview(URL.createObjectURL(f))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +100,18 @@ function ClientForm({ initial, onSave, onCancel, saving }: ClientFormProps) {
       phone: phone.trim() || null,
       email: email.trim() || null,
       notes: notes.trim() || null,
+      logo_url: initial?.logo_url ?? null,
+      logo_storage_path: initial?.logo_storage_path ?? null,
     })
+    // Upload logo séparé après sauvegarde (clientId connu)
+    if (logoFile && clientId && user) {
+      setUploadingLogo(true)
+      try {
+        const { publicUrl, storagePath } = await uploadClientLogo(user.id, clientId, logoFile)
+        onLogoUploaded?.(publicUrl, storagePath)
+      } catch { /* non bloquant */ }
+      finally { setUploadingLogo(false) }
+    }
   }
 
   return (
@@ -107,6 +136,41 @@ function ClientForm({ initial, onSave, onCancel, saving }: ClientFormProps) {
       <label>Notes
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Notes libres…" />
       </label>
+      {/* Logo — uniquement à la modification (clientId connu) */}
+      {clientId && (
+        <div className="ref-logo-upload">
+          <span className="ref-logo-upload-label">Logo</span>
+          <div className="ref-logo-upload-inner">
+            {logoPreview
+              ? <img src={logoPreview} alt="Logo" className="ref-logo-preview" />
+              : <div className="ref-logo-placeholder">Pas de logo</div>
+            }
+            <div className="ref-logo-upload-btns">
+              <button type="button" onClick={() => logoRef.current?.click()}>
+                {logoPreview ? 'Changer' : 'Ajouter un logo'}
+              </button>
+              {logoPreview && initial?.logo_storage_path && (
+                <button type="button" className="danger" onClick={async () => {
+                  await deleteClientLogo(clientId, initial.logo_storage_path!)
+                  setLogoPreview(null)
+                  setLogoFile(null)
+                  onLogoUploaded?.('', '')
+                }}>
+                  Supprimer
+                </button>
+              )}
+            </div>
+            <input
+              ref={logoRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              style={{ display: 'none' }}
+              onChange={handleLogoChange}
+            />
+          </div>
+          {uploadingLogo && <p className="ref-loading-hint">Upload logo…</p>}
+        </div>
+      )}
       <div className="ref-form-actions">
         <button type="button" onClick={onCancel}>Annuler</button>
         <button type="submit" className="primary" disabled={saving || !name.trim()}>
@@ -394,15 +458,24 @@ interface RoomPanelProps {
   onClose: () => void
   onRoomUpdated: (updated: Room) => void
   onRoomDeleted: () => void
+  onNewProject?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
 }
 
-function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted }: RoomPanelProps) {
+function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, onNewProject }: RoomPanelProps) {
   const { user } = useAuth()
   const [editing, setEditing] = useState(false)
   const [savingRoom, setSavingRoom] = useState(false)
   const [docs, setDocs] = useState<RefDocument[]>([])
   const [docsLoading, setDocsLoading] = useState(true)
   const [linkedProjects, setLinkedProjects] = useState<LinkedProject[]>([])
+  // Liaison projet existant
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [allProjects, setAllProjects] = useState<ProjectRow[]>([])
+  const [projSearch, setProjSearch] = useState('')
+  const [linking, setLinking] = useState(false)
+  // Nouveau projet
+  const [newProjDialogOpen, setNewProjDialogOpen] = useState(false)
+  const [newProjName, setNewProjName] = useState('')
   const [projLoading, setProjLoading] = useState(true)
   const [addDocOpen, setAddDocOpen] = useState(false)
   const [docType, setDocType] = useState<DocType>('link')
@@ -585,11 +658,37 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted }
 
           {/* Projets SynoX liés */}
           <div className="ref-room-panel-section">
-            <h4 className="ref-section-title">Projets SynoX liés</h4>
+            <div className="ref-section-header">
+              <h4 className="ref-section-title">Projets SynoX</h4>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="ref-add-btn"
+                  onClick={() => {
+                    setLinkModalOpen(true)
+                    setProjSearch('')
+                    listProjects(false).then(setAllProjects).catch(() => {})
+                  }}
+                  title="Lier un projet existant"
+                >
+                  + Lier
+                </button>
+                {onNewProject && (
+                  <button
+                    className="ref-add-btn"
+                    style={{ background: '#eef8f0', borderColor: '#a8d5b5', color: '#1a7a3c' }}
+                    onClick={() => { setNewProjDialogOpen(true); setNewProjName(room.name) }}
+                    title="Créer un nouveau projet SynoX pour cette salle"
+                  >
+                    + Nouveau projet
+                  </button>
+                )}
+              </div>
+            </div>
+
             {projLoading ? (
               <p className="ref-loading-hint">Chargement…</p>
             ) : linkedProjects.length === 0 ? (
-              <p className="ref-empty-hint">Aucun projet associé à cette salle.</p>
+              <p className="ref-empty-hint">Aucun projet associé. Cliquez sur + Lier ou + Nouveau projet.</p>
             ) : (
               <ul className="ref-linked-projects">
                 {linkedProjects.map(p => (
@@ -597,9 +696,110 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted }
                     <span className="ref-linked-project-icon">📐</span>
                     <span className="ref-linked-project-name">{p.name}</span>
                     <span className="ref-linked-project-date">{fmt(p.updated_at)}</span>
+                    <button
+                      className="danger"
+                      style={{ padding: '2px 6px', fontSize: 11 }}
+                      title="Détacher ce projet de la salle"
+                      onClick={async () => {
+                        if (!confirm(`Détacher le projet « ${p.name} » de cette salle ?`)) return
+                        await linkProjectToRoom(p.id, null)
+                        setLinkedProjects(prev => prev.filter(x => x.id !== p.id))
+                      }}
+                    >
+                      Détacher
+                    </button>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {/* Modal : lier un projet existant */}
+            {linkModalOpen && (
+              <div className="ref-modal-overlay" onClick={() => setLinkModalOpen(false)}>
+                <div className="ref-modal" onClick={e => e.stopPropagation()}>
+                  <div className="ref-modal-header">
+                    <h3 className="ref-modal-title">Lier un projet existant</h3>
+                    <button className="ref-modal-close" onClick={() => setLinkModalOpen(false)}>×</button>
+                  </div>
+                  <div className="ref-modal-body">
+                    <input
+                      className="projects-search-input"
+                      style={{ marginBottom: 12 }}
+                      placeholder="Rechercher un projet…"
+                      value={projSearch}
+                      onChange={e => setProjSearch(e.target.value)}
+                      autoFocus
+                    />
+                    <ul className="ref-link-project-list">
+                      {allProjects
+                        .filter(p => !projSearch || p.name.toLowerCase().includes(projSearch.toLowerCase()))
+                        .filter(p => !linkedProjects.some(lp => lp.id === p.id))
+                        .map(p => (
+                          <li key={p.id} className="ref-link-project-item">
+                            <span className="ref-link-project-name">{p.name}</span>
+                            {p.client_name && <span className="ref-link-project-meta">{p.client_name}</span>}
+                            <button
+                              className="primary"
+                              disabled={linking}
+                              onClick={async () => {
+                                setLinking(true)
+                                try {
+                                  await linkProjectToRoom(p.id, room.id)
+                                  setLinkedProjects(prev => [...prev, { id: p.id, name: p.name, updated_at: p.updated_at }])
+                                  setLinkModalOpen(false)
+                                } catch { /* ignore */ }
+                                finally { setLinking(false) }
+                              }}
+                            >
+                              {linking ? '…' : 'Lier'}
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dialog : nouveau projet */}
+            {newProjDialogOpen && (
+              <div className="ref-modal-overlay" onClick={() => setNewProjDialogOpen(false)}>
+                <div className="ref-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                  <div className="ref-modal-header">
+                    <h3 className="ref-modal-title">Nouveau projet SynoX</h3>
+                    <button className="ref-modal-close" onClick={() => setNewProjDialogOpen(false)}>×</button>
+                  </div>
+                  <div className="ref-modal-body">
+                    <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)' }}>
+                      Le projet sera automatiquement lié à la salle <strong>{room.name}</strong>.
+                    </p>
+                    <label className="ref-form" style={{ gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>Nom du projet *</span>
+                      <input
+                        className="projects-search-input"
+                        value={newProjName}
+                        onChange={e => setNewProjName(e.target.value)}
+                        placeholder="Nom du projet…"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newProjName.trim()) onNewProject?.(room.id, newProjName.trim(), site.name, client.name)
+                          if (e.key === 'Escape') setNewProjDialogOpen(false)
+                        }}
+                      />
+                    </label>
+                    <div className="ref-form-actions" style={{ marginTop: 16 }}>
+                      <button onClick={() => setNewProjDialogOpen(false)}>Annuler</button>
+                      <button
+                        className="primary"
+                        disabled={!newProjName.trim()}
+                        onClick={() => onNewProject?.(room.id, newProjName.trim(), site.name, client.name)}
+                      >
+                        Créer et ouvrir l'éditeur →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -705,7 +905,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted }
 
 // ── Page principale ────────────────────────────────────────────────────────
 
-export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard }: Props) {
+export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom }: Props) {
   const { profile, signOut } = useAuth()
 
   // ── Navigation interne ──
@@ -1021,8 +1221,16 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard }: Props)
                 {filteredClients.map(client => (
                   <div key={client.id} className="ref-client-card">
                     <div className="ref-client-card-body" onClick={() => void openClient(client)}>
-                      {client.code && <span className="ref-client-code">{client.code}</span>}
-                      <div className="ref-client-name">{client.name}</div>
+                      <div className="ref-client-card-top">
+                        {client.logo_url
+                          ? <img src={client.logo_url} alt={client.name} className="ref-client-logo" />
+                          : <div className="ref-client-logo-placeholder">{client.name[0].toUpperCase()}</div>
+                        }
+                        <div className="ref-client-card-identity">
+                          {client.code && <span className="ref-client-code">{client.code}</span>}
+                          <div className="ref-client-name">{client.name}</div>
+                        </div>
+                      </div>
                       {client.address && <div className="ref-client-address">{client.address}</div>}
                       {(client.phone || client.email) && (
                         <div className="ref-client-contacts">
@@ -1165,6 +1373,7 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard }: Props)
             setSelectedRoom(null)
             setSelectedRoomSite(null)
           }}
+          onNewProject={onNewProjectFromRoom}
         />
       )}
 
@@ -1176,7 +1385,14 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard }: Props)
         >
           <ClientForm
             initial={clientModal === 'create' ? undefined : clientModal}
+            clientId={clientModal === 'create' ? undefined : clientModal.id}
             onSave={clientModal === 'create' ? handleCreateClient : handleUpdateClient}
+            onLogoUploaded={(url, path) => {
+              if (clientModal === 'create') return
+              const updated = { ...clientModal, logo_url: url || null, logo_storage_path: path || null }
+              setClients(prev => prev.map(c => c.id === updated.id ? updated as Client : c))
+              if (selectedClient?.id === updated.id) setSelectedClient(updated as Client)
+            }}
             onCancel={() => setClientModal(null)}
             saving={saving}
           />

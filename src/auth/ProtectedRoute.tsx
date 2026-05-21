@@ -12,7 +12,8 @@ import { ReferentielPage } from '../pages/ReferentielPage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
-import { fetchProjectVersion } from '../lib/projectsApi'
+import { fetchProjectVersion, saveProject } from '../lib/projectsApi'
+import { linkProjectToRoom } from '../lib/referentielApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -243,6 +244,26 @@ export function ProtectedRoute() {
     persistView('projects', false)
   }
 
+  const handleNewProjectFromRoom = async (roomId: string, projectName: string, siteName: string, clientName: string) => {
+    const state = useAppStore.getState()
+    try {
+      const id = await saveProject(null, projectName, {
+        projectMeta: { ...state.projectMeta, client: clientName, lieu: siteName },
+        signals: state.signals,
+        zones: state.zones,
+        products: state.products,
+      })
+      await linkProjectToRoom(id, roomId)
+      useAppStore.setState({ currentProjectId: id, currentProjectName: projectName })
+      setReadOnly(false)
+      setReadOnlyVersion(undefined)
+      setPage('editor')
+      persistView('editor', false)
+    } catch (e) {
+      alert('Erreur création projet : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   // ── Erreur fatale d'initialisation (timeout, session corrompue, …) ─────
   // Prioritaire sur tout le reste pour ne JAMAIS rester sur "Chargement…"
   if (initError) {
@@ -323,6 +344,7 @@ export function ProtectedRoute() {
         <ReferentielPage
           onOpenProjects={handleBackToProjectsFromRef}
           onOpenAdminDashboard={openAdmin}
+          onNewProjectFromRoom={handleNewProjectFromRoom}
         />
       )}
 
