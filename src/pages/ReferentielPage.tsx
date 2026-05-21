@@ -7,7 +7,8 @@ import {
   listDocuments, createDocument, deleteDocument,
   uploadDocument, getSignedUrl, deleteStorageFile,
   listProjectsByRoom,
-  type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject,
+  listContacts, createContact, updateContact, deleteContact,
+  type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject, type Contact, type ContactEntityType,
 } from '../lib/referentielApi'
 import { AdminSettings } from '../components/AdminSettings'
 
@@ -207,6 +208,183 @@ function RoomForm({ initial, onSave, onCancel, saving }: RoomFormProps) {
   )
 }
 
+// ── Formulaire Contact ─────────────────────────────────────────────────────
+
+interface ContactFormProps {
+  initial?: Partial<Contact>
+  onSave: (data: Omit<Contact, 'id' | 'entity_type' | 'entity_id' | 'created_at' | 'updated_at'>) => Promise<void>
+  onCancel: () => void
+  saving: boolean
+}
+
+function ContactForm({ initial, onSave, onCancel, saving }: ContactFormProps) {
+  const [firstName, setFirstName] = useState(initial?.first_name ?? '')
+  const [lastName,  setLastName]  = useState(initial?.last_name  ?? '')
+  const [role,      setRole]      = useState(initial?.role       ?? '')
+  const [phone,     setPhone]     = useState(initial?.phone      ?? '')
+  const [email,     setEmail]     = useState(initial?.email      ?? '')
+  const [notes,     setNotes]     = useState(initial?.notes      ?? '')
+  const firstRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { firstRef.current?.focus() }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!firstName.trim() || !lastName.trim()) return
+    await onSave({
+      first_name: firstName.trim(),
+      last_name:  lastName.trim(),
+      role:  role.trim()  || null,
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <form className="ref-form" onSubmit={e => void handleSubmit(e)}>
+      <div className="ref-form-row">
+        <label>Prénom *
+          <input ref={firstRef} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Prénom" required />
+        </label>
+        <label>Nom *
+          <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Nom" required />
+        </label>
+      </div>
+      <label>Fonction / Poste
+        <input value={role} onChange={e => setRole(e.target.value)} placeholder="Ex : Directeur technique, Chef de projet…" />
+      </label>
+      <div className="ref-form-row">
+        <label>Téléphone
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+33 6 …" />
+        </label>
+        <label>Email
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="prenom@…" />
+        </label>
+      </div>
+      <label>Notes
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Notes…" />
+      </label>
+      <div className="ref-form-actions">
+        <button type="button" onClick={onCancel}>Annuler</button>
+        <button type="submit" className="primary" disabled={saving || !firstName.trim() || !lastName.trim()}>
+          {saving ? '…' : 'Enregistrer'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ── Section Contacts (réutilisable pour site et salle) ─────────────────────
+
+interface ContactsSectionProps {
+  entityType: ContactEntityType
+  entityId: string
+}
+
+function ContactsSection({ entityType, entityId }: ContactsSectionProps) {
+  const [contacts,  setContacts]  = useState<Contact[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [addOpen,   setAddOpen]   = useState(false)
+  const [editTarget, setEditTarget] = useState<Contact | null>(null)
+  const [saving,    setSaving]    = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    listContacts(entityType, entityId)
+      .then(setContacts)
+      .catch(() => setError('Erreur chargement contacts'))
+      .finally(() => setLoading(false))
+  }, [entityType, entityId])
+
+  const handleCreate = async (data: Omit<Contact, 'id' | 'entity_type' | 'entity_id' | 'created_at' | 'updated_at'>) => {
+    setSaving(true)
+    try {
+      const c = await createContact({ ...data, entity_type: entityType, entity_id: entityId })
+      setContacts(prev => [...prev, c].sort((a, b) => a.last_name.localeCompare(b.last_name)))
+      setAddOpen(false)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setSaving(false) }
+  }
+
+  const handleUpdate = async (data: Omit<Contact, 'id' | 'entity_type' | 'entity_id' | 'created_at' | 'updated_at'>) => {
+    if (!editTarget) return
+    setSaving(true)
+    try {
+      await updateContact(editTarget.id, data)
+      setContacts(prev =>
+        prev.map(c => c.id === editTarget.id ? { ...editTarget, ...data } : c)
+            .sort((a, b) => a.last_name.localeCompare(b.last_name))
+      )
+      setEditTarget(null)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setSaving(false) }
+  }
+
+  const handleDelete = async (c: Contact) => {
+    if (!confirm(`Supprimer le contact ${c.first_name} ${c.last_name} ?`)) return
+    try {
+      await deleteContact(c.id)
+      setContacts(prev => prev.filter(x => x.id !== c.id))
+    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur suppression') }
+  }
+
+  return (
+    <div className="ref-contacts-section">
+      <div className="ref-section-header">
+        <h4 className="ref-section-title">Contacts</h4>
+        <button className="ref-add-btn" onClick={() => { setAddOpen(v => !v); setEditTarget(null) }}>
+          {addOpen ? 'Annuler' : '+ Ajouter'}
+        </button>
+      </div>
+
+      {error && <p className="ref-error" style={{ marginBottom: 8 }}>{error}</p>}
+
+      {addOpen && (
+        <div className="ref-contact-form-wrap">
+          <ContactForm onSave={handleCreate} onCancel={() => setAddOpen(false)} saving={saving} />
+        </div>
+      )}
+
+      {editTarget && (
+        <Modal title={`Modifier — ${editTarget.first_name} ${editTarget.last_name}`} onClose={() => setEditTarget(null)}>
+          <ContactForm initial={editTarget} onSave={handleUpdate} onCancel={() => setEditTarget(null)} saving={saving} />
+        </Modal>
+      )}
+
+      {loading ? (
+        <p className="ref-loading-hint">Chargement…</p>
+      ) : contacts.length === 0 && !addOpen ? (
+        <p className="ref-empty-hint">Aucun contact. Cliquez sur + Ajouter pour en créer un.</p>
+      ) : (
+        <ul className="ref-contact-list">
+          {contacts.map(c => (
+            <li key={c.id} className="ref-contact-item">
+              <div className="ref-contact-avatar">
+                {c.first_name[0]}{c.last_name[0]}
+              </div>
+              <div className="ref-contact-info">
+                <span className="ref-contact-name">{c.first_name} {c.last_name}</span>
+                {c.role  && <span className="ref-contact-role">{c.role}</span>}
+                <div className="ref-contact-coords">
+                  {c.phone && <a href={`tel:${c.phone}`} className="ref-contact-link">📞 {c.phone}</a>}
+                  {c.email && <a href={`mailto:${c.email}`} className="ref-contact-link">✉ {c.email}</a>}
+                </div>
+                {c.notes && <p className="ref-contact-notes">{c.notes}</p>}
+              </div>
+              <div className="ref-contact-actions">
+                <button onClick={() => setEditTarget(c)} title="Modifier">✏</button>
+                <button className="danger" onClick={() => void handleDelete(c)} title="Supprimer">🗑</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ── Panneau de détail d'une salle ─────────────────────────────────────────
 
 interface RoomPanelProps {
@@ -399,6 +577,11 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted }
               </div>
             </div>
           )}
+
+          {/* Contacts de la salle */}
+          <div className="ref-room-panel-section">
+            <ContactsSection entityType="room" entityId={room.id} />
+          </div>
 
           {/* Projets SynoX liés */}
           <div className="ref-room-panel-section">
@@ -925,6 +1108,8 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard }: Props)
                             </button>
                           </div>
                         </div>
+
+                        <ContactsSection entityType="site" entityId={site.id} />
 
                         <div className="ref-rooms-list">
                           {rooms.length === 0 ? (

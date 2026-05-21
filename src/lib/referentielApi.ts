@@ -37,6 +37,21 @@ export interface Room {
 
 export type DocType = 'pdf' | 'image' | 'link' | 'project_export'
 export type EntityType = 'client' | 'site' | 'room'
+export type ContactEntityType = 'site' | 'room'
+
+export interface Contact {
+  id: string
+  entity_type: ContactEntityType
+  entity_id: string
+  first_name: string
+  last_name: string
+  role: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface RefDocument {
   id: string
@@ -266,5 +281,46 @@ export async function linkProjectToRoom(projectId: string, roomId: string | null
     .from('projects')
     .update({ room_id: roomId })
     .eq('id', projectId)
+  if (error) throw pgErr(error)
+}
+
+// ── Contacts ───────────────────────────────────────────────────────────────
+
+export async function listContacts(entityType: ContactEntityType, entityId: string): Promise<Contact[]> {
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .order('last_name')
+  if (error) throw pgErr(error)
+  return (data ?? []) as Contact[]
+}
+
+export async function createContact(
+  input: Omit<Contact, 'id' | 'created_at' | 'updated_at'>,
+): Promise<Contact> {
+  const { data, error } = await supabase
+    .from('contacts')
+    .insert({ ...input, updated_at: now() })
+    .select('*')
+    .single()
+  if (error) throw pgErr(error)
+  return data as Contact
+}
+
+export async function updateContact(
+  id: string,
+  input: Partial<Omit<Contact, 'id' | 'entity_type' | 'entity_id' | 'created_at'>>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('contacts')
+    .update({ ...input, updated_at: now() })
+    .eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  const { error } = await supabase.from('contacts').delete().eq('id', id)
   if (error) throw pgErr(error)
 }
