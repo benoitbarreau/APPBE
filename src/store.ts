@@ -202,6 +202,14 @@ interface State {
   setNodePortOrder: (nodeId: string, order: string[]) => void;
   addNodePort: (nodeId: string, port: Port) => void;
   removeNodePort: (nodeId: string, portId: string) => void;
+  /** Surcharge le signal d'un port de catalogue sur cette instance. */
+  setNodePortSignal: (nodeId: string, portId: string, signal: SignalType) => void;
+  /** Annule la surcharge de signal et revient à la définition du catalogue. */
+  resetNodePortSignal: (nodeId: string, portId: string) => void;
+  /** Masque un port de catalogue sur cette instance (supprime les câbles branchés). */
+  hideNodePort: (nodeId: string, portId: string) => void;
+  /** Duplique un port (catalogue ou extra) en créant un port extra identique. */
+  duplicateNodePort: (nodeId: string, portId: string) => void;
 
   setProjectName: (name: string) => void;
   setVersionsMeta: (versionsMeta: import('./lib/projectsApi').VersionMeta[]) => void;
@@ -1412,6 +1420,85 @@ export const useAppStore = create<State>()(
                 !(c.toNodeId === nodeId && c.toPortId === portId),
             ),
           })),
+
+        setNodePortSignal: (nodeId, portId, signal) =>
+          set((s) => ({
+            nodes: s.nodes.map((n) =>
+              n.id !== nodeId
+                ? n
+                : {
+                    ...n,
+                    portSignalOverrides: {
+                      ...(n.portSignalOverrides ?? {}),
+                      [portId]: signal,
+                    },
+                  },
+            ),
+          })),
+
+        resetNodePortSignal: (nodeId, portId) =>
+          set((s) => ({
+            nodes: s.nodes.map((n) => {
+              if (n.id !== nodeId) return n;
+              if (!n.portSignalOverrides) return n;
+              const { [portId]: _, ...rest } = n.portSignalOverrides;
+              return { ...n, portSignalOverrides: Object.keys(rest).length ? rest : undefined };
+            }),
+          })),
+
+        hideNodePort: (nodeId, portId) =>
+          set((s) => ({
+            nodes: s.nodes.map((n) => {
+              if (n.id !== nodeId) return n;
+              const already = n.hiddenPorts ?? [];
+              if (already.includes(portId)) return n;
+              return { ...n, hiddenPorts: [...already, portId] };
+            }),
+            cables: s.cables.filter(
+              (c) =>
+                !(c.fromNodeId === nodeId && c.fromPortId === portId) &&
+                !(c.toNodeId === nodeId && c.toPortId === portId),
+            ),
+          })),
+
+        duplicateNodePort: (nodeId, portId) =>
+          set((s) => {
+            const n = s.nodes.find((nd) => nd.id === nodeId);
+            if (!n) return {};
+            const product = s.products.find((p) => p.id === n.productId);
+            // Find the port in the product or extraPorts
+            const allPorts: Port[] = [
+              ...(product?.inputs ?? []),
+              ...(product?.outputs ?? []),
+              ...(product?.middle ?? []),
+              ...(n.extraPorts ?? []),
+            ];
+            const src = allPorts.find((p) => p.id === portId);
+            if (!src) return {};
+            const newId = `extra-${Date.now()}`;
+            const newPort: Port = { ...src, id: newId };
+            const currentOrder = n.portOrder ?? allPorts.map((p) => p.id);
+            const insertAfterIdx = currentOrder.indexOf(portId);
+            const newOrder =
+              insertAfterIdx === -1
+                ? [...currentOrder, newId]
+                : [
+                    ...currentOrder.slice(0, insertAfterIdx + 1),
+                    newId,
+                    ...currentOrder.slice(insertAfterIdx + 1),
+                  ];
+            return {
+              nodes: s.nodes.map((nd) =>
+                nd.id !== nodeId
+                  ? nd
+                  : {
+                      ...nd,
+                      extraPorts: [...(nd.extraPorts ?? []), newPort],
+                      portOrder: newOrder,
+                    },
+              ),
+            };
+          }),
 
         setProjectName: (name) => set({ currentProjectName: name }),
         setVersionsMeta: (currentVersionsMeta) => set({ currentVersionsMeta }),

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useAppStore, useEditorState } from "../store";
 import { getEffectivePorts } from "../ports";
@@ -38,6 +38,22 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
   const setNodeZone = useAppStore((s) => s.setNodeZone);
   const updateNode = useAppStore((s) => s.updateNode);
   const readOnly = useEditorState((s) => s.readOnly);
+
+  // État local pour la popup de sélection de zone
+  const [showZonePicker, setShowZonePicker] = useState(false);
+  const zonePickerRef = useRef<HTMLDivElement>(null);
+
+  // Fermer la popup de zone si clic en dehors
+  useEffect(() => {
+    if (!showZonePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (!zonePickerRef.current?.contains(e.target as unknown as globalThis.Node)) {
+        setShowZonePicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showZonePicker]);
 
   // Refs pour bloquer le drag React Flow pendant la saisie dans les inputs.
   const labelInputRef = useRef<HTMLInputElement>(null);
@@ -102,12 +118,31 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
     >
       <div
         className="product-node-header"
+        ref={zonePickerRef}
         style={
           headerBg
             ? { background: headerBg, color: headerColor }
             : undefined
         }
+        onDoubleClick={(e) => {
+          if (readOnly) return;
+          // Ne pas déclencher si le double-clic est dans un input/select
+          const tag = (e.target as HTMLElement).tagName;
+          if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+          e.stopPropagation();
+          setShowZonePicker((v) => !v);
+        }}
       >
+        {showZonePicker && !readOnly && (
+          <ZonePickerPopup
+            zones={zones}
+            currentZoneId={node.zoneId}
+            onSelect={(zoneId) => {
+              setNodeZone(node.id, zoneId);
+              setShowZonePicker(false);
+            }}
+          />
+        )}
         <div className="product-node-name-row">
           {isBlankBlock && !readOnly ? (
             <input
@@ -194,24 +229,12 @@ export function ProductNode({ data, selected }: NodeProps<ProductNodeType>) {
             </div>
           )}
         </div>
-        {selected && (
-          <select
-            className="product-node-zone-select"
-            value={node.zoneId ?? ""}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e) =>
-              setNodeZone(node.id, e.target.value || undefined)
-            }
-            title="Zone du produit"
-          >
-            <option value="">— Aucune zone —</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.label}
-              </option>
-            ))}
-          </select>
+        {!readOnly && (
+          <div
+            className="product-node-zone-hint"
+            title="Double-cliquer sur l'en-tête pour changer la zone"
+            style={{ display: "none" }}
+          />
         )}
       </div>
       <div className="product-node-body">
@@ -485,6 +508,47 @@ function MiddlePortRow({
         isConnectable={rightConnectable}
         data-nodeid={nodeId}
       />
+    </div>
+  );
+}
+
+// ── Popup de sélection de zone ────────────────────────────────────────────────
+// Rendu en position absolue par rapport à .product-node-header (position:relative).
+// Un useEffect dans ProductNode ferme la popup sur clic extérieur.
+
+function ZonePickerPopup({
+  zones,
+  currentZoneId,
+  onSelect,
+}: {
+  zones: ReturnType<typeof useAppStore.getState>["zones"];
+  currentZoneId?: string;
+  onSelect: (zoneId: string | undefined) => void;
+}) {
+  return (
+    <div
+      className="zone-picker-popup nopan nodrag"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="zone-picker-title">Changer de zone</div>
+      <button
+        className={`zone-picker-item${!currentZoneId ? " active" : ""}`}
+        onClick={() => onSelect(undefined)}
+      >
+        <span className="zone-picker-dot" style={{ background: "#ccc" }} />
+        — Aucune zone —
+      </button>
+      {zones.map((z) => (
+        <button
+          key={z.id}
+          className={`zone-picker-item${currentZoneId === z.id ? " active" : ""}`}
+          onClick={() => onSelect(z.id)}
+        >
+          <span className="zone-picker-dot" style={{ background: z.color }} />
+          {z.label}
+        </button>
+      ))}
     </div>
   );
 }

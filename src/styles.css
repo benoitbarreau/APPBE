@@ -2406,6 +2406,132 @@ select {
   width: 90px;
   font-size: 11px;
 }
+.instance-port-signal.overridden {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+.instance-port-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.instance-section-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.instance-section-actions button {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+/* Avertissement de surcharge de signal */
+.instance-signal-warn {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #92400e;
+}
+.instance-signal-warn-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Ports masqués */
+.instance-hidden-section {
+  opacity: 0.75;
+}
+.instance-hidden-row {
+  background: #f9fafb;
+  cursor: default;
+}
+.instance-port-label-text {
+  flex: 1;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ── Popup de sélection de zone (ProductNode) ───────────────────────────── */
+
+/* Le header est le parent positionné de la popup */
+.product-node-header {
+  position: relative;
+  overflow: visible !important;
+}
+/* Le wrapper ReactFlow du nœud produit doit aussi laisser déborder */
+.react-flow__node-product {
+  overflow: visible !important;
+}
+
+.zone-picker-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9001;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.zone-picker-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.zone-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  text-align: left;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text);
+}
+.zone-picker-item:hover {
+  background: #f0f3f8;
+  border: none;
+}
+.zone-picker-item.active {
+  background: #e8f0fe;
+  color: var(--primary);
+  font-weight: 600;
+}
+.zone-picker-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ── ProductNode header : curseur double-clic ───────────────────────────── */
+.product-node-header {
+  cursor: default;
+}
+.product-node:not(.readonly-mode) .product-node-header {
+  cursor: pointer;
+}
 
 
 /* ── Auth pages ─────────────────────────────────────────────────────────── */

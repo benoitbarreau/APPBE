@@ -73,6 +73,11 @@ export interface PlacedProduct {
   labelIsAuto?: boolean;
   portOverrides?: Record<string, PortPlacement>;
   portLabelOverrides?: Record<string, string>;
+  /** Surcharge du signal par port (instance uniquement, sans toucher au catalogue).
+   *  Déclenche un avertissement si un câble est déjà branché sur ce port. */
+  portSignalOverrides?: Record<string, SignalType>;
+  /** IDs des ports du catalogue masqués sur cette instance (câbles supprimés auto). */
+  hiddenPorts?: string[];
   portOrder?: string[];
   extraPorts?: Port[];
   /** Bloc vierge : textes et ports 100 % par instance, non liés au catalogue. */

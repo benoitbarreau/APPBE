@@ -37,9 +37,16 @@ export function getEffectivePort(
 ): Port {
   // Extra ports keep their own label/signal
   if (isExtraPort(node, port.id)) return port;
-  // Catalog port: apply label override if any
+  // Catalog port: apply label and/or signal override if any
   const labelOverride = node.portLabelOverrides?.[port.id];
-  if (labelOverride !== undefined) return { ...port, label: labelOverride };
+  const signalOverride = node.portSignalOverrides?.[port.id];
+  if (labelOverride !== undefined || signalOverride !== undefined) {
+    return {
+      ...port,
+      ...(labelOverride !== undefined ? { label: labelOverride } : {}),
+      ...(signalOverride !== undefined ? { signal: signalOverride } : {}),
+    };
+  }
   return port;
 }
 
@@ -64,12 +71,13 @@ export function getEffectivePorts(
   const inputs: Port[] = [];
   const outputs: Port[] = [];
   const middle: Port[] = [];
+  const hidden = new Set(node.hiddenPorts ?? []);
   const all: Port[] = [
     ...product.inputs,
     ...product.outputs,
     ...(product.middle ?? []),
     ...(node.extraPorts ?? []),
-  ];
+  ].filter((p) => !hidden.has(p.id));
   for (const p of all) {
     const placement = getEffectivePlacement(product, node, p.id);
     const eff = getEffectivePort(product, node, p);
