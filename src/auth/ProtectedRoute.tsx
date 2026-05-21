@@ -8,6 +8,7 @@ import { RejectedPage } from '../pages/RejectedPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
+import { ReferentielPage } from '../pages/ReferentielPage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
@@ -66,7 +67,7 @@ function InitErrorScreen({
   )
 }
 
-type Page = 'projects' | 'editor'
+type Page = 'projects' | 'editor' | 'referentiel'
 
 /** Persistance de la dernière vue active pour survivre à un F5 / fermeture
  *  de navigateur. On stocke aussi le userId pour ne PAS restaurer l'éditeur
@@ -83,7 +84,7 @@ function loadPersistedView(): PersistedView | null {
     const raw = localStorage.getItem(SESSION_VIEW_KEY)
     if (!raw) return null
     const v = JSON.parse(raw) as PersistedView
-    if (!v || (v.page !== 'projects' && v.page !== 'editor')) return null
+    if (!v || (v.page !== 'projects' && v.page !== 'editor' && v.page !== 'referentiel')) return null
     return v
   } catch {
     return null
@@ -232,6 +233,16 @@ export function ProtectedRoute() {
     persistView('projects', false)
   }
 
+  const handleOpenReferentiel = () => {
+    setPage('referentiel')
+    persistView('referentiel', false)
+  }
+
+  const handleBackToProjectsFromRef = () => {
+    setPage('projects')
+    persistView('projects', false)
+  }
+
   // ── Erreur fatale d'initialisation (timeout, session corrompue, …) ─────
   // Prioritaire sur tout le reste pour ne JAMAIS rester sur "Chargement…"
   if (initError) {
@@ -295,6 +306,7 @@ export function ProtectedRoute() {
           onOpenEditor={handleOpenEditor}
           onOpenAdminDashboard={openAdmin}
           onOpenVersion={handleOpenVersion}
+          onOpenReferentiel={handleOpenReferentiel}
         />
       )}
 
@@ -304,6 +316,13 @@ export function ProtectedRoute() {
           onBackToProjects={handleBackToProjects}
           readOnly={readOnly}
           readOnlyVersion={readOnlyVersion}
+        />
+      )}
+
+      {page === 'referentiel' && (
+        <ReferentielPage
+          onOpenProjects={handleBackToProjectsFromRef}
+          onOpenAdminDashboard={openAdmin}
         />
       )}
 
