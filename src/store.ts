@@ -426,7 +426,8 @@ export const useAppStore = create<State>()(
               textNodes: [],
               shapeNodes: [],
               imageNodes: [],
-              zones: [...DEFAULT_ZONES],
+              // s.zones inchangé : les zones sont globales au projet,
+              // ne pas les réinitialiser à DEFAULT_ZONES lors de l'ajout d'un onglet.
               selectedNodeId: null,
               selectedCableId: null,
             };
