@@ -19,7 +19,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { useAppStore, useEditorState } from "../store";
-import { type PortSide, type Product, type SignalType } from "../types";
+import { BLANK_PRODUCT, type PlacedProduct, type Port, type PortSide, type Product, type SignalType } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
   if (!handleId) return null;
@@ -31,7 +31,7 @@ function parseHandle(handleId: string | null): { side: PortSide; portId: string 
 /** Cherche un port dans toutes les sections du produit (inputs + outputs + middle),
  *  indépendamment du côté. Cela corrige le bug où un port déplacé via portOverrides
  *  se retrouvait dans la mauvaise liste (ex. output déplacé à gauche, cherché dans inputs). */
-function findPort(product: Product | undefined, portId: string) {
+function findPort(product: Product | undefined, portId: string): Port | undefined {
   if (!product) return undefined;
   const all = [...product.inputs, ...product.outputs, ...(product.middle ?? [])];
   // Correspondance exacte (cas normal) puis correspondance par préfixe pour
@@ -39,6 +39,23 @@ function findPort(product: Product | undefined, portId: string) {
   return (
     all.find((p) => p.id === portId) ??
     all.find((p) => portId.startsWith(p.id + "_"))
+  );
+}
+
+/** Cherche un port dans le catalogue ET dans les extraPorts de l'instance.
+ *  Gère les blocs vierges (dont tous les ports sont dans extraPorts) et les
+ *  ports ajoutés manuellement via l'éditeur d'instance sur n'importe quel bloc. */
+function findEffectivePort(
+  product: Product | undefined,
+  node: PlacedProduct | undefined,
+  portId: string,
+): Port | undefined {
+  const catalogPort = findPort(product, portId);
+  if (catalogPort) return catalogPort;
+  const extras = node?.extraPorts ?? [];
+  return (
+    extras.find((p) => p.id === portId) ??
+    extras.find((p) => portId.startsWith(p.id + "_"))
   );
 }
 import { ProductNode } from "./ProductNode";
@@ -522,11 +539,13 @@ export function DiagramCanvas({
         let signal: SignalType = "";
         if (!isShapeSource) {
           const fromNode = nodes.find((n) => n.id === conn.source);
-          const fromPort = findPort(products.find((p) => p.id === fromNode?.productId), from.portId);
+          const fromProduct = fromNode?.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === fromNode?.productId);
+          const fromPort = findEffectivePort(fromProduct, fromNode, from.portId);
           if (fromPort) signal = fromPort.signal;
         } else if (!isShapeTarget) {
           const toNode = nodes.find((n) => n.id === conn.target);
-          const toPort = findPort(products.find((p) => p.id === toNode?.productId), to.portId);
+          const toProduct = toNode?.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === toNode?.productId);
+          const toPort = findEffectivePort(toProduct, toNode, to.portId);
           if (toPort) signal = toPort.signal;
         }
         addCable({
@@ -545,10 +564,10 @@ export function DiagramCanvas({
       const fromNode = nodes.find((n) => n.id === conn.source);
       const toNode = nodes.find((n) => n.id === conn.target);
       if (!fromNode || !toNode) return;
-      const fromProduct = products.find((p) => p.id === fromNode.productId);
-      const toProduct   = products.find((p) => p.id === toNode.productId);
-      const fromPort = findPort(fromProduct, from.portId);
-      const toPort   = findPort(toProduct,   to.portId);
+      const fromProduct = fromNode.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === fromNode.productId);
+      const toProduct   = toNode.isBlankBlock   ? BLANK_PRODUCT : products.find((p) => p.id === toNode.productId);
+      const fromPort = findEffectivePort(fromProduct, fromNode, from.portId);
+      const toPort   = findEffectivePort(toProduct,   toNode,   to.portId);
       if (!fromPort) return;
 
       // ── Vérification de compatibilité par famille de signal ──────────────
@@ -614,11 +633,13 @@ export function DiagramCanvas({
         let signal: SignalType = "";
         if (!isShapeSource) {
           const fromNode = nodes.find((n) => n.id === newConnection.source);
-          const fromPort = findPort(products.find((p) => p.id === fromNode?.productId), from.portId);
+          const fromProduct = fromNode?.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === fromNode?.productId);
+          const fromPort = findEffectivePort(fromProduct, fromNode, from.portId);
           if (fromPort) signal = fromPort.signal;
         } else if (!isShapeTarget) {
           const toNode = nodes.find((n) => n.id === newConnection.target);
-          const toPort = findPort(products.find((p) => p.id === toNode?.productId), to.portId);
+          const toProduct = toNode?.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === toNode?.productId);
+          const toPort = findEffectivePort(toProduct, toNode, to.portId);
           if (toPort) signal = toPort.signal;
         }
         updateCable(oldEdge.id, {
@@ -638,10 +659,10 @@ export function DiagramCanvas({
       const fromNode = nodes.find((n) => n.id === newConnection.source);
       const toNode   = nodes.find((n) => n.id === newConnection.target);
       if (!fromNode || !toNode) return;
-      const fromProduct = products.find((p) => p.id === fromNode.productId);
-      const toProduct   = products.find((p) => p.id === toNode.productId);
-      const fromPort = findPort(fromProduct, from.portId);
-      const toPort   = findPort(toProduct,   to.portId);
+      const fromProduct = fromNode.isBlankBlock ? BLANK_PRODUCT : products.find((p) => p.id === fromNode.productId);
+      const toProduct   = toNode.isBlankBlock   ? BLANK_PRODUCT : products.find((p) => p.id === toNode.productId);
+      const fromPort = findEffectivePort(fromProduct, fromNode, from.portId);
+      const toPort   = findEffectivePort(toProduct,   toNode,   to.portId);
       if (!fromPort) return;
 
       // ── Vérification de compatibilité par famille de signal ──────────────
