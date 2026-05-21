@@ -73,9 +73,11 @@ export async function listClients(): Promise<Client[]> {
 export async function createClient(
   input: Pick<Client, 'name'> & Partial<Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>>,
 ): Promise<Client> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Non authentifié')
   const { data, error } = await supabase
     .from('clients')
-    .insert({ ...input, updated_at: now() })
+    .insert({ ...input, user_id: user.id, updated_at: now() })
     .select('*')
     .single()
   if (error) throw pgErr(error)
