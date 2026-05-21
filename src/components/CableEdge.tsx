@@ -69,10 +69,12 @@ function buildPathWithBumps(
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.x - last.x) >= 2 * r) deduped.push(bump);
       }
-      // sweep=0 (CCW) → arc vers le HAUT
+      // sweep adapté à la direction → arc TOUJOURS vers le HAUT
+      // (dirX > 0 = gauche→droite → CCW=0 ; dirX < 0 = droite→gauche → CW=1)
       for (const bump of deduped) {
+        const sweep = dirX > 0 ? 0 : 1;
         d += ` L ${bump.x - dirX * r} ${y}`;
-        d += ` A ${r} ${r} 0 0 0 ${bump.x + dirX * r} ${y}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${bump.x + dirX * r} ${y}`;
       }
       d += ` L ${ex} ${ey}`;
     } else {
@@ -87,10 +89,12 @@ function buildPathWithBumps(
         const last = deduped[deduped.length - 1];
         if (!last || Math.abs(bump.y - last.y) >= 2 * r) deduped.push(bump);
       }
-      // sweep=1 (CW) → arc vers la DROITE
+      // sweep adapté à la direction → arc TOUJOURS vers la DROITE
+      // (dirY > 0 = haut→bas → CW=1 ; dirY < 0 = bas→haut → CCW=0)
       for (const bump of deduped) {
+        const sweep = dirY > 0 ? 1 : 0;
         d += ` L ${x} ${bump.y - dirY * r}`;
-        d += ` A ${r} ${r} 0 0 1 ${x} ${bump.y + dirY * r}`;
+        d += ` A ${r} ${r} 0 0 ${sweep} ${x} ${bump.y + dirY * r}`;
       }
       d += ` L ${ex} ${ey}`;
     }
