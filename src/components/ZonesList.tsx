@@ -1,13 +1,6 @@
 import { useAppStore } from "../store";
 import type { Zone } from "../types";
 
-const slugifyId = (label: string): string =>
-  label
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "ZONE";
 
 export function ZonesList() {
   const zones = useAppStore((s) => s.zones);
@@ -75,10 +68,10 @@ export function ZonesList() {
               <input
                 value={z.label}
                 onChange={(e) => {
-                  const label = e.target.value;
-                  const expected = slugifyId(z.label);
-                  const newId = z.id === expected ? slugifyId(label) : z.id;
-                  handleUpsert({ ...z, id: newId, label });
+                  // On ne modifie JAMAIS l'ID après la création : si on recalcule
+                  // un nouvel ID qui n'existe pas encore, upsertZone crée une zone
+                  // supplémentaire au lieu de mettre à jour l'existante.
+                  handleUpsert({ ...z, label: e.target.value });
                 }}
                 placeholder="Nom (Baie, Régie…)"
               />
