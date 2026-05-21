@@ -160,7 +160,43 @@ CREATE POLICY "ref_documents_admin" ON ref_documents FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
 
 -- ── Storage bucket ref-documents ──────────────────────────────────────────
--- À créer manuellement dans Supabase Dashboard > Storage > New bucket
--- Nom : "ref-documents"  |  Public : NON  |  Max file size : 50 MB
--- Policy suggérée : authenticated users can insert/select their own files
--- (chemin : {user_id}/{entity_type}/{entity_id}/{filename})
+-- Crée le bucket et ses policies via SQL (pas besoin de le faire dans le dashboard)
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'ref-documents',
+  'ref-documents',
+  false,
+  52428800,  -- 50 Mo
+  ARRAY['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/json']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy SELECT : chaque utilisateur ne voit que ses propres fichiers
+-- (le chemin est toujours {user_id}/…)
+CREATE POLICY "ref_storage_select" ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'ref-documents'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Policy INSERT
+CREATE POLICY "ref_storage_insert" ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'ref-documents'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Policy DELETE
+CREATE POLICY "ref_storage_delete" ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'ref-documents'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Admin : accès complet au bucket
+CREATE POLICY "ref_storage_admin" ON storage.objects FOR ALL
+  USING (
+    bucket_id = 'ref-documents'
+    AND EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  );
