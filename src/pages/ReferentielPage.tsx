@@ -9,6 +9,7 @@ import {
   listProjectsByRoom, linkProjectToRoom,
   uploadClientLogo, deleteClientLogo,
   listContacts, createContact, updateContact, deleteContact,
+  listRoomContacts, addRoomContact, removeRoomContact,
   type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject, type Contact, type ContactEntityType,
 } from '../lib/referentielApi'
 import { listProjects } from '../lib/projectsApi'
@@ -503,6 +504,137 @@ function ContactsSection({ entityType, entityId, defaultCollapsed = false }: Con
   )
 }
 
+// ── Contacts assignés à une salle (sélection depuis les contacts client) ──
+
+interface RoomContactsSectionProps {
+  room: Room
+  clientId: string
+}
+
+function RoomContactsSection({ room, clientId }: RoomContactsSectionProps) {
+  const [assigned, setAssigned] = useState<Contact[]>([])
+  const [clientContacts, setClientContacts] = useState<Contact[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    listRoomContacts(room.id)
+      .then(setAssigned)
+      .catch(() => setError('Erreur chargement contacts'))
+      .finally(() => setLoading(false))
+  }, [room.id])
+
+  const openPicker = async () => {
+    setPickerOpen(true)
+    setPickerLoading(true)
+    try {
+      const contacts = await listContacts('client', clientId)
+      setClientContacts(contacts)
+    } catch { setError('Impossible de charger la liste des contacts') }
+    finally { setPickerLoading(false) }
+  }
+
+  const handleAssign = async (c: Contact) => {
+    setAssigning(true)
+    try {
+      await addRoomContact(room.id, c.id)
+      setAssigned(prev => [...prev, c].sort((a, b) => a.last_name.localeCompare(b.last_name)))
+      setPickerOpen(false)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur') }
+    finally { setAssigning(false) }
+  }
+
+  const handleRemove = async (c: Contact) => {
+    if (!confirm(`Retirer ${c.first_name} ${c.last_name} de cette salle ?`)) return
+    try {
+      await removeRoomContact(room.id, c.id)
+      setAssigned(prev => prev.filter(x => x.id !== c.id))
+    } catch (e) { setError(e instanceof Error ? e.message : 'Erreur') }
+  }
+
+  const available = clientContacts.filter(c => !assigned.some(a => a.id === c.id))
+
+  return (
+    <div className="ref-room-panel-section">
+      <div className="ref-section-header">
+        <h4 className="ref-section-title">
+          Contacts assignés
+          {assigned.length > 0 && <span className="ref-count-badge">{assigned.length}</span>}
+        </h4>
+        <button className="ref-add-btn" onClick={openPicker}>+ Assigner</button>
+      </div>
+
+      {error && <p className="ref-error" style={{ marginBottom: 8 }}>{error}</p>}
+
+      {loading ? (
+        <p className="ref-loading-hint">Chargement…</p>
+      ) : assigned.length === 0 ? (
+        <p className="ref-empty-hint">Aucun contact assigné. Cliquez sur + Assigner pour en ajouter depuis la liste client.</p>
+      ) : (
+        <ul className="ref-contact-list">
+          {assigned.map(c => (
+            <li key={c.id} className="ref-contact-item">
+              <div className="ref-contact-avatar">{c.first_name[0]}{c.last_name[0]}</div>
+              <div className="ref-contact-info">
+                <span className="ref-contact-name">{c.first_name} {c.last_name}</span>
+                {c.role && <span className="ref-contact-role">{c.role}</span>}
+                <div className="ref-contact-coords">
+                  {c.phone && <a href={`tel:${c.phone}`} className="ref-contact-link">📞 {c.phone}</a>}
+                  {c.email && <a href={`mailto:${c.email}`} className="ref-contact-link">✉ {c.email}</a>}
+                </div>
+              </div>
+              <div className="ref-contact-actions">
+                <button type="button" className="danger" onClick={() => void handleRemove(c)} title="Retirer de la salle">✕</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Picker modal */}
+      {pickerOpen && (
+        <Modal title="Assigner un contact à cette salle" onClose={() => setPickerOpen(false)}>
+          {pickerLoading ? (
+            <p className="ref-loading-hint">Chargement…</p>
+          ) : available.length === 0 ? (
+            <p className="ref-empty-hint">
+              {clientContacts.length === 0
+                ? 'Aucun contact sur ce client. Créez d\'abord des contacts dans la fiche client.'
+                : 'Tous les contacts du client sont déjà assignés à cette salle.'}
+            </p>
+          ) : (
+            <ul className="ref-link-project-list">
+              {available.map(c => (
+                <li key={c.id} className="ref-link-project-item">
+                  <div className="ref-contact-avatar" style={{ width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>
+                    {c.first_name[0]}{c.last_name[0]}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{c.first_name} {c.last_name}</div>
+                    {c.role && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{c.role}</div>}
+                    {c.phone && <div style={{ fontSize: 11, color: 'var(--muted)' }}>📞 {c.phone}</div>}
+                  </div>
+                  <button
+                    className="primary"
+                    disabled={assigning}
+                    onClick={() => void handleAssign(c)}
+                  >
+                    {assigning ? '…' : 'Assigner'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
+      )}
+    </div>
+  )
+}
+
 // ── Panneau de détail d'une salle ─────────────────────────────────────────
 
 interface RoomPanelProps {
@@ -531,11 +663,10 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
   const [newProjDialogOpen, setNewProjDialogOpen] = useState(false)
   const [newProjName, setNewProjName] = useState('')
   const [projLoading, setProjLoading] = useState(true)
-  const [addDocOpen, setAddDocOpen] = useState(false)
   const [docType, setDocType] = useState<DocType>('link')
   const [docName, setDocName] = useState('')
   const [docUrl, setDocUrl] = useState('')
-  const [docFile, setDocFile] = useState<File | null>(null)
+  const [docFiles, setDocFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -580,35 +711,62 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
 
   const handleAddDoc = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!docName.trim()) return
     setError(null)
     setUploadProgress(true)
     try {
+      // ── Cas : plusieurs images uploadées d'un coup ─────────────────────
+      if (docFiles.length > 1 && docType === 'image' && user) {
+        const newDocs: RefDocument[] = []
+        for (const f of docFiles) {
+          const result = await uploadDocument(user.id, 'room', room.id, f)
+          const baseName = f.name.replace(/\.[^/.]+$/, '')
+          const doc = await createDocument({
+            entity_type: 'room',
+            entity_id: room.id,
+            name: baseName,
+            doc_type: 'image',
+            url: result.publicUrl,
+            storage_path: result.storagePath,
+            file_size: f.size,
+          })
+          newDocs.push(doc)
+        }
+        setDocs(prev => [...newDocs.reverse(), ...prev])
+        setDocFiles([])
+        setDocName('')
+        return
+      }
+
+      // ── Cas : fichier unique ou lien ───────────────────────────────────
       let url: string | null = docUrl.trim() || null
       let storagePath: string | null = null
       let fileSize: number | null = null
+      const singleFile = docFiles[0] ?? null
 
-      if ((docType === 'pdf' || docType === 'image') && docFile && user) {
-        const result = await uploadDocument(user.id, 'room', room.id, docFile)
+      if ((docType === 'pdf' || docType === 'image') && singleFile && user) {
+        const result = await uploadDocument(user.id, 'room', room.id, singleFile)
         storagePath = result.storagePath
-        fileSize = docFile.size
+        fileSize = singleFile.size
         url = result.publicUrl
       }
+
+      // Nom auto-rempli depuis le fichier si le champ est vide
+      const finalName = docName.trim() || (singleFile ? singleFile.name.replace(/\.[^/.]+$/, '') : '')
+      if (!finalName) { setError('Veuillez saisir un nom de document'); return }
 
       const doc = await createDocument({
         entity_type: 'room',
         entity_id: room.id,
-        name: docName.trim(),
+        name: finalName,
         doc_type: docType,
         url,
         storage_path: storagePath,
         file_size: fileSize,
       })
       setDocs(prev => [doc, ...prev])
-      setAddDocOpen(false)
       setDocName('')
       setDocUrl('')
-      setDocFile(null)
+      setDocFiles([])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur ajout document')
     } finally {
@@ -706,10 +864,8 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
             </div>
           )}
 
-          {/* Contacts de la salle */}
-          <div className="ref-room-panel-section">
-            <ContactsSection entityType="room" entityId={room.id} />
-          </div>
+          {/* Contacts assignés (depuis la liste du client) */}
+          <RoomContactsSection room={room} clientId={client.id} />
 
           {/* Projets SynoX liés */}
           <div className="ref-room-panel-section">
@@ -860,109 +1016,133 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
 
           {/* Documents */}
           <div className="ref-room-panel-section">
-            <div className="ref-section-header">
-              <h4 className="ref-section-title">Documents</h4>
-              <button
-                className="ref-add-btn"
-                onClick={() => { setAddDocOpen(v => !v); setDocName(''); setDocUrl(''); setDocFile(null) }}
-              >
-                {addDocOpen ? 'Annuler' : '+ Ajouter'}
-              </button>
-            </div>
+            <h4 className="ref-section-title">Documents</h4>
 
-            {addDocOpen && (
-              <form className="ref-add-doc-form ref-form" onSubmit={e => void handleAddDoc(e)}>
-                {/* Sélecteur visuel de type */}
-                <div className="ref-doc-type-grid">
-                  {(['link', 'pdf', 'image', 'project_export'] as DocType[]).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={`ref-doc-type-btn${docType === t ? ' active' : ''}`}
-                      onClick={() => { setDocType(t); setDocFile(null); setDocUrl('') }}
-                    >
-                      <span className="ref-doc-type-btn-icon">{DOC_ICONS[t]}</span>
-                      <span className="ref-doc-type-btn-label">{DOC_LABELS[t]}</span>
-                      <span className="ref-doc-type-btn-desc">{DOC_DESCS[t]}</span>
-                    </button>
-                  ))}
-                </div>
+            {/* Formulaire toujours visible */}
+            <form className="ref-add-doc-form ref-form" onSubmit={e => void handleAddDoc(e)}>
+              <div className="ref-doc-type-grid">
+                {(['link', 'pdf', 'image', 'project_export'] as DocType[]).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`ref-doc-type-btn${docType === t ? ' active' : ''}`}
+                    onClick={() => { setDocType(t as DocType); setDocFiles([]); setDocUrl('') }}
+                  >
+                    <span className="ref-doc-type-btn-icon">{DOC_ICONS[t]}</span>
+                    <span className="ref-doc-type-btn-label">{DOC_LABELS[t]}</span>
+                    <span className="ref-doc-type-btn-desc">{DOC_DESCS[t]}</span>
+                  </button>
+                ))}
+              </div>
 
-                <label>Nom du document *
+              <label>Nom du document
+                <input
+                  value={docName}
+                  onChange={e => setDocName(e.target.value)}
+                  placeholder={
+                    docFiles.length > 1
+                      ? 'Nom auto-rempli depuis chaque fichier'
+                      : docFiles.length === 1
+                        ? docFiles[0].name.replace(/\.[^/.]+$/, '')
+                        : 'Ex : Plan de salle, Rapport technique…'
+                  }
+                  disabled={docFiles.length > 1}
+                />
+              </label>
+
+              {docType === 'link' || docType === 'project_export' ? (
+                <label>URL
                   <input
-                    value={docName}
-                    onChange={e => setDocName(e.target.value)}
-                    placeholder="Ex : Plan de salle, Rapport technique…"
-                    required
+                    type="url"
+                    value={docUrl}
+                    onChange={e => setDocUrl(e.target.value)}
+                    placeholder="https://sharepoint.com/…"
                   />
                 </label>
-
-                {docType === 'link' || docType === 'project_export' ? (
-                  <label>URL
-                    <input
-                      type="url"
-                      value={docUrl}
-                      onChange={e => setDocUrl(e.target.value)}
-                      placeholder="https://sharepoint.com/…"
-                    />
-                  </label>
-                ) : (
-                  <div
-                    className={`ref-file-drop-zone${dragOver ? ' drag-over' : ''}${docFile ? ' has-file' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={e => {
-                      e.preventDefault()
-                      setDragOver(false)
-                      const f = e.dataTransfer.files?.[0]
-                      if (f) setDocFile(f)
+              ) : (
+                <div
+                  className={`ref-file-drop-zone${dragOver ? ' drag-over' : ''}${docFiles.length > 0 ? ' has-file' : ''}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOver(false)
+                    const files = Array.from(e.dataTransfer.files)
+                    const filtered = docType === 'pdf'
+                      ? files.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf')).slice(0, 1)
+                      : files.filter(f => f.type.startsWith('image/'))
+                    if (filtered.length > 0) {
+                      setDocFiles(filtered)
+                      if (filtered.length === 1 && !docName.trim()) {
+                        setDocName(filtered[0].name.replace(/\.[^/.]+$/, ''))
+                      }
+                    }
+                  }}
+                >
+                  {docFiles.length > 0 ? (
+                    <>
+                      <span className="ref-file-drop-icon">{docFiles.length > 1 ? '📂' : '✅'}</span>
+                      <span className="ref-file-drop-name">
+                        {docFiles.length === 1 ? docFiles[0].name : `${docFiles.length} fichiers sélectionnés`}
+                      </span>
+                      <span className="ref-file-drop-size">
+                        {fmtSize(docFiles.reduce((s, f) => s + f.size, 0))}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="ref-file-drop-icon">📁</span>
+                      <span className="ref-file-drop-label">
+                        {docType === 'image'
+                          ? 'Glissez une ou plusieurs images, ou cliquez pour parcourir'
+                          : 'Glissez un fichier PDF, ou cliquez pour parcourir'}
+                      </span>
+                      <span className="ref-file-drop-ext">
+                        {docType === 'pdf' ? 'Fichiers .pdf uniquement' : 'Images JPG, PNG, GIF, WebP…'}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={docType === 'pdf' ? '.pdf,application/pdf' : 'image/*'}
+                    multiple={docType === 'image'}
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const files = Array.from(e.target.files ?? [])
+                      if (files.length > 0) {
+                        setDocFiles(files)
+                        if (files.length === 1 && !docName.trim()) {
+                          setDocName(files[0].name.replace(/\.[^/.]+$/, ''))
+                        }
+                      }
                     }}
-                  >
-                    {docFile ? (
-                      <>
-                        <span className="ref-file-drop-icon">✅</span>
-                        <span className="ref-file-drop-name">{docFile.name}</span>
-                        <span className="ref-file-drop-size">{fmtSize(docFile.size)}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="ref-file-drop-icon">📁</span>
-                        <span className="ref-file-drop-label">
-                          Glissez un fichier ici, ou cliquez pour parcourir
-                        </span>
-                        <span className="ref-file-drop-ext">
-                          {docType === 'pdf' ? 'Fichiers .pdf uniquement' : 'Images JPG, PNG, GIF, WebP…'}
-                        </span>
-                      </>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={docType === 'pdf' ? '.pdf,application/pdf' : 'image/*'}
-                      style={{ display: 'none' }}
-                      onChange={e => setDocFile(e.target.files?.[0] ?? null)}
-                    />
-                  </div>
-                )}
-
-                <div className="ref-form-actions">
-                  <button type="button" onClick={() => { setAddDocOpen(false); setDocName(''); setDocUrl(''); setDocFile(null) }}>
-                    Annuler
-                  </button>
-                  <button type="submit" className="primary" disabled={uploadProgress || !docName.trim()}>
-                    {uploadProgress ? 'Upload en cours…' : 'Ajouter le document'}
-                  </button>
+                  />
                 </div>
-              </form>
-            )}
+              )}
 
+              <div className="ref-form-actions">
+                <button
+                  type="button"
+                  onClick={() => { setDocFiles([]); setDocName(''); setDocUrl('') }}
+                  disabled={docFiles.length === 0 && !docName.trim() && !docUrl.trim()}
+                >
+                  Effacer
+                </button>
+                <button type="submit" className="primary" disabled={uploadProgress}>
+                  {uploadProgress ? 'Upload en cours…' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+
+            {/* Liste des documents */}
             {docsLoading ? (
-              <p className="ref-loading-hint">Chargement…</p>
-            ) : docs.length === 0 && !addDocOpen ? (
-              <p className="ref-empty-hint">Aucun document. Cliquez sur + Ajouter pour en attacher un.</p>
+              <p className="ref-loading-hint" style={{ marginTop: 12 }}>Chargement…</p>
+            ) : docs.length === 0 ? (
+              <p className="ref-empty-hint" style={{ marginTop: 12 }}>Aucun document pour l'instant.</p>
             ) : (
-              <ul className="ref-doc-list">
+              <ul className="ref-doc-list" style={{ marginTop: 12 }}>
                 {docs.map(doc => (
                   <li key={doc.id} className="ref-doc-item">
                     <span className="ref-doc-icon">{DOC_ICONS[doc.doc_type]}</span>
@@ -1370,6 +1550,11 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                 </div>
               </div>
 
+              {/* Contacts du client */}
+              <div className="ref-section-block">
+                <ContactsSection entityType="client" entityId={selectedClient.id} />
+              </div>
+
               {sitesLoading ? (
                 <div className="ref-loading">Chargement des sites…</div>
               ) : sites.length === 0 ? (
@@ -1411,8 +1596,6 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                             </button>
                           </div>
                         </div>
-
-                        <ContactsSection entityType="site" entityId={site.id} defaultCollapsed />
 
                         <div className="ref-rooms-list">
                           {rooms.length === 0 ? (

@@ -39,7 +39,7 @@ export interface Room {
 
 export type DocType = 'pdf' | 'image' | 'link' | 'project_export'
 export type EntityType = 'client' | 'site' | 'room'
-export type ContactEntityType = 'site' | 'room'
+export type ContactEntityType = 'client' | 'site' | 'room'
 
 export interface Contact {
   id: string
@@ -363,5 +363,43 @@ export async function updateContact(
 
 export async function deleteContact(id: string): Promise<void> {
   const { error } = await supabase.from('contacts').delete().eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+// ── Contacts de salle (many-to-many) ──────────────────────────────────────
+
+/** Retourne les contacts assignés à une salle (via la table room_contacts). */
+export async function listRoomContacts(roomId: string): Promise<Contact[]> {
+  const { data: links, error: e1 } = await supabase
+    .from('room_contacts')
+    .select('contact_id')
+    .eq('room_id', roomId)
+  if (e1) throw pgErr(e1)
+  if (!links || links.length === 0) return []
+  const ids = (links as { contact_id: string }[]).map(l => l.contact_id)
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('*')
+    .in('id', ids)
+    .order('last_name')
+  if (error) throw pgErr(error)
+  return (data ?? []) as Contact[]
+}
+
+/** Assigne un contact client à une salle. */
+export async function addRoomContact(roomId: string, contactId: string): Promise<void> {
+  const { error } = await supabase
+    .from('room_contacts')
+    .insert({ room_id: roomId, contact_id: contactId })
+  if (error) throw pgErr(error)
+}
+
+/** Retire un contact d'une salle (sans le supprimer). */
+export async function removeRoomContact(roomId: string, contactId: string): Promise<void> {
+  const { error } = await supabase
+    .from('room_contacts')
+    .delete()
+    .eq('room_id', roomId)
+    .eq('contact_id', contactId)
   if (error) throw pgErr(error)
 }

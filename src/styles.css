@@ -7912,6 +7912,17 @@ select {
   font-size: 12px;
 }
 
+/* ── Bloc de section standalone (ex : contacts client) ── */
+.ref-section-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.ref-section-block .ref-contacts-section { border-top: none; }
+.ref-section-block .ref-contacts-header { padding: 14px 18px; }
+
 /* ── Contacts section : toggle collapsible ── */
 .ref-contacts-section {
   border-top: 1px solid var(--border);
