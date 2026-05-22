@@ -788,9 +788,13 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
 
   const handleOpenDoc = async (doc: RefDocument) => {
     try {
-      let target = doc.url
-      if (doc.storage_path && !doc.url?.startsWith('http')) {
+      let target: string | null = null
+      if (doc.storage_path) {
+        // Fichier dans le bucket privé → URL signée (valable 1 heure)
         target = await getSignedUrl(doc.storage_path)
+      } else {
+        // Lien externe (SharePoint, OneDrive, etc.)
+        target = doc.url ?? null
       }
       if (target) window.open(target, '_blank', 'noopener')
     } catch (e) {

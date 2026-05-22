@@ -266,7 +266,8 @@ export async function deleteDocument(id: string): Promise<void> {
   if (error) throw pgErr(error)
 }
 
-/** Upload un fichier dans le bucket ref-documents et retourne le path de stockage */
+/** Upload un fichier dans le bucket ref-documents (privé) et retourne le path de stockage.
+ *  Le bucket étant privé, on n'expose PAS d'URL publique — l'accès se fait via URL signée. */
 export async function uploadDocument(
   userId: string,
   entityType: EntityType,
@@ -280,11 +281,8 @@ export async function uploadDocument(
     .upload(storagePath, file, { upsert: false })
   if (error) throw new Error(error.message)
 
-  const { data: urlData } = supabase.storage
-    .from('ref-documents')
-    .getPublicUrl(storagePath)
-
-  return { storagePath, publicUrl: urlData?.publicUrl ?? null }
+  // Bucket privé : pas d'URL publique permanente, on utilisera des URLs signées à l'ouverture
+  return { storagePath, publicUrl: null }
 }
 
 /** Génère une URL signée (valable 1 heure) pour accéder à un fichier privé */
