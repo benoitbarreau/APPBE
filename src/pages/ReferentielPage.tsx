@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import {
   listClients, createClient, updateClient, deleteClient,
@@ -29,6 +29,13 @@ const DOC_LABELS: Record<DocType, string> = {
   image: 'Image',
   link: 'Lien externe',
   project_export: 'Export SynoX',
+}
+
+const DOC_DESCS: Record<DocType, string> = {
+  link: 'SharePoint, OneDrive…',
+  pdf: 'Fichier PDF',
+  image: 'Photo, plan, schéma',
+  project_export: 'Export ou lien SynoX',
 }
 
 const ROOM_TYPES = ['Salle de réunion', 'Salle de conférence', 'Auditorium', 'Salle de formation',
@@ -344,23 +351,45 @@ function ContactForm({ initial, onSave, onCancel, saving }: ContactFormProps) {
 interface ContactsSectionProps {
   entityType: ContactEntityType
   entityId: string
+  /** Si true, les contacts sont masqués par défaut et chargés à la première ouverture */
+  defaultCollapsed?: boolean
 }
 
-function ContactsSection({ entityType, entityId }: ContactsSectionProps) {
-  const [contacts,  setContacts]  = useState<Contact[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [addOpen,   setAddOpen]   = useState(false)
+function ContactsSection({ entityType, entityId, defaultCollapsed = false }: ContactsSectionProps) {
+  const [contacts,   setContacts]  = useState<Contact[]>([])
+  const [loading,    setLoading]   = useState(false)
+  const [collapsed,  setCollapsed] = useState(defaultCollapsed)
+  const [addOpen,    setAddOpen]   = useState(false)
   const [editTarget, setEditTarget] = useState<Contact | null>(null)
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
+  const [saving,     setSaving]    = useState(false)
+  const [error,      setError]     = useState<string | null>(null)
+  const loadedRef = useRef(false)
 
-  useEffect(() => {
+  /** Charge les contacts une seule fois (mémorisé via loadedRef). */
+  const loadNow = useCallback(() => {
+    if (loadedRef.current) return
+    loadedRef.current = true
     setLoading(true)
     listContacts(entityType, entityId)
       .then(setContacts)
       .catch(() => setError('Erreur chargement contacts'))
       .finally(() => setLoading(false))
   }, [entityType, entityId])
+
+  // Charger immédiatement si la section est ouverte par défaut
+  useEffect(() => {
+    if (!defaultCollapsed) loadNow()
+  }, [defaultCollapsed, loadNow])
+
+  const toggle = () => {
+    if (collapsed) {
+      setCollapsed(false)
+      loadNow()
+    } else {
+      setCollapsed(true)
+      setAddOpen(false)
+    }
+  }
 
   const handleCreate = async (data: Omit<Contact, 'id' | 'entity_type' | 'entity_id' | 'created_at' | 'updated_at'>) => {
     setSaving(true)
@@ -396,54 +425,79 @@ function ContactsSection({ entityType, entityId }: ContactsSectionProps) {
 
   return (
     <div className="ref-contacts-section">
-      <div className="ref-section-header">
-        <h4 className="ref-section-title">Contacts</h4>
-        <button className="ref-add-btn" onClick={() => { setAddOpen(v => !v); setEditTarget(null) }}>
-          {addOpen ? 'Annuler' : '+ Ajouter'}
+      {/* En-tête cliquable (toggle) */}
+      <div className="ref-contacts-header">
+        <button className="ref-contacts-toggle-btn" type="button" onClick={toggle}>
+          <h4 className="ref-section-title" style={{ marginBottom: 0 }}>
+            Contacts
+            {contacts.length > 0 && (
+              <span className="ref-count-badge">{contacts.length}</span>
+            )}
+          </h4>
+          <span className={`ref-toggle-arrow${collapsed ? '' : ' open'}`}>▼</span>
         </button>
+        {!collapsed && (
+          <button className="ref-add-btn" type="button"
+            onClick={() => { setAddOpen(v => !v); setEditTarget(null) }}>
+            {addOpen ? 'Annuler' : '+ Ajouter'}
+          </button>
+        )}
       </div>
 
-      {error && <p className="ref-error" style={{ marginBottom: 8 }}>{error}</p>}
+      {/* Contenu (masqué quand collapsed) */}
+      {!collapsed && (
+        <div className="ref-contacts-body">
+          {error && <p className="ref-error" style={{ marginBottom: 8 }}>{error}</p>}
 
-      {addOpen && (
-        <div className="ref-contact-form-wrap">
-          <ContactForm onSave={handleCreate} onCancel={() => setAddOpen(false)} saving={saving} />
+          {addOpen && (
+            <div className="ref-contact-form-wrap">
+              <ContactForm onSave={handleCreate} onCancel={() => setAddOpen(false)} saving={saving} />
+            </div>
+          )}
+
+          {editTarget && (
+            <Modal
+              title={`Modifier — ${editTarget.first_name} ${editTarget.last_name}`}
+              onClose={() => setEditTarget(null)}
+            >
+              <ContactForm
+                initial={editTarget}
+                onSave={handleUpdate}
+                onCancel={() => setEditTarget(null)}
+                saving={saving}
+              />
+            </Modal>
+          )}
+
+          {loading ? (
+            <p className="ref-loading-hint">Chargement…</p>
+          ) : contacts.length === 0 && !addOpen ? (
+            <p className="ref-empty-hint">Aucun contact. Cliquez sur + Ajouter pour en créer un.</p>
+          ) : (
+            <ul className="ref-contact-list">
+              {contacts.map(c => (
+                <li key={c.id} className="ref-contact-item">
+                  <div className="ref-contact-avatar">
+                    {c.first_name[0]}{c.last_name[0]}
+                  </div>
+                  <div className="ref-contact-info">
+                    <span className="ref-contact-name">{c.first_name} {c.last_name}</span>
+                    {c.role  && <span className="ref-contact-role">{c.role}</span>}
+                    <div className="ref-contact-coords">
+                      {c.phone && <a href={`tel:${c.phone}`} className="ref-contact-link">📞 {c.phone}</a>}
+                      {c.email && <a href={`mailto:${c.email}`} className="ref-contact-link">✉ {c.email}</a>}
+                    </div>
+                    {c.notes && <p className="ref-contact-notes">{c.notes}</p>}
+                  </div>
+                  <div className="ref-contact-actions">
+                    <button type="button" onClick={() => setEditTarget(c)} title="Modifier">✏</button>
+                    <button type="button" className="danger" onClick={() => void handleDelete(c)} title="Supprimer">🗑</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
-
-      {editTarget && (
-        <Modal title={`Modifier — ${editTarget.first_name} ${editTarget.last_name}`} onClose={() => setEditTarget(null)}>
-          <ContactForm initial={editTarget} onSave={handleUpdate} onCancel={() => setEditTarget(null)} saving={saving} />
-        </Modal>
-      )}
-
-      {loading ? (
-        <p className="ref-loading-hint">Chargement…</p>
-      ) : contacts.length === 0 && !addOpen ? (
-        <p className="ref-empty-hint">Aucun contact. Cliquez sur + Ajouter pour en créer un.</p>
-      ) : (
-        <ul className="ref-contact-list">
-          {contacts.map(c => (
-            <li key={c.id} className="ref-contact-item">
-              <div className="ref-contact-avatar">
-                {c.first_name[0]}{c.last_name[0]}
-              </div>
-              <div className="ref-contact-info">
-                <span className="ref-contact-name">{c.first_name} {c.last_name}</span>
-                {c.role  && <span className="ref-contact-role">{c.role}</span>}
-                <div className="ref-contact-coords">
-                  {c.phone && <a href={`tel:${c.phone}`} className="ref-contact-link">📞 {c.phone}</a>}
-                  {c.email && <a href={`mailto:${c.email}`} className="ref-contact-link">✉ {c.email}</a>}
-                </div>
-                {c.notes && <p className="ref-contact-notes">{c.notes}</p>}
-              </div>
-              <div className="ref-contact-actions">
-                <button onClick={() => setEditTarget(c)} title="Modifier">✏</button>
-                <button className="danger" onClick={() => void handleDelete(c)} title="Supprimer">🗑</button>
-              </div>
-            </li>
-          ))}
-        </ul>
       )}
     </div>
   )
@@ -483,6 +537,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
   const [docUrl, setDocUrl] = useState('')
   const [docFile, setDocFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -816,47 +871,87 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
             </div>
 
             {addDocOpen && (
-              <form className="ref-add-doc-form" onSubmit={e => void handleAddDoc(e)}>
-                <div className="ref-form-row">
-                  <label style={{ flex: 1 }}>Type
-                    <select value={docType} onChange={e => { setDocType(e.target.value as DocType); setDocFile(null) }}>
-                      <option value="link">🔗 Lien externe</option>
-                      <option value="pdf">📄 PDF</option>
-                      <option value="image">🖼 Image</option>
-                      <option value="project_export">📐 Export SynoX</option>
-                    </select>
-                  </label>
-                  <label style={{ flex: 2 }}>Nom *
-                    <input
-                      value={docName}
-                      onChange={e => setDocName(e.target.value)}
-                      placeholder="Nom du document"
-                      required
-                    />
-                  </label>
+              <form className="ref-add-doc-form ref-form" onSubmit={e => void handleAddDoc(e)}>
+                {/* Sélecteur visuel de type */}
+                <div className="ref-doc-type-grid">
+                  {(['link', 'pdf', 'image', 'project_export'] as DocType[]).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={`ref-doc-type-btn${docType === t ? ' active' : ''}`}
+                      onClick={() => { setDocType(t); setDocFile(null); setDocUrl('') }}
+                    >
+                      <span className="ref-doc-type-btn-icon">{DOC_ICONS[t]}</span>
+                      <span className="ref-doc-type-btn-label">{DOC_LABELS[t]}</span>
+                      <span className="ref-doc-type-btn-desc">{DOC_DESCS[t]}</span>
+                    </button>
+                  ))}
                 </div>
+
+                <label>Nom du document *
+                  <input
+                    value={docName}
+                    onChange={e => setDocName(e.target.value)}
+                    placeholder="Ex : Plan de salle, Rapport technique…"
+                    required
+                  />
+                </label>
+
                 {docType === 'link' || docType === 'project_export' ? (
                   <label>URL
                     <input
                       type="url"
                       value={docUrl}
                       onChange={e => setDocUrl(e.target.value)}
-                      placeholder="https://…"
+                      placeholder="https://sharepoint.com/…"
                     />
                   </label>
                 ) : (
-                  <label>Fichier
+                  <div
+                    className={`ref-file-drop-zone${dragOver ? ' drag-over' : ''}${docFile ? ' has-file' : ''}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault()
+                      setDragOver(false)
+                      const f = e.dataTransfer.files?.[0]
+                      if (f) setDocFile(f)
+                    }}
+                  >
+                    {docFile ? (
+                      <>
+                        <span className="ref-file-drop-icon">✅</span>
+                        <span className="ref-file-drop-name">{docFile.name}</span>
+                        <span className="ref-file-drop-size">{fmtSize(docFile.size)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="ref-file-drop-icon">📁</span>
+                        <span className="ref-file-drop-label">
+                          Glissez un fichier ici, ou cliquez pour parcourir
+                        </span>
+                        <span className="ref-file-drop-ext">
+                          {docType === 'pdf' ? 'Fichiers .pdf uniquement' : 'Images JPG, PNG, GIF, WebP…'}
+                        </span>
+                      </>
+                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept={docType === 'pdf' ? '.pdf' : 'image/*'}
+                      accept={docType === 'pdf' ? '.pdf,application/pdf' : 'image/*'}
+                      style={{ display: 'none' }}
                       onChange={e => setDocFile(e.target.files?.[0] ?? null)}
                     />
-                  </label>
+                  </div>
                 )}
+
                 <div className="ref-form-actions">
+                  <button type="button" onClick={() => { setAddDocOpen(false); setDocName(''); setDocUrl(''); setDocFile(null) }}>
+                    Annuler
+                  </button>
                   <button type="submit" className="primary" disabled={uploadProgress || !docName.trim()}>
-                    {uploadProgress ? 'Upload…' : 'Ajouter'}
+                    {uploadProgress ? 'Upload en cours…' : 'Ajouter le document'}
                   </button>
                 </div>
               </form>
@@ -1317,7 +1412,7 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                           </div>
                         </div>
 
-                        <ContactsSection entityType="site" entityId={site.id} />
+                        <ContactsSection entityType="site" entityId={site.id} defaultCollapsed />
 
                         <div className="ref-rooms-list">
                           {rooms.length === 0 ? (

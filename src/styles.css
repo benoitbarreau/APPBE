@@ -7398,14 +7398,6 @@ select {
   color: var(--muted);
   margin-top: 6px;
 }
-.ref-client-card-actions {
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  background: #fafbfc;
-}
-
 /* Logo client dans la carte */
 .ref-client-card-top {
   display: flex;
@@ -7414,28 +7406,6 @@ select {
   margin-bottom: 8px;
 }
 .ref-client-card-identity { flex: 1; min-width: 0; }
-.ref-client-logo {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #fff;
-  flex-shrink: 0;
-}
-.ref-client-logo-placeholder {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
 
 /* Logo dans le formulaire d'édition */
 .ref-logo-upload {
@@ -7855,10 +7825,6 @@ select {
 }
 
 /* ── Contacts ── */
-.ref-contacts-section {
-  padding: 12px 18px;
-  border-top: 1px solid var(--border);
-}
 .ref-contact-form-wrap {
   background: #f8f9fc;
   border: 1px solid var(--border);
@@ -7945,5 +7911,150 @@ select {
   padding: 3px 7px;
   font-size: 12px;
 }
+
+/* ── Contacts section : toggle collapsible ── */
+.ref-contacts-section {
+  border-top: 1px solid var(--border);
+}
+.ref-contacts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  gap: 8px;
+}
+.ref-contacts-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex: 1;
+  text-align: left;
+}
+.ref-contacts-toggle-btn:hover .ref-section-title { color: var(--primary); }
+.ref-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1.6;
+}
+.ref-toggle-arrow {
+  font-size: 9px;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+.ref-toggle-arrow.open { transform: rotate(180deg); }
+.ref-contacts-body {
+  padding: 4px 18px 14px;
+}
+
+/* ── Client card : actions sur hover ── */
+.ref-client-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: #fafbfc;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.ref-client-card:hover .ref-client-card-actions { opacity: 1; }
+
+/* Logo client plus grand + dégradé */
+.ref-client-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
+}
+.ref-client-logo-placeholder {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary) 0%, #6b9ef5 100%);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+/* ── Sélecteur de type de document ── */
+.ref-doc-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.ref-doc-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px 8px;
+  background: #f8f9fc;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  width: 100%;
+}
+.ref-doc-type-btn:hover { border-color: var(--primary); background: #eef2fb; }
+.ref-doc-type-btn.active { border-color: var(--primary); background: #eef2fb; }
+.ref-doc-type-btn-icon { font-size: 20px; line-height: 1; }
+.ref-doc-type-btn-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.ref-doc-type-btn.active .ref-doc-type-btn-label { color: var(--primary); }
+.ref-doc-type-btn-desc { font-size: 10px; color: var(--muted); line-height: 1.2; }
+
+/* ── Zone de dépôt de fichier (drag & drop) ── */
+.ref-file-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 22px 16px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  margin-top: 8px;
+}
+.ref-file-drop-zone:hover { border-color: var(--primary); background: #eef2fb; }
+.ref-file-drop-zone.drag-over {
+  border-color: var(--primary);
+  background: #dde7f8;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+.ref-file-drop-zone.has-file { border-color: #4caf7d; background: #eef8f0; border-style: solid; }
+.ref-file-drop-icon { font-size: 28px; line-height: 1; }
+.ref-file-drop-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.ref-file-drop-ext { font-size: 11px; color: var(--muted); }
+.ref-file-drop-name { font-size: 13px; font-weight: 700; color: #1a7a3c; }
+.ref-file-drop-size { font-size: 11px; color: #4caf7d; }
 
 
