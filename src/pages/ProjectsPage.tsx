@@ -14,6 +14,7 @@ interface Props {
   onOpenAdminDashboard?: () => void
   onOpenVersion?: (versionId: string, projectId: string, projectName: string) => void
   onOpenReferentiel?: () => void
+  onGoHome?: () => void
 }
 
 const fmt = (iso: string) =>
@@ -22,7 +23,7 @@ const fmt = (iso: string) =>
     hour: '2-digit', minute: '2-digit',
   })
 
-export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion, onOpenReferentiel }: Props) {
+export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion, onOpenReferentiel, onGoHome }: Props) {
   const { profile, signOut, isPasswordRecovery, clearPasswordRecovery } = useAuth()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [listLoading, setListLoading] = useState(true)
@@ -305,6 +306,11 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
         </div>
 
         <nav className="ref-main-nav">
+          {onGoHome && (
+            <button className="ref-nav-btn" onClick={onGoHome}>
+              ← Accueil
+            </button>
+          )}
           <button className="ref-nav-btn ref-nav-btn-active">
             Projets en cours
           </button>

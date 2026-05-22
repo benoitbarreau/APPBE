@@ -46,6 +46,7 @@ interface Props {
   onOpenProjects: () => void
   onOpenAdminDashboard?: () => void
   onNewProjectFromRoom?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
+  onGoHome?: () => void
 }
 
 // ── Composant modal générique ──────────────────────────────────────────────
@@ -1180,7 +1181,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
 
 // ── Page principale ────────────────────────────────────────────────────────
 
-export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom }: Props) {
+export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onGoHome }: Props) {
   const { profile, signOut } = useAuth()
 
   // ── Navigation interne ──
@@ -1398,6 +1399,11 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
 
         {/* Navigation principale */}
         <nav className="ref-main-nav">
+          {onGoHome && (
+            <button className="ref-nav-btn" onClick={onGoHome}>
+              ← Accueil
+            </button>
+          )}
           <button className="ref-nav-btn" onClick={onOpenProjects}>
             Projets en cours
           </button>

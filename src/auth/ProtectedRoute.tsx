@@ -9,6 +9,7 @@ import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 import { ReferentielPage } from '../pages/ReferentielPage'
+import { HomePage } from '../pages/HomePage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
@@ -68,7 +69,7 @@ function InitErrorScreen({
   )
 }
 
-type Page = 'projects' | 'editor' | 'referentiel'
+type Page = 'home' | 'projects' | 'editor' | 'referentiel'
 
 /** Persistance de la dernière vue active pour survivre à un F5 / fermeture
  *  de navigateur. On stocke aussi le userId pour ne PAS restaurer l'éditeur
@@ -85,7 +86,7 @@ function loadPersistedView(): PersistedView | null {
     const raw = localStorage.getItem(SESSION_VIEW_KEY)
     if (!raw) return null
     const v = JSON.parse(raw) as PersistedView
-    if (!v || (v.page !== 'projects' && v.page !== 'editor' && v.page !== 'referentiel')) return null
+    if (!v || (v.page !== 'home' && v.page !== 'projects' && v.page !== 'editor' && v.page !== 'referentiel')) return null
     return v
   } catch {
     return null
@@ -110,7 +111,7 @@ export function ProtectedRoute() {
   const { user, profile, loading, signOut, initError, retry } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
-  const [page, setPage] = useState<Page>('projects')
+  const [page, setPage] = useState<Page>('home')
   const [readOnlyVersion, setReadOnlyVersion] = useState<string | undefined>()
   const setReadOnly = useEditorState((s) => s.setReadOnly)
   const readOnly = useEditorState((s) => s.readOnly)
@@ -147,7 +148,7 @@ export function ProtectedRoute() {
 
     const saved = loadPersistedView()
     if (!saved || saved.userId !== user.id) {
-      // Vue d'un autre utilisateur ou aucune sauvegarde → page projets
+      // Vue d'un autre utilisateur ou aucune sauvegarde → page d'accueil
       clearPersistedView()
       return
     }
@@ -163,6 +164,8 @@ export function ProtectedRoute() {
       setPage('editor')
       setReadOnly(saved.readOnly)
       setReadOnlyVersion(saved.readOnlyVersion)
+    } else if (saved.page === 'projects' || saved.page === 'referentiel') {
+      setPage(saved.page)
     }
   }, [user?.id, profile?.status, setReadOnly])
 
@@ -193,10 +196,10 @@ export function ProtectedRoute() {
       .catch(() => { /* échec silencieux */ })
   }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
-  // Revenir à la page projets si la session expire
+  // Revenir à la page d'accueil si la session expire
   useEffect(() => {
     if (!user) {
-      setPage('projects')
+      setPage('home')
       setShowAdminDashboard(false)
       setShowRegister(false)
       setReadOnly(false)
@@ -232,6 +235,11 @@ export function ProtectedRoute() {
     setReadOnlyVersion(undefined)
     setPage('projects')
     persistView('projects', false)
+  }
+
+  const handleGoHome = () => {
+    setPage('home')
+    persistView('home', false)
   }
 
   const handleOpenReferentiel = () => {
@@ -322,12 +330,21 @@ export function ProtectedRoute() {
 
   return (
     <>
+      {page === 'home' && (
+        <HomePage
+          onOpenProjects={() => { setPage('projects'); persistView('projects', false) }}
+          onOpenReferentiel={handleOpenReferentiel}
+          onOpenAdminDashboard={openAdmin}
+        />
+      )}
+
       {page === 'projects' && (
         <ProjectsPage
           onOpenEditor={handleOpenEditor}
           onOpenAdminDashboard={openAdmin}
           onOpenVersion={handleOpenVersion}
           onOpenReferentiel={handleOpenReferentiel}
+          onGoHome={handleGoHome}
         />
       )}
 
@@ -345,6 +362,7 @@ export function ProtectedRoute() {
           onOpenProjects={handleBackToProjectsFromRef}
           onOpenAdminDashboard={openAdmin}
           onNewProjectFromRoom={handleNewProjectFromRoom}
+          onGoHome={handleGoHome}
         />
       )}
 
