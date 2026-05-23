@@ -8888,6 +8888,54 @@ select {
   backdrop-filter: blur(6px);
 }
 
+/* ── SIRET + lien Infogreffe (vue détail client) ───────────────── */
+.ref-siret-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.ref-siret-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fa0c0;
+  background: rgba(74,110,222,0.07);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.ref-siret-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e2a4a;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.ref-infogreffe-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a6ede;
+  background: rgba(74,110,222,0.08);
+  border: 1.5px solid rgba(74,110,222,0.18);
+  border-radius: 20px;
+  padding: 2px 10px;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.ref-infogreffe-link:hover {
+  background: rgba(74,110,222,0.16);
+  border-color: rgba(74,110,222,0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(74,110,222,0.15);
+  color: #2d4fbb;
+}
+
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ref-clients-grid { grid-template-columns: 1fr; gap: 12px; }

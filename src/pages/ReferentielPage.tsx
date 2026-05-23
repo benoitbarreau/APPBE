@@ -66,6 +66,17 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   )
 }
 
+// ── Utilitaire SIRET ───────────────────────────────────────────────────────
+
+/** Formate une valeur saisie en SIRET : "XXX XXX XXX XXXXX" (3+3+3+5 chiffres) */
+function formatSiret(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`
+  if (digits.length <= 9) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}`
+}
+
 // ── Formulaire Client ──────────────────────────────────────────────────────
 
 interface ClientFormProps {
@@ -157,8 +168,14 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
       <label>Nom du client *
         <input ref={nameRef} value={name} onChange={e => setName(e.target.value)} placeholder="Nom du client" required />
       </label>
-      <label>Code / Référence
-        <input value={code} onChange={e => setCode(e.target.value)} placeholder="Ex : CLI-001" />
+      <label>Siret
+        <input
+          value={code}
+          onChange={e => setCode(formatSiret(e.target.value))}
+          placeholder="440 870 319 00025"
+          maxLength={17}
+          inputMode="numeric"
+        />
       </label>
       <label>Adresse
         <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Adresse" />
@@ -1648,6 +1665,22 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                   <h1 className="projects-page-heading">{selectedClient.name}</h1>
                   {selectedClient.address && (
                     <p className="projects-page-sub">{selectedClient.address}</p>
+                  )}
+                  {selectedClient.code && (
+                    <p className="projects-page-sub ref-siret-row">
+                      <span className="ref-siret-label">SIRET</span>
+                      <span className="ref-siret-value">{selectedClient.code}</span>
+                      {selectedClient.code.replace(/\s/g, '').length === 14 && (
+                        <a
+                          href={`https://www.infogreffe.fr/entreprise/${selectedClient.code.replace(/\s/g, '').slice(0, 9)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ref-infogreffe-link"
+                        >
+                          🔍 Fiche Infogreffe
+                        </a>
+                      )}
+                    </p>
                   )}
                 </div>
                 <div className="projects-page-topbar-actions">
