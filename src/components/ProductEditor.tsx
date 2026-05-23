@@ -1,4 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+
+/** Ouvre une image (data URL ou URL externe) dans un nouvel onglet.
+ *  Chrome bloque l'ouverture directe des data URLs — on crée une mini-page HTML. */
+const openImageTab = (src: string) => {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(
+    `<!DOCTYPE html><html><head><title>Image</title>` +
+    `<style>body{margin:0;background:#111;display:flex;align-items:center;` +
+    `justify-content:center;min-height:100vh;}` +
+    `img{max-width:100%;max-height:100vh;object-fit:contain;}</style></head>` +
+    `<body><img src="${src}"/></body></html>`
+  );
+  win.document.close();
+};
 import { useAppStore, useCatalogMeta } from "../store";
 import { useAuth } from "../auth/useAuth";
 import { fileToResizedDataUrl } from "../image";
@@ -547,7 +562,7 @@ export function ProductEditor({
                 {draft.imageFront && (
                   <div
                     className="modal-preview-image modal-preview-image--clickable"
-                    onClick={() => window.open(draft.imageFront, '_blank')}
+                    onClick={() => openImageTab(draft.imageFront!)}
                     title="Cliquer pour agrandir"
                   >
                     <div className="modal-preview-image-label">Face</div>
@@ -558,7 +573,7 @@ export function ProductEditor({
                 {draft.imageBack && (
                   <div
                     className="modal-preview-image modal-preview-image--clickable"
-                    onClick={() => window.open(draft.imageBack, '_blank')}
+                    onClick={() => openImageTab(draft.imageBack!)}
                     title="Cliquer pour agrandir"
                   >
                     <div className="modal-preview-image-label">Dos</div>
@@ -879,7 +894,7 @@ function ImageField({
               src={value}
               alt={label}
               className="image-field-thumb"
-              onClick={() => window.open(value, '_blank')}
+              onClick={() => openImageTab(value)}
               title="Cliquer pour agrandir"
             />
             <button
