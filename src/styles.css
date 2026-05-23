@@ -3419,8 +3419,7 @@ select {
 
 .header-project-saved {
   font-size: 14px;
-  color: var(--primary);
-  opacity: 0.7;
+  color: #16a34a;
   flex-shrink: 0;
 }
 
