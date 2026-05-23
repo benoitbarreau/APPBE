@@ -84,7 +84,7 @@ function formatSiret(value: string): string {
 interface ClientFormProps {
   initial?: Partial<Client>
   clientId?: string
-  onSave: (data: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'account_manager_id' | 'account_manager'>) => Promise<void>
+  onSave: (data: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'account_manager_id' | 'account_manager' | 'deleted_at'>) => Promise<void>
   onLogoUploaded?: (url: string, path: string) => void
   onCancel: () => void
   saving: boolean
@@ -1472,16 +1472,6 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
     }
   }
 
-  const handleDeleteClient = async (client: Client) => {
-    if (!confirm(`Supprimer le client « ${client.name} » et tous ses sites, salles et documents ?`)) return
-    try {
-      await deleteClient(client.id)
-      setClients(prev => prev.filter(c => c.id !== client.id))
-      if (view === 'client' && selectedClient?.id === client.id) backToClients()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur suppression client')
-    }
-  }
 
   // ── CRUD Sites ──
   const handleCreateSite = async (data: Omit<Site, 'id' | 'client_id' | 'created_at' | 'updated_at'>) => {
