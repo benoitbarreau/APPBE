@@ -809,7 +809,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                 <button
                   onClick={() => void handleSave()}
                   disabled={saving}
-                  className={savedOk ? "btn-saved" : ""}
+                  className={`btn-save${savedOk ? " btn-saved" : ""}`}
                   title="Sauvegarder dans le cloud"
                 >
                   {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}

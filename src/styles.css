@@ -3391,6 +3391,15 @@ select {
   flex-shrink: 0;
 }
 
+.btn-save {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+.btn-save:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+}
 .btn-saved {
   background: #16a34a !important;
   color: #fff !important;
