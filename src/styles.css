@@ -1968,20 +1968,41 @@ select {
   padding: 10px 14px;
   border-top: 1px solid var(--border);
 }
+/* ── Titres de section dans la fiche produit ── */
+.pe-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 14px 0 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.pe-section-title:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
 .form-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .form-row > label {
-  width: 120px;
+  width: 128px;
+  flex-shrink: 0;
   font-size: 12px;
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--text);
+  opacity: 0.75;
 }
 .form-row > input,
 .form-row > select {
   flex: 1;
+  height: 34px;
 }
 .muted {
   color: var(--muted);
@@ -2080,31 +2101,105 @@ select {
   position: relative;
   pointer-events: none;
 }
+/* ── Badges rack dans l'aperçu ── */
+.modal-preview-badge-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
+}
+.modal-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── Code article + lien fabricant ── */
+.modal-preview-links {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 6px 0 10px;
+}
+.modal-preview-code {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: monospace;
+}
+.modal-preview-url-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(47,111,237,0.08);
+  border: 1px solid rgba(47,111,237,0.18);
+  color: var(--primary);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+  width: max-content;
+  transition: background 0.15s;
+}
+.modal-preview-url-btn:hover {
+  background: rgba(47,111,237,0.15);
+}
+
+/* ── Images produit cliquables ── */
 .modal-preview-images {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 .modal-preview-image {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px;
+  border-radius: 6px;
+  padding: 6px;
   background: #fafbfc;
+  position: relative;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.modal-preview-image--clickable {
+  cursor: zoom-in;
+}
+.modal-preview-image--clickable:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(47,111,237,0.12);
 }
 .modal-preview-image-label {
   font-size: 9px;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 .modal-preview-image img {
   max-width: 90px;
-  max-height: 60px;
+  max-height: 70px;
   object-fit: contain;
+}
+.modal-preview-image-zoom {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  font-size: 10px;
+  color: var(--primary);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.modal-preview-image--clickable:hover .modal-preview-image-zoom {
+  opacity: 1;
 }
 .modal-preview-meta {
   font-size: 11px;
@@ -2135,6 +2230,11 @@ select {
   max-height: 100px;
   object-fit: contain;
 }
+.image-field-thumb {
+  cursor: zoom-in;
+  transition: opacity 0.15s;
+}
+.image-field-thumb:hover { opacity: 0.82; }
 .image-field-remove {
   position: absolute;
   top: -8px;
@@ -6725,22 +6825,60 @@ select {
   gap: 8px;
 }
 
+/* ── Labels de section dans le panneau mise en forme ── */
+.fp-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  padding: 2px 2px 4px;
+}
+.fp-section-label--gap { margin-top: 6px; }
+
 .formatting-panel-btn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: 7px;
   cursor: pointer;
-  background: #fff;
+  background: #f8f9fb;
   border: 1px solid var(--border);
   color: var(--text);
   transition: background 0.12s, border-color 0.12s;
 }
 .formatting-panel-btn:hover {
-  background: #f0f3f8;
+  background: #eef1f7;
   border-color: #b3bcc8;
 }
+.fp-btn-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+.fp-btn-chevron {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* Couleur d'accent par type de bouton */
+.fp-btn--action .fp-btn-icon { color: var(--primary); }
+.fp-btn--text   .fp-btn-icon { color: #2563eb; font-weight: 900; }
+.fp-btn--shape  .fp-btn-icon { color: #7c3aed; }
+.fp-btn--image  .fp-btn-icon { color: #ea580c; }
+
+.fp-btn--action:hover { background: rgba(47,111,237,0.06); border-color: rgba(47,111,237,0.2); }
+.fp-btn--text:hover   { background: rgba(37,99,235,0.06);  border-color: rgba(37,99,235,0.2); }
+.fp-btn--shape:hover  { background: rgba(124,58,237,0.06); border-color: rgba(124,58,237,0.2); }
+.fp-btn--image:hover  { background: rgba(234,88,12,0.06);  border-color: rgba(234,88,12,0.2); }
 
 /* ── Sous-menu "Ajouter une forme" ────────────────────────────────────── */
 .shape-menu-wrap {

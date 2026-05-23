@@ -12,7 +12,6 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAdd
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
   const shapeMenuWrapRef = useRef<HTMLDivElement>(null);
 
-  // Fermer le sous-menu si clic en dehors
   useEffect(() => {
     if (!shapeMenuOpen) return;
     const handler = (e: MouseEvent) => {
@@ -27,7 +26,7 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAdd
   return (
     <div className="formatting-panel">
       <div className="formatting-panel-header">
-        <span className="formatting-panel-title">Mises en formes</span>
+        <span className="formatting-panel-title">Mises en forme</span>
         <button
           className="formatting-collapse-btn"
           onClick={onCollapse}
@@ -36,60 +35,67 @@ export function FormattingPanel({ onCollapse, onAutoLayout, onAddTextNode, onAdd
           ◀
         </button>
       </div>
+
       <div className="formatting-panel-content">
+
+        {/* ── Section : Actions canvas ── */}
+        <div className="fp-section-label">Canvas</div>
         <button
-          className="formatting-panel-btn"
+          className="formatting-panel-btn fp-btn--action"
           onClick={onAutoLayout}
           title="Replacer automatiquement les produits"
         >
-          ↻ Réorganiser
+          <span className="fp-btn-icon">⟳</span>
+          Réorganiser
         </button>
+
+        {/* ── Section : Ajouter un élément ── */}
+        <div className="fp-section-label fp-section-label--gap">Ajouter</div>
+
         <button
-          className="formatting-panel-btn"
+          className="formatting-panel-btn fp-btn--text"
           onClick={onAddTextNode}
           title="Ajouter un bloc texte libre"
         >
-          T + Texte
+          <span className="fp-btn-icon">T</span>
+          Texte
         </button>
 
-        {/* Bouton "Forme" avec sous-menu Rectangle / Ellipse */}
+        {/* Forme avec sous-menu */}
         <div className="shape-menu-wrap" ref={shapeMenuWrapRef}>
           <button
-            className="formatting-panel-btn shape-menu-toggle"
+            className="formatting-panel-btn fp-btn--shape shape-menu-toggle"
             onClick={() => setShapeMenuOpen((v) => !v)}
-            title="Ajouter un bloc forme (rectangle ou ellipse)"
+            title="Ajouter un bloc forme"
           >
-            ▭ + Forme {shapeMenuOpen ? "▴" : "▾"}
+            <span className="fp-btn-icon">▭</span>
+            Forme
+            <span className="fp-btn-chevron">{shapeMenuOpen ? "▴" : "▾"}</span>
           </button>
           {shapeMenuOpen && (
             <div className="shape-menu-dropdown">
-              <button
-                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("rectangle"); }}
-              >
+              <button onClick={() => { setShapeMenuOpen(false); onAddShapeNode("rectangle"); }}>
                 ▭ Rectangle
               </button>
-              <button
-                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("ellipse"); }}
-              >
+              <button onClick={() => { setShapeMenuOpen(false); onAddShapeNode("ellipse"); }}>
                 ⬭ Ellipse
               </button>
-              <button
-                onClick={() => { setShapeMenuOpen(false); onAddShapeNode("cloud"); }}
-              >
+              <button onClick={() => { setShapeMenuOpen(false); onAddShapeNode("cloud"); }}>
                 ☁ Nuage
               </button>
             </div>
           )}
         </div>
 
-        {/* Bouton "Image" */}
         <button
-          className="formatting-panel-btn"
+          className="formatting-panel-btn fp-btn--image"
           onClick={onAddImageNode}
           title="Importer une image (PNG, JPEG, SVG, GIF, WebP)"
         >
-          🖼 + Image
+          <span className="fp-btn-icon">⊞</span>
+          Image
         </button>
+
       </div>
     </div>
   );

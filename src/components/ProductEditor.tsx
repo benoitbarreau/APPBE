@@ -317,6 +317,7 @@ export function ProductEditor({
             {catalogCategories.map(c => <option key={c.id} value={c.name} />)}
           </datalist>
 
+          <div className="pe-section-title">Identification</div>
           <div className="form-row">
             <label>Marque</label>
             <input
@@ -343,6 +344,7 @@ export function ProductEditor({
             />
           </div>
 
+          <div className="pe-section-title">Références commerciales</div>
           <div className="form-row">
             <label>Code article</label>
             <input
@@ -360,6 +362,8 @@ export function ProductEditor({
               placeholder="https://…"
             />
           </div>
+
+          <div className="pe-section-title">Rack</div>
           <div className="form-row">
             <label>Hauteur rack (U)</label>
             <input
@@ -416,6 +420,7 @@ export function ProductEditor({
             )}
           </div>
 
+          <div className="pe-section-title">Visuels</div>
           <ImageField
             label="Image de face"
             value={draft.imageFront}
@@ -427,6 +432,7 @@ export function ProductEditor({
             onChange={(v) => setDraft({ ...draft, imageBack: v })}
           />
 
+          <div className="pe-section-title">Connectique</div>
           {SPEAKER_CATEGORIES.has(draft.category) ? (
             <SpeakerPortEditor
               port={draft.inputs[0] ?? null}
@@ -495,49 +501,72 @@ export function ProductEditor({
           <aside className="modal-preview">
             <div className="modal-preview-title">Aperçu</div>
             <ProductPreview product={draft} />
+
+            {/* Métadonnées rack */}
+            {(draft.rackHeightU || draft.rackSize) && (
+              <div className="modal-preview-badge-row">
+                {draft.rackHeightU && (
+                  <span className="modal-preview-badge">
+                    {draft.rackHeightU} U
+                  </span>
+                )}
+                {draft.rackSize && (
+                  <span className="modal-preview-badge">
+                    {draft.rackSize}"
+                    {draft.rackWidth && draft.rackSize === "19"
+                      ? draft.rackWidth === "full" ? " – pleine" : draft.rackWidth === "half" ? " – 1/2" : " – 1/4"
+                      : ""}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Code article + lien */}
+            {(draft.articleCode || draft.productUrl) && (
+              <div className="modal-preview-links">
+                {draft.articleCode && (
+                  <span className="modal-preview-code">#{draft.articleCode}</span>
+                )}
+                {draft.productUrl && (
+                  <a
+                    className="modal-preview-url-btn"
+                    href={draft.productUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={draft.productUrl}
+                  >
+                    ↗ Fiche fabricant
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Images produit cliquables */}
             {(draft.imageFront || draft.imageBack) && (
               <div className="modal-preview-images">
                 {draft.imageFront && (
-                  <div className="modal-preview-image">
+                  <div
+                    className="modal-preview-image modal-preview-image--clickable"
+                    onClick={() => window.open(draft.imageFront, '_blank')}
+                    title="Cliquer pour agrandir"
+                  >
                     <div className="modal-preview-image-label">Face</div>
                     <img src={draft.imageFront} alt="Face" />
+                    <span className="modal-preview-image-zoom">⤢</span>
                   </div>
                 )}
                 {draft.imageBack && (
-                  <div className="modal-preview-image">
+                  <div
+                    className="modal-preview-image modal-preview-image--clickable"
+                    onClick={() => window.open(draft.imageBack, '_blank')}
+                    title="Cliquer pour agrandir"
+                  >
                     <div className="modal-preview-image-label">Dos</div>
                     <img src={draft.imageBack} alt="Dos" />
+                    <span className="modal-preview-image-zoom">⤢</span>
                   </div>
                 )}
               </div>
-            )}
-            {(draft.rackHeightU || draft.rackSize) && (
-              <div className="modal-preview-meta muted">
-                {draft.rackHeightU ? `${draft.rackHeightU} U` : ""}
-                {draft.rackSize ? ` · ${draft.rackSize}"` : ""}
-                {draft.rackWidth && draft.rackSize === "19"
-                  ? draft.rackWidth === "full"
-                    ? " · pleine largeur"
-                    : draft.rackWidth === "half"
-                      ? " · 1/2 largeur"
-                      : " · 1/4 largeur"
-                  : ""}
-              </div>
-            )}
-            {draft.articleCode && (
-              <div className="modal-preview-meta muted">
-                Code : {draft.articleCode}
-              </div>
-            )}
-            {draft.productUrl && (
-              <a
-                className="modal-preview-meta"
-                href={draft.productUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Lien produit
-              </a>
             )}
           </aside>
         </div>
@@ -846,7 +875,13 @@ function ImageField({
       <div className="image-field">
         {value && (
           <div className="image-field-preview">
-            <img src={value} alt={label} />
+            <img
+              src={value}
+              alt={label}
+              className="image-field-thumb"
+              onClick={() => window.open(value, '_blank')}
+              title="Cliquer pour agrandir"
+            />
             <button
               className="image-field-remove"
               onClick={() => onChange(undefined)}
