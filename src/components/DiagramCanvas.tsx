@@ -991,6 +991,9 @@ export function DiagramCanvas({
         <div className="multiselect-toolbar">
           <span className="multiselect-count">{selectedIds.size} sélectionnés</span>
           <div className="multiselect-sep" />
+          <button onClick={() => handleAlign("center-y")} title="Aligner horizontalement (même axe Y)">━</button>
+          <button onClick={() => handleAlign("center-x")} title="Aligner verticalement (même axe X)">┃</button>
+          <div className="multiselect-sep" />
           <button onClick={() => handleAlign("dist-x")} title="Espacer horizontalement (gaps égaux)">⇔</button>
           <button onClick={() => handleAlign("dist-y")} title="Espacer verticalement (gaps égaux)">⇕</button>
           <div className="multiselect-sep" />
