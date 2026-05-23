@@ -717,8 +717,8 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
     setError(null)
     setUploadProgress(true)
     try {
-      // ── Cas : plusieurs images uploadées d'un coup ─────────────────────
-      if (docFiles.length > 1 && docType === 'image' && user) {
+      // ── Cas : plusieurs fichiers uploadés d'un coup (images ou PDFs) ────
+      if (docFiles.length > 1 && (docType === 'image' || docType === 'pdf') && user) {
         const newDocs: RefDocument[] = []
         for (const f of docFiles) {
           const result = await uploadDocument(user.id, 'room', room.id, f)
@@ -727,7 +727,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
             entity_type: 'room',
             entity_id: room.id,
             name: baseName,
-            doc_type: 'image',
+            doc_type: docType,
             url: result.publicUrl,
             storage_path: result.storagePath,
             file_size: f.size,
@@ -1087,7 +1087,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                     setDragOver(false)
                     const files = Array.from(e.dataTransfer.files)
                     const filtered = docType === 'pdf'
-                      ? files.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf')).slice(0, 1)
+                      ? files.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
                       : files.filter(f => f.type.startsWith('image/'))
                     if (filtered.length > 0) {
                       setDocFiles(filtered)
@@ -1113,7 +1113,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                       <span className="ref-file-drop-label">
                         {docType === 'image'
                           ? 'Glissez une ou plusieurs images, ou cliquez pour parcourir'
-                          : 'Glissez un fichier PDF, ou cliquez pour parcourir'}
+                          : 'Glissez un ou plusieurs PDF, ou cliquez pour parcourir'}
                       </span>
                       <span className="ref-file-drop-ext">
                         {docType === 'pdf' ? 'Fichiers .pdf uniquement' : 'Images JPG, PNG, GIF, WebP…'}
@@ -1124,7 +1124,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                     ref={fileInputRef}
                     type="file"
                     accept={docType === 'pdf' ? '.pdf,application/pdf' : 'image/*'}
-                    multiple={docType === 'image'}
+                    multiple={docType === 'image' || docType === 'pdf'}
                     style={{ display: 'none' }}
                     onChange={e => {
                       const files = Array.from(e.target.files ?? [])
