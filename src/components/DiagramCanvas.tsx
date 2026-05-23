@@ -334,8 +334,15 @@ export function DiagramCanvas({
   }, [nodes, textNodes, shapeNodes, imageNodes, selectedIds, selectedNodeId, products, measuredVersion]);
 
   /** Calcule les guides d'alignement + la cible de snap pour une position candidate.
-   *  Phase 1 : bords gauche/droit/haut/bas des blocs proches (rouge pointillé, bornés).
-   *  Phase 2 : espacement égal entre paires du même « bandeau » (orange). */
+   *  Phase 1 : bords gauche/droit/haut/bas (rouge pointillé, bornés au duo de blocs).
+   *  Phase 2 : espacement égal entre paires du même « bandeau » (orange).
+   *
+   *  Comportement voulu (style Visio) :
+   *  - Le 1er bloc qui correspond à un type d'alignement sur l'axe X fixe le snap X
+   *    ET crée le guide visuel.
+   *  - Les blocs suivants qui ont le même bord à la même position X ÉTENDENT
+   *    les bornes du guide (la ligne rouge s'allonge pour couvrir tous les blocs alignés).
+   *  - Idem sur l'axe Y indépendamment. */
   const computeGuides = useCallback(
     (nodeId: string, position: { x: number; y: number }, dW: number, dH: number) => {
       const dL = position.x;
@@ -347,17 +354,18 @@ export function DiagramCanvas({
       let snapX: number | undefined;
       let snapY: number | undefined;
 
-      // Nœuds fixes : ni page, ni en cours de déplacement
+      // Nœuds fixes : ni page, ni en cours de déplacement (ni membres du groupe glissé)
       const fixed = rfNodes.filter(
         (n) => n.type !== "page" && !selectedIdsRef.current.has(n.id) && n.id !== nodeId,
       );
 
-      // Marge visuelle autour des blocs (en px flow)
-      const MARGIN = 20;
+      const MARGIN = 25; // extension visuelle de la ligne au-delà des blocs (px flow)
+
+      // Références mutables vers les guides actifs pour l'extension de bornes
+      let vGuide: { type: "v"; x: number; y1: number; y2: number } | null = null;
+      let hGuide: { type: "h"; y: number; x1: number; x2: number } | null = null;
 
       // ── Phase 1 : alignement par les bords ─────────────────────────────────
-      // Les guides sont bornés : ils relient le bloc glissé au bloc référence,
-      // pas l'écran entier. Priorité : bord-bord, puis adjacence, puis centre.
       for (const o of fixed) {
         const oW = nodeW(o);
         const oH = nodeH(o);
@@ -366,64 +374,83 @@ export function DiagramCanvas({
         const oT = o.position.y;
         const oB = oT + oH;
 
-        // Helpers pour les bornes du guide : union des deux blocs ± marge
-        const vy1 = Math.min(dT, oT) - MARGIN;
-        const vy2 = Math.max(dB, oB) + MARGIN;
-        const hx1 = Math.min(dL, oL) - MARGIN;
-        const hx2 = Math.max(dR, oR) + MARGIN;
+        // Bornes du guide : union des deux blocs ± marge
+        const yMin = Math.min(dT, oT) - MARGIN;
+        const yMax = Math.max(dB, oB) + MARGIN;
+        const xMin = Math.min(dL, oL) - MARGIN;
+        const xMax = Math.max(dR, oR) + MARGIN;
 
         // ── Axe X (guides verticaux) ──────────────────────────────────────
-        if (snapX === undefined && Math.abs(dL - oL) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "v", x: oL, y1: vy1, y2: vy2 });
-          snapX = oL;
-        }
-        if (snapX === undefined && Math.abs(dR - oR) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "v", x: oR, y1: vy1, y2: vy2 });
-          snapX = oR - dW;
-        }
-        if (snapX === undefined && Math.abs(dR - oL) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "v", x: oL, y1: vy1, y2: vy2 });
-          snapX = oL - dW;
-        }
-        if (snapX === undefined && Math.abs(dL - oR) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "v", x: oR, y1: vy1, y2: vy2 });
-          snapX = oR;
-        }
-        // Centre-centre X (priorité basse — utile pour blocs de tailles différentes)
-        if (snapX === undefined && Math.abs((dL + dR) / 2 - (oL + oR) / 2) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "v", x: (oL + oR) / 2, y1: vy1, y2: vy2 });
-          snapX = (oL + oR) / 2 - dW / 2;
+        if (snapX === undefined) {
+          // 1ère correspondance : crée le guide et fixe le snap
+          if (Math.abs(dL - oL) < SNAP_THRESHOLD) {
+            snapX = oL;
+            vGuide = { type: "v", x: oL, y1: yMin, y2: yMax };
+            rawGuides.push(vGuide);
+          } else if (Math.abs(dR - oR) < SNAP_THRESHOLD) {
+            snapX = oR - dW;
+            vGuide = { type: "v", x: oR, y1: yMin, y2: yMax };
+            rawGuides.push(vGuide);
+          } else if (Math.abs(dR - oL) < SNAP_THRESHOLD) {
+            snapX = oL - dW;
+            vGuide = { type: "v", x: oL, y1: yMin, y2: yMax };
+            rawGuides.push(vGuide);
+          } else if (Math.abs(dL - oR) < SNAP_THRESHOLD) {
+            snapX = oR;
+            vGuide = { type: "v", x: oR, y1: yMin, y2: yMax };
+            rawGuides.push(vGuide);
+          } else if (Math.abs((dL + dR) / 2 - (oL + oR) / 2) < SNAP_THRESHOLD) {
+            // Centre↔Centre X (priorité basse)
+            snapX = (oL + oR) / 2 - dW / 2;
+            vGuide = { type: "v", x: (oL + oR) / 2, y1: yMin, y2: yMax };
+            rawGuides.push(vGuide);
+          }
+        } else if (vGuide) {
+          // Snap X déjà fixé : étendre le guide si ce bloc partage la même position X
+          if (Math.abs(oL - vGuide.x) < 1 || Math.abs(oR - vGuide.x) < 1) {
+            vGuide.y1 = Math.min(vGuide.y1, oT - MARGIN);
+            vGuide.y2 = Math.max(vGuide.y2, oB + MARGIN);
+          }
         }
 
-        // ── Axe Y (guides horizontaux) ────────────────────────────────────
-        if (snapY === undefined && Math.abs(dT - oT) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "h", y: oT, x1: hx1, x2: hx2 });
-          snapY = oT;
-        }
-        if (snapY === undefined && Math.abs(dB - oB) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "h", y: oB, x1: hx1, x2: hx2 });
-          snapY = oB - dH;
-        }
-        if (snapY === undefined && Math.abs(dB - oT) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "h", y: oT, x1: hx1, x2: hx2 });
-          snapY = oT - dH;
-        }
-        if (snapY === undefined && Math.abs(dT - oB) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "h", y: oB, x1: hx1, x2: hx2 });
-          snapY = oB;
-        }
-        // Centre-centre Y
-        if (snapY === undefined && Math.abs((dT + dB) / 2 - (oT + oB) / 2) < SNAP_THRESHOLD) {
-          rawGuides.push({ type: "h", y: (oT + oB) / 2, x1: hx1, x2: hx2 });
-          snapY = (oT + oB) / 2 - dH / 2;
+        // ── Axe Y (guides horizontaux) — indépendant de l'axe X ──────────
+        if (snapY === undefined) {
+          if (Math.abs(dT - oT) < SNAP_THRESHOLD) {
+            snapY = oT;
+            hGuide = { type: "h", y: oT, x1: xMin, x2: xMax };
+            rawGuides.push(hGuide);
+          } else if (Math.abs(dB - oB) < SNAP_THRESHOLD) {
+            snapY = oB - dH;
+            hGuide = { type: "h", y: oB, x1: xMin, x2: xMax };
+            rawGuides.push(hGuide);
+          } else if (Math.abs(dB - oT) < SNAP_THRESHOLD) {
+            snapY = oT - dH;
+            hGuide = { type: "h", y: oT, x1: xMin, x2: xMax };
+            rawGuides.push(hGuide);
+          } else if (Math.abs(dT - oB) < SNAP_THRESHOLD) {
+            snapY = oB;
+            hGuide = { type: "h", y: oB, x1: xMin, x2: xMax };
+            rawGuides.push(hGuide);
+          } else if (Math.abs((dT + dB) / 2 - (oT + oB) / 2) < SNAP_THRESHOLD) {
+            // Centre↔Centre Y (priorité basse)
+            snapY = (oT + oB) / 2 - dH / 2;
+            hGuide = { type: "h", y: (oT + oB) / 2, x1: xMin, x2: xMax };
+            rawGuides.push(hGuide);
+          }
+        } else if (hGuide) {
+          // Snap Y déjà fixé : étendre le guide si ce bloc partage la même position Y
+          if (Math.abs(oT - hGuide.y) < 1 || Math.abs(oB - hGuide.y) < 1) {
+            hGuide.x1 = Math.min(hGuide.x1, oL - MARGIN);
+            hGuide.x2 = Math.max(hGuide.x2, oR + MARGIN);
+          }
         }
       }
 
       // ── Phase 2 : espacement égal (uniquement dans le même bandeau) ─────────
       // On ne compare que des paires de blocs dont la zone Y (ou X) chevauche
       // celle du bloc glissé ± une tolérance. Évite les faux positifs distants.
-      const BAND = Math.max(dH * 2, 120); // tolérance verticale pour l'espacement horizontal
-      const BANDV = Math.max(dW * 2, 120); // tolérance horizontale pour l'espacement vertical
+      const BAND  = Math.max(dH * 2, 120);
+      const BANDV = Math.max(dW * 2, 120);
 
       for (let i = 0; i < fixed.length; i++) {
         for (let j = i + 1; j < fixed.length; j++) {
@@ -432,7 +459,7 @@ export function DiagramCanvas({
           const aW = nodeW(a); const aH = nodeH(a);
           const bW = nodeW(b); const bH = nodeH(b);
 
-          // ── Espacement horizontal (blocs dans le même bandeau vertical) ──
+          // ── Espacement horizontal ──────────────────────────────────────
           const [lft, rgt] = a.position.x <= b.position.x ? [a, b] : [b, a];
           const lW = lft === a ? aW : bW; const lH = lft === a ? aH : bH;
           const rW = rgt === a ? aW : bW; const rH = rgt === a ? aH : bH;
@@ -441,17 +468,16 @@ export function DiagramCanvas({
           const gapH = rL - lR;
 
           if (gapH > 0) {
-            // Filtre de bande : le bloc glissé doit être verticalement proche des deux références
             const refMinY = Math.min(lft.position.y, rgt.position.y);
             const refMaxY = Math.max(lft.position.y + lH, rgt.position.y + rH);
             const inBand = dT < refMaxY + BAND && dB > refMinY - BAND;
 
             if (inBand) {
-              const yRef = (lft.position.y + lH / 2 + rgt.position.y + rH / 2) / 2;
+              const yRef  = (lft.position.y + lH / 2 + rgt.position.y + rH / 2) / 2;
               const yDrag = dT + dH / 2;
 
-              // À droite de rgt
               if (snapX === undefined) {
+                // À droite de rgt
                 const cx = rgt.position.x + rW + gapH;
                 if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
                   snapX = cx;
@@ -459,8 +485,8 @@ export function DiagramCanvas({
                   rawGuides.push({ type: "eq-gap-h", x1: rgt.position.x + rW, x2: cx, yMid: yDrag });
                 }
               }
-              // À gauche de lft
               if (snapX === undefined) {
+                // À gauche de lft
                 const cx = lft.position.x - gapH - dW;
                 if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
                   snapX = cx;
@@ -468,8 +494,8 @@ export function DiagramCanvas({
                   rawGuides.push({ type: "eq-gap-h", x1: cx + dW, x2: lft.position.x, yMid: yDrag });
                 }
               }
-              // Entre lft et rgt
               if (snapX === undefined && gapH >= dW) {
+                // Entre lft et rgt
                 const cx = lR + (gapH - dW) / 2;
                 if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
                   snapX = cx;
@@ -480,7 +506,7 @@ export function DiagramCanvas({
             }
           }
 
-          // ── Espacement vertical (blocs dans le même bandeau horizontal) ──
+          // ── Espacement vertical ────────────────────────────────────────
           const [top, bot] = a.position.y <= b.position.y ? [a, b] : [b, a];
           const tH = top === a ? aH : bH; const tW = top === a ? aW : bW;
           const btH = bot === a ? aH : bH; const btW = bot === a ? aW : bW;
@@ -494,11 +520,11 @@ export function DiagramCanvas({
             const inBandV = dL < refMaxX + BANDV && dR > refMinX - BANDV;
 
             if (inBandV) {
-              const xRef = (top.position.x + tW / 2 + bot.position.x + btW / 2) / 2;
+              const xRef  = (top.position.x + tW / 2 + bot.position.x + btW / 2) / 2;
               const xDrag = dL + dW / 2;
 
-              // En dessous de bot
               if (snapY === undefined) {
+                // En dessous de bot
                 const cy = bot.position.y + btH + gapV;
                 if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
                   snapY = cy;
@@ -506,8 +532,8 @@ export function DiagramCanvas({
                   rawGuides.push({ type: "eq-gap-v", y1: bot.position.y + btH, y2: cy, xMid: xDrag });
                 }
               }
-              // Au-dessus de top
               if (snapY === undefined) {
+                // Au-dessus de top
                 const cy = top.position.y - gapV - dH;
                 if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
                   snapY = cy;
@@ -515,13 +541,13 @@ export function DiagramCanvas({
                   rawGuides.push({ type: "eq-gap-v", y1: cy + dH, y2: top.position.y, xMid: xDrag });
                 }
               }
-              // Entre top et bot
               if (snapY === undefined && gapV >= dH) {
+                // Entre top et bot
                 const cy = tBot + (gapV - dH) / 2;
                 if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
                   snapY = cy;
-                  rawGuides.push({ type: "eq-gap-v", y1: tBot,     y2: cy,   xMid: top.position.x + tW / 2 });
-                  rawGuides.push({ type: "eq-gap-v", y1: cy + dH,  y2: bTop, xMid: bot.position.x + btW / 2 });
+                  rawGuides.push({ type: "eq-gap-v", y1: tBot,    y2: cy,   xMid: top.position.x + tW / 2 });
+                  rawGuides.push({ type: "eq-gap-v", y1: cy + dH, y2: bTop, xMid: bot.position.x + btW / 2 });
                 }
               }
             }
@@ -529,17 +555,8 @@ export function DiagramCanvas({
         }
       }
 
-      // Dédupliquer les guides v/h (même position = 1 seul trait)
-      const seenV = new Set<string>();
-      const seenH = new Set<string>();
-      const guides = rawGuides.filter((g) => {
-        if (g.type === "v") { const k = `${g.x}`; if (seenV.has(k)) return false; seenV.add(k); return true; }
-        if (g.type === "h") { const k = `${g.y}`; if (seenH.has(k)) return false; seenH.add(k); return true; }
-        return true;
-      });
-
       return {
-        guides,
+        guides: rawGuides,
         snap: snapX !== undefined || snapY !== undefined ? { x: snapX, y: snapY } : null,
       };
     },
