@@ -7,6 +7,7 @@ import type {
   IPNetworkInfo,
   IPTableColumnConfig,
   IPTableRow,
+  NodeGroup,
   PlacedProduct,
   Port,
   PortPlacement,
@@ -76,6 +77,7 @@ interface State {
   textNodes: TextNodeData[];
   shapeNodes: ShapeNodeData[];
   imageNodes: ImageNodeData[];
+  groups: NodeGroup[];
   // ── Données partagées entre onglets ───────────────────────────────────
   signals: Record<string, SignalDef>;
   /** Configuration des colonnes du Tableau IP (ordre, visibilité, custom).
@@ -173,6 +175,10 @@ interface State {
     offsetX: number;
     offsetY: number;
   }) => void;
+  /** Crée un groupe persistant avec les nœuds donnés. Retire ces nœuds de tout groupe existant. */
+  groupNodes: (nodeIds: string[]) => void;
+  /** Dissout un groupe (par son id). Les nœuds restent à leur position. */
+  ungroupNodes: (groupId: string) => void;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
   removeNode: (id: string) => void;
   /** Réordonne les nœuds (drag & drop dans la liste des étiquettes produits). */
@@ -312,6 +318,7 @@ const makeDefaultTab = (name = "Synoptique 1"): Tab => ({
   nodes: [],
   cables: [],
   zones: [...DEFAULT_ZONES],
+  groups: [],
 });
 
 /** Crée un onglet Tableau IP vierge. */
@@ -350,12 +357,12 @@ const makeBayTab = (name = "Baie 1", widthInch: 10 | 19 = 19, heightU = 42): Tab
  * PAS pertinent — on conserve l'onglet tel quel.
  */
 // Les zones sont globales au projet (s.zones) — on ne les stocke PAS
-// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes/shapeNodes/imageNodes.
-const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes" | "shapeNodes" | "imageNodes">): Tab[] =>
+// dans chaque onglet. flushActive ne persiste que nodes/cables/textNodes/shapeNodes/imageNodes/groups.
+const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" | "textNodes" | "shapeNodes" | "imageNodes" | "groups">): Tab[] =>
   s.tabs.map((t) => {
     if (t.id !== s.activeTabId) return t;
     if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes, imageNodes: s.imageNodes };
+    return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes, imageNodes: s.imageNodes, groups: s.groups };
   });
 
 /**
@@ -411,6 +418,7 @@ export const useAppStore = create<State>()(
         textNodes: [],
         shapeNodes: [],
         imageNodes: [],
+        groups: [],
         signals: { ...DEFAULT_SIGNAL_DEFS },
         ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
         zones: [...DEFAULT_ZONES],
@@ -662,6 +670,7 @@ export const useAppStore = create<State>()(
               textNodes: newActive.textNodes ?? [],
               shapeNodes: newActive.shapeNodes ?? [],
               imageNodes: newActive.imageNodes ?? [],
+              groups: newActive.groups ?? [],
               // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
@@ -1205,6 +1214,19 @@ export const useAppStore = create<State>()(
               ...ins.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
             ],
           })),
+
+        groupNodes: (nodeIds) =>
+          set((s) => {
+            // Retire ces nœuds de tout groupe existant, supprime les groupes devenus < 2 membres
+            const cleaned = s.groups
+              .map((g) => ({ ...g, nodeIds: g.nodeIds.filter((id) => !nodeIds.includes(id)) }))
+              .filter((g) => g.nodeIds.length >= 2);
+            return { groups: [...cleaned, { id: uid(), nodeIds }] };
+          }),
+
+        ungroupNodes: (groupId) =>
+          set((s) => ({ groups: s.groups.filter((g) => g.id !== groupId) })),
+
         updateNode: (id, patch) =>
           set((s) => ({
             nodes: s.nodes.map((n) => {
@@ -1825,7 +1847,7 @@ export const useAppStore = create<State>()(
     },
     {
       name: "av-diagram-generator",
-      version: 13,
+      version: 14,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<State> & {
           adminCode?: unknown;
@@ -1915,6 +1937,15 @@ export const useAppStore = create<State>()(
           }));
         }
 
+        // v14 : ajout des groupes de nœuds
+        if (!state.groups) (state as unknown as { groups: NodeGroup[] }).groups = [];
+        if (state.tabs) {
+          state.tabs = state.tabs.map((t) => ({
+            ...t,
+            groups: (t as Tab & { groups?: NodeGroup[] }).groups ?? [],
+          }));
+        }
+
         return state as unknown as State;
       },
     },
@@ -1928,6 +1959,7 @@ export const useAppStore = create<State>()(
       textNodes: state.textNodes,
       shapeNodes: state.shapeNodes,
       imageNodes: state.imageNodes,
+      groups: state.groups,
     }),
     limit: 50, // max 50 snapshots en mémoire
   }

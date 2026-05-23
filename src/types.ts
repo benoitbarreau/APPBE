@@ -236,6 +236,12 @@ export interface RackItem {
   logoUrl?: string
 }
 
+/** Groupe de nœuds (produits, textes, formes, images) liés pour déplacement/copie simultanés. */
+export interface NodeGroup {
+  id: string;
+  nodeIds: string[];
+}
+
 /** Un onglet au sein d'un projet. Type discriminé par `kind`.
  *  - `kind` absent ou 'synoptic' → onglet synoptique graphique (rétrocompat).
  *  - `kind === 'iptable'` → onglet Tableau IP.
@@ -252,6 +258,7 @@ export interface Tab {
   textNodes?: TextNodeData[]
   shapeNodes?: ShapeNodeData[]
   imageNodes?: ImageNodeData[]
+  groups?: NodeGroup[]
   // ── Champs Tableau IP (présents pour onglets IP uniquement) ──────────
   rows?: IPTableRow[]
   network?: IPNetworkInfo

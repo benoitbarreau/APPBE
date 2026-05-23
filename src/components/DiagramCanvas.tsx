@@ -149,6 +149,9 @@ export function DiagramCanvas({
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
   const updateCable = useAppStore((s) => s.updateCable);
+  const groups = useAppStore((s) => s.groups);
+  const groupNodes = useAppStore((s) => s.groupNodes);
+  const ungroupNodes = useAppStore((s) => s.ungroupNodes);
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const selectedCableId = useAppStore((s) => s.selectedCableId);
   const readOnly = useEditorState((s) => s.readOnly);
@@ -166,6 +169,12 @@ export function DiagramCanvas({
   // Ref stable pour accéder à selectedIds dans les callbacks/effects sans deps
   const selectedIdsRef = useRef<Set<string>>(selectedIds);
   selectedIdsRef.current = selectedIds;
+
+  // Vrai si au moins un nœud sélectionné appartient à un groupe
+  const selectedHasGroup = useMemo(
+    () => groups.some((g) => g.nodeIds.some((id) => selectedIds.has(id))),
+    [selectedIds, groups],
+  );
 
   // Presse-papier pour copier-coller (ref = pas de re-render)
   const clipboardRef = useRef<{
@@ -512,11 +521,20 @@ export function DiagramCanvas({
         }
 
         if (change.type === "select") {
-          // Mise à jour du Set unifié (tous types de nœuds)
+          // Mise à jour du Set unifié (tous types de nœuds).
+          // Si le nœud sélectionné appartient à un groupe, on étend la sélection
+          // à tous les membres du groupe pour que ReactFlow les déplace ensemble.
           setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (change.selected) next.add(change.id);
-            else next.delete(change.id);
+            if (change.selected) {
+              next.add(change.id);
+              const grp = useAppStore.getState().groups.find((g) => g.nodeIds.includes(change.id));
+              if (grp) {
+                for (const id of grp.nodeIds) next.add(id);
+              }
+            } else {
+              next.delete(change.id);
+            }
             return next;
           });
           // Maintenir selectedNodeId dans le store pour les blocs produit
@@ -805,15 +823,38 @@ export function DiagramCanvas({
     pasteNodes({ ...cb, offsetX: offset, offsetY: offset });
   }, [pasteNodes]);
 
+  // ── Grouper / Dégrouper ───────────────────────────────────────────────────
+  const handleGroup = useCallback(() => {
+    const ids = Array.from(selectedIdsRef.current);
+    if (ids.length < 2) return;
+    groupNodes(ids);
+  }, [groupNodes]);
+
+  const handleUngroup = useCallback(() => {
+    const currentGroups = useAppStore.getState().groups;
+    const groupIdsToRemove = new Set<string>();
+    for (const id of selectedIdsRef.current) {
+      const g = currentGroups.find((grp) => grp.nodeIds.includes(id));
+      if (g) groupIdsToRemove.add(g.id);
+    }
+    for (const gId of groupIdsToRemove) {
+      ungroupNodes(gId);
+    }
+  }, [ungroupNodes]);
+
   // ── Raccourcis clavier globaux ────────────────────────────────────────────
   // Ctrl+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo, Ctrl+C = copier, Ctrl+V = coller
   // On utilise des refs pour éviter de recréer l'écouteur à chaque render.
-  const readOnlyRef    = useRef(readOnly);
-  const handleCopyRef  = useRef(handleCopy);
-  const handlePasteRef = useRef(handlePaste);
-  readOnlyRef.current    = readOnly;
-  handleCopyRef.current  = handleCopy;
-  handlePasteRef.current = handlePaste;
+  const readOnlyRef      = useRef(readOnly);
+  const handleCopyRef    = useRef(handleCopy);
+  const handlePasteRef   = useRef(handlePaste);
+  const handleGroupRef   = useRef(handleGroup);
+  const handleUngroupRef = useRef(handleUngroup);
+  readOnlyRef.current      = readOnly;
+  handleCopyRef.current    = handleCopy;
+  handlePasteRef.current   = handlePaste;
+  handleGroupRef.current   = handleGroup;
+  handleUngroupRef.current = handleUngroup;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -836,6 +877,14 @@ export function DiagramCanvas({
         if (isInput) return;
         e.preventDefault();
         handlePasteRef.current();
+      } else if (e.ctrlKey && !e.shiftKey && e.key === "g") {
+        if (isInput) return;
+        e.preventDefault();
+        handleGroupRef.current();
+      } else if (e.ctrlKey && e.shiftKey && (e.key === "g" || e.key === "G")) {
+        if (isInput) return;
+        e.preventDefault();
+        handleUngroupRef.current();
       }
     };
     window.addEventListener("keydown", handler);
@@ -869,7 +918,12 @@ export function DiagramCanvas({
           <button onClick={() => handleAlign("dist-x")}   title="Distribuer horizontalement">⠿</button>
           <button onClick={() => handleAlign("dist-y")}   title="Distribuer verticalement">⠿</button>
           <div className="multiselect-sep" />
-          <button onClick={handleCopy}  title="Copier (Ctrl+C)">⎘</button>
+          <button onClick={handleCopy}   title="Copier (Ctrl+C)">⎘</button>
+          <div className="multiselect-sep" />
+          <button onClick={handleGroup}  title="Grouper (Ctrl+G)">⊞ Grouper</button>
+          {selectedHasGroup && (
+            <button onClick={handleUngroup} title="Dégrouper (Ctrl+Shift+G)">⊟ Dégrouper</button>
+          )}
         </div>
       )}
 
