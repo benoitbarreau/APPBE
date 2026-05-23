@@ -6279,6 +6279,80 @@ select {
   to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
 }
 
+/* ── Boutons Undo / Redo dans le header ─────────────────────────────────── */
+
+.btn-undo-redo {
+  min-width: 32px;
+  padding: 4px 8px;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.btn-undo-redo:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Toolbar multi-sélection ─────────────────────────────────────────────── */
+
+.multiselect-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px;
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  pointer-events: all;
+  animation: multiselect-in 0.15s ease;
+}
+@keyframes multiselect-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+.multiselect-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.multiselect-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+.multiselect-toolbar button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+.multiselect-toolbar button:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+.multiselect-toolbar button:active {
+  background: #e8edf5;
+}
+
 /* ── Tableau IP — colonnes configurables ────────────────────────────────── */
 
 /* En-tête draggable */

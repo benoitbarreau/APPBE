@@ -19,7 +19,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { useAppStore, useEditorState } from "../store";
-import { BLANK_PRODUCT, type PlacedProduct, type Port, type PortSide, type Product, type SignalType } from "../types";
+import { BLANK_PRODUCT, type PlacedProduct, type Port, type PortSide, type Product, type SignalType, type TextNodeData, type ShapeNodeData, type ImageNodeData } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
   if (!handleId) return null;
@@ -144,6 +144,7 @@ export function DiagramCanvas({
   const updateShapeNode = useAppStore((s) => s.updateShapeNode);
   const removeShapeNode = useAppStore((s) => s.removeShapeNode);
   const updateImageNode = useAppStore((s) => s.updateImageNode);
+  const pasteNodes = useAppStore((s) => s.pasteNodes);
   const setSelectedNode = useAppStore((s) => s.setSelectedNode);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
@@ -157,12 +158,23 @@ export function DiagramCanvas({
   const [guides, setGuides] = useState<Guide[]>([]);
   const snapTargetRef = useRef<{ x?: number; y?: number } | null>(null);
 
-  // ── Sélection locale (blocs texte, forme et image) — non persistée dans le store ──
-  // `selected: false` codé en dur empêchait le NodeResizer d'apparaître.
-  // On track l'ID sélectionné ici pour le passer dans la prop `selected`.
-  const [selectedTextNodeId,  setSelectedTextNodeId]  = useState<string | null>(null);
-  const [selectedShapeNodeId, setSelectedShapeNodeId] = useState<string | null>(null);
-  const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(null);
+  // ── Sélection unifiée (tous types de nœuds) — non persistée dans le store ──
+  // Un seul Set<string> gère la sélection de tous les types (produit, texte, forme, image).
+  // Cela permet la multi-sélection native ReactFlow (Ctrl+clic / drag-select).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Ref stable pour accéder à selectedIds dans les callbacks/effects sans deps
+  const selectedIdsRef = useRef<Set<string>>(selectedIds);
+  selectedIdsRef.current = selectedIds;
+
+  // Presse-papier pour copier-coller (ref = pas de re-render)
+  const clipboardRef = useRef<{
+    nodes: PlacedProduct[];
+    textNodes: TextNodeData[];
+    shapeNodes: ShapeNodeData[];
+    imageNodes: ImageNodeData[];
+  } | null>(null);
+  const pasteCountRef = useRef(0); // décalage cumulatif à chaque Ctrl+V
 
   // ── Dimensions réelles des blocs produit (mesurées par React Flow) ──────────
   // Permet de calculer la grille de pages avec les vraies hauteurs au lieu des
@@ -248,7 +260,7 @@ export function DiagramCanvas({
       // data est casté car React Flow attend Record<string, unknown> mais le
       // custom node reçoit TextNodeData (typé plus précisément en interne).
       data: tn as unknown as Record<string, unknown>,
-      selected: tn.id === selectedTextNodeId,
+      selected: selectedIds.has(tn.id),
       zIndex: 2000,
       style: { width: tn.width, height: tn.height },
     }));
@@ -260,7 +272,7 @@ export function DiagramCanvas({
       type: "shape" as const,
       position: sn.position,
       data: sn as unknown as Record<string, unknown>,
-      selected: sn.id === selectedShapeNodeId,
+      selected: selectedIds.has(sn.id),
       zIndex: sn.zOrder - 1000,
       style: { width: sn.width, height: sn.height },
     }));
@@ -273,7 +285,7 @@ export function DiagramCanvas({
       type: "image" as const,
       position: img.position,
       data: img as unknown as Record<string, unknown>,
-      selected: img.id === selectedImageNodeId,
+      selected: selectedIds.has(img.id),
       zIndex: img.layer === "background" ? img.zOrder - 800 : 1500 + img.zOrder,
       style: { width: img.width, height: img.height },
     }));
@@ -290,7 +302,7 @@ export function DiagramCanvas({
         type: "product",
         position: n.position,
         data: { nodeId: n.id },
-        selected: n.id === selectedNodeId,
+        selected: selectedIds.has(n.id),
       })),
       ...fgImages,       // images premier plan (zIndex 1500+)
       ...textRfNodes,    // textes au premier plan (zIndex 2000)
@@ -298,7 +310,7 @@ export function DiagramCanvas({
   // measuredVersion : compteur incrémenté quand React Flow mesure un bloc produit
   // → force le recalcul des pages avec les vraies dimensions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, textNodes, shapeNodes, imageNodes, selectedNodeId, selectedTextNodeId, selectedShapeNodeId, selectedImageNodeId, products, measuredVersion]);
+  }, [nodes, textNodes, shapeNodes, imageNodes, selectedIds, selectedNodeId, products, measuredVersion]);
 
   // Helper : calcule guides d'alignement + cible de snap pour une position candidate.
   // Appelé depuis onNodeDrag (drag natif React Flow sur les blocs produit).
@@ -336,6 +348,9 @@ export function DiagramCanvas({
   const onNodeDrag = useCallback(
     (_e: React.MouseEvent, node: Node) => {
       if (node.type !== "product") return;
+      // Suspendre l'historique pendant le drag pour ne pas enregistrer
+      // chaque position intermédiaire (une seule entrée au drag-stop).
+      useAppStore.temporal.getState().pause();
       const dW = node.measured?.width ?? 150;
       const dH = node.measured?.height ?? 120;
       const { guides: g, snap } = computeGuides(node.id, node.position, dW, dH);
@@ -358,6 +373,8 @@ export function DiagramCanvas({
       }
       snapTargetRef.current = null;
       setGuides([]);
+      // Reprendre l'historique : la position finale est enregistrée ici
+      useAppStore.temporal.getState().resume();
     },
     [updateNode],
   );
@@ -495,22 +512,22 @@ export function DiagramCanvas({
         }
 
         if (change.type === "select") {
-          if (isTextNode) {
-            // Pour les blocs texte, on met à jour l'état local de sélection
-            // afin que la prop `selected` soit correctement transmise et que
-            // le NodeResizer s'affiche.
-            setSelectedTextNodeId(change.selected ? change.id : null);
-          } else if (isShapeNode) {
-            setSelectedShapeNodeId(change.selected ? change.id : null);
-          } else if (isImageNode) {
-            setSelectedImageNodeId(change.selected ? change.id : null);
-          } else if (isProduct) {
+          // Mise à jour du Set unifié (tous types de nœuds)
+          setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (change.selected) next.add(change.id);
+            else next.delete(change.id);
+            return next;
+          });
+          // Maintenir selectedNodeId dans le store pour les blocs produit
+          // (utilisé par InstancePortsConfig et le zone-picker au double-clic)
+          if (isProduct) {
             setSelectedNode(change.selected ? change.id : null);
           }
         }
       }
     },
-    [rfNodes, nodes, textNodes, shapeNodes, imageNodes, updateNode, updateTextNode, updateShapeNode, updateImageNode, removeNode, removeTextNode, removeShapeNode, setSelectedNode],
+    [rfNodes, nodes, textNodes, shapeNodes, imageNodes, updateNode, updateTextNode, updateShapeNode, updateImageNode, removeNode, removeTextNode, removeShapeNode, setSelectedNode, setSelectedIds],
   );
 
   const onEdgesChange = useCallback(
@@ -612,12 +629,13 @@ export function DiagramCanvas({
 
   // Clic sur le fond du canvas (pane) → quitter le mode édition des blocs texte
   // et désélectionner. On dispatch un événement custom que TextNodeComponent écoute.
+  // La sélection (selectedIds) est vidée via les events select:false de ReactFlow
+  // qui transitent par onNodesChange → setSelectedIds.
   const onPaneClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("exitTextEdit"));
-    setSelectedTextNodeId(null);
-    setSelectedShapeNodeId(null);
-    setSelectedImageNodeId(null);
-  }, []);
+    setSelectedIds(new Set());
+    setSelectedNode(null);
+  }, [setSelectedNode]);
 
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
@@ -689,6 +707,141 @@ export function DiagramCanvas({
     [nodes, products, signals, shapeNodes, updateCable, showCompatError],
   );
 
+  // ── Mise à jour de position par type de nœud ─────────────────────────────
+  const updateNodeByType = useCallback(
+    (id: string, type: string | undefined, pos: { x: number; y: number }) => {
+      const position = { x: Math.round(pos.x), y: Math.round(pos.y) };
+      if (type === "text")        updateTextNode(id, { position });
+      else if (type === "shape")  updateShapeNode(id, { position });
+      else if (type === "image")  updateImageNode(id, { position });
+      else                        updateNode(id, { position });
+    },
+    [updateNode, updateTextNode, updateShapeNode, updateImageNode],
+  );
+
+  // ── Alignement multi-sélection ────────────────────────────────────────────
+  const handleAlign = useCallback(
+    (dir: "left" | "center-x" | "right" | "top" | "center-y" | "bottom" | "dist-x" | "dist-y") => {
+      const ids = selectedIdsRef.current;
+      if (ids.size < 2) return;
+
+      const selected = rfNodes.filter((n) => ids.has(n.id) && n.type !== "page");
+      if (selected.length < 2) return;
+
+      const boxes = selected.map((n) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        w: n.measured?.width  ?? 150,
+        h: n.measured?.height ?? 80,
+      }));
+
+      const minX = Math.min(...boxes.map((b) => b.x));
+      const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+      const minY = Math.min(...boxes.map((b) => b.y));
+      const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+
+      if (dir === "dist-x" && boxes.length >= 2) {
+        const sorted = [...boxes].sort((a, b) => a.x - b.x);
+        const totalW  = sorted.reduce((s, b) => s + b.w, 0);
+        const gap     = (maxX - minX - totalW) / (sorted.length - 1);
+        let curX = minX;
+        for (const b of sorted) {
+          updateNodeByType(b.id, b.type, { x: curX, y: b.y });
+          curX += b.w + gap;
+        }
+        return;
+      }
+      if (dir === "dist-y" && boxes.length >= 2) {
+        const sorted = [...boxes].sort((a, b) => a.y - b.y);
+        const totalH  = sorted.reduce((s, b) => s + b.h, 0);
+        const gap     = (maxY - minY - totalH) / (sorted.length - 1);
+        let curY = minY;
+        for (const b of sorted) {
+          updateNodeByType(b.id, b.type, { x: b.x, y: curY });
+          curY += b.h + gap;
+        }
+        return;
+      }
+
+      for (const b of boxes) {
+        let nx = b.x, ny = b.y;
+        switch (dir) {
+          case "left":     nx = minX; break;
+          case "right":    nx = maxX - b.w; break;
+          case "center-x": nx = (minX + maxX) / 2 - b.w / 2; break;
+          case "top":      ny = minY; break;
+          case "bottom":   ny = maxY - b.h; break;
+          case "center-y": ny = (minY + maxY) / 2 - b.h / 2; break;
+        }
+        if (nx !== b.x || ny !== b.y) updateNodeByType(b.id, b.type, { x: nx, y: ny });
+      }
+    },
+    [rfNodes, updateNodeByType],
+  );
+
+  // ── Copier / Coller ───────────────────────────────────────────────────────
+  const handleCopy = useCallback(() => {
+    const ids = selectedIdsRef.current;
+    if (ids.size === 0) return;
+    const s = useAppStore.getState();
+    clipboardRef.current = {
+      nodes:      s.nodes.filter((n) => ids.has(n.id)),
+      textNodes:  s.textNodes.filter((n) => ids.has(n.id)),
+      shapeNodes: (s.shapeNodes ?? []).filter((n) => ids.has(n.id)),
+      imageNodes: (s.imageNodes ?? []).filter((n) => ids.has(n.id)),
+    };
+    pasteCountRef.current = 0; // réinitialise le décalage
+  }, []);
+
+  const handlePaste = useCallback(() => {
+    const cb = clipboardRef.current;
+    if (!cb) return;
+    const total = cb.nodes.length + cb.textNodes.length + cb.shapeNodes.length + cb.imageNodes.length;
+    if (total === 0) return;
+    pasteCountRef.current += 1;
+    const offset = pasteCountRef.current * 30;
+    pasteNodes({ ...cb, offsetX: offset, offsetY: offset });
+  }, [pasteNodes]);
+
+  // ── Raccourcis clavier globaux ────────────────────────────────────────────
+  // Ctrl+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo, Ctrl+C = copier, Ctrl+V = coller
+  // On utilise des refs pour éviter de recréer l'écouteur à chaque render.
+  const readOnlyRef    = useRef(readOnly);
+  const handleCopyRef  = useRef(handleCopy);
+  const handlePasteRef = useRef(handlePaste);
+  readOnlyRef.current    = readOnly;
+  handleCopyRef.current  = handleCopy;
+  handlePasteRef.current = handlePaste;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (readOnlyRef.current) return;
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
+      if (e.ctrlKey && !e.shiftKey && e.key === "z") {
+        if (isInput) return;
+        e.preventDefault();
+        useAppStore.temporal.getState().undo();
+      } else if ((e.ctrlKey && e.key === "y") || (e.ctrlKey && e.shiftKey && e.key === "z")) {
+        if (isInput) return;
+        e.preventDefault();
+        useAppStore.temporal.getState().redo();
+      } else if (e.ctrlKey && !e.shiftKey && e.key === "c") {
+        if (isInput) return;
+        handleCopyRef.current();
+      } else if (e.ctrlKey && !e.shiftKey && e.key === "v") {
+        if (isInput) return;
+        e.preventDefault();
+        handlePasteRef.current();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []); // stable grâce aux refs
+
   return (
     <div
       style={{ position: "relative", width: "100%", height: "100%" }}
@@ -699,6 +852,27 @@ export function DiagramCanvas({
           {compatError}
         </div>
       )}
+
+      {/* ── Barre d'outils multi-sélection ─────────────────────────────────── */}
+      {!readOnly && selectedIds.size > 1 && (
+        <div className="multiselect-toolbar">
+          <span className="multiselect-count">{selectedIds.size} sélectionnés</span>
+          <div className="multiselect-sep" />
+          <button onClick={() => handleAlign("left")}     title="Aligner à gauche">⇤</button>
+          <button onClick={() => handleAlign("center-x")} title="Centrer horizontalement">⇔</button>
+          <button onClick={() => handleAlign("right")}    title="Aligner à droite">⇥</button>
+          <div className="multiselect-sep" />
+          <button onClick={() => handleAlign("top")}      title="Aligner en haut">⇡</button>
+          <button onClick={() => handleAlign("center-y")} title="Centrer verticalement">⇕</button>
+          <button onClick={() => handleAlign("bottom")}   title="Aligner en bas">⇣</button>
+          <div className="multiselect-sep" />
+          <button onClick={() => handleAlign("dist-x")}   title="Distribuer horizontalement">⠿</button>
+          <button onClick={() => handleAlign("dist-y")}   title="Distribuer verticalement">⠿</button>
+          <div className="multiselect-sep" />
+          <button onClick={handleCopy}  title="Copier (Ctrl+C)">⎘</button>
+        </div>
+      )}
+
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -722,6 +896,8 @@ export function DiagramCanvas({
         // sur le fond zoome au lieu d'ouvrir l'éditeur d'instance/texte.
         zoomOnDoubleClick={false}
         deleteKeyCode={readOnly ? null : ["Delete", "Backspace"]}
+        multiSelectionKeyCode={readOnly ? null : "Control"}
+        selectionOnDrag={!readOnly}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ type: "cable" }}

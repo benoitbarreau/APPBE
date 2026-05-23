@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
 import { createPortal } from "react-dom";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
@@ -73,6 +74,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
   const [rightTab, setRightTab] = useState<"cables" | "etiquettes" | "labels" | "legend" | "zones">("cables");
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+
+  // ── Undo / Redo — état du store temporel (zundo) ──────────────────────
+  const canUndo = useStore(useAppStore.temporal, (s) => s.pastStates.length > 0);
+  const canRedo = useStore(useAppStore.temporal, (s) => s.futureStates.length > 0);
 
   // ── État onglets ──────────────────────────────────────────────────────
   const tabs = useAppStore((s) => s.tabs);
@@ -754,14 +759,32 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             <div className="header-separator" />
 
             {!readOnly && (
-              <button
-                onClick={() => void handleSave()}
-                disabled={saving}
-                className={savedOk ? "btn-saved" : ""}
-                title="Sauvegarder dans le cloud"
-              >
-                {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
-              </button>
+              <>
+                <button
+                  onClick={() => useAppStore.temporal.getState().undo()}
+                  disabled={!canUndo}
+                  title="Annuler (Ctrl+Z)"
+                  className="btn-undo-redo"
+                >
+                  ↩
+                </button>
+                <button
+                  onClick={() => useAppStore.temporal.getState().redo()}
+                  disabled={!canRedo}
+                  title="Rétablir (Ctrl+Y)"
+                  className="btn-undo-redo"
+                >
+                  ↪
+                </button>
+                <button
+                  onClick={() => void handleSave()}
+                  disabled={saving}
+                  className={savedOk ? "btn-saved" : ""}
+                  title="Sauvegarder dans le cloud"
+                >
+                  {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
+                </button>
+              </>
             )}
             <div className="export-menu" ref={exportMenuRef}>
               <button onClick={() => setExportMenuOpen((v) => !v)}>Exporter ▾</button>

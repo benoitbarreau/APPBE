@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { temporal } from "zundo";
 import type {
   Cable,
   ImageNodeData,
@@ -163,6 +164,15 @@ interface State {
 
   addNode: (productId: string, position: { x: number; y: number }) => string;
   addBlankBlock: (position: { x: number; y: number }) => void;
+  /** Colle les nœuds du presse-papier avec un décalage de position. */
+  pasteNodes: (content: {
+    nodes: PlacedProduct[];
+    textNodes: TextNodeData[];
+    shapeNodes: ShapeNodeData[];
+    imageNodes: ImageNodeData[];
+    offsetX: number;
+    offsetY: number;
+  }) => void;
   updateNode: (id: string, patch: Partial<PlacedProduct>) => void;
   removeNode: (id: string) => void;
   /** Réordonne les nœuds (drag & drop dans la liste des étiquettes produits). */
@@ -371,6 +381,7 @@ let _loginZonesForMigration: Zone[] | null = null;
 let _adminGlobalSignals: Record<string, SignalDef> | null = null;
 
 export const useAppStore = create<State>()(
+  temporal(
   persist(
     (set, get) => {
       const firstTab = makeDefaultTab();
@@ -1174,6 +1185,26 @@ export const useAppStore = create<State>()(
             };
           });
         },
+
+        pasteNodes: ({ nodes: nodesToPaste, textNodes: tns, shapeNodes: sns, imageNodes: ins, offsetX, offsetY }) =>
+          set((s) => ({
+            nodes: [
+              ...s.nodes,
+              ...nodesToPaste.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
+            ],
+            textNodes: [
+              ...s.textNodes,
+              ...tns.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
+            ],
+            shapeNodes: [
+              ...(s.shapeNodes ?? []),
+              ...sns.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
+            ],
+            imageNodes: [
+              ...(s.imageNodes ?? []),
+              ...ins.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
+            ],
+          })),
         updateNode: (id, patch) =>
           set((s) => ({
             nodes: s.nodes.map((n) => {
@@ -1888,6 +1919,19 @@ export const useAppStore = create<State>()(
       },
     },
   ),
+  {
+    // N'historise que le contenu du canvas — pas les méta-données projet,
+    // produits, signaux, etc. L'historique n'est pas persisté en localStorage.
+    partialize: (state: State) => ({
+      nodes: state.nodes,
+      cables: state.cables,
+      textNodes: state.textNodes,
+      shapeNodes: state.shapeNodes,
+      imageNodes: state.imageNodes,
+    }),
+    limit: 50, // max 50 snapshots en mémoire
+  }
+ )
 );
 
 export const defaultCableFor = (signal: SignalType): string =>
