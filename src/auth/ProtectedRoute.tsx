@@ -113,6 +113,8 @@ export function ProtectedRoute() {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)
   const [page, setPage] = useState<Page>('home')
   const [readOnlyVersion, setReadOnlyVersion] = useState<string | undefined>()
+  /** ID client à ouvrir automatiquement lors de la prochaine navigation vers le référentiel. */
+  const [refInitClientId, setRefInitClientId] = useState<string | null>(null)
   const setReadOnly = useEditorState((s) => s.setReadOnly)
   const readOnly = useEditorState((s) => s.readOnly)
   /** Évite de re-restaurer la vue à chaque changement de user (n'arme qu'une fois par session) */
@@ -243,11 +245,19 @@ export function ProtectedRoute() {
   }
 
   const handleOpenReferentiel = () => {
+    setRefInitClientId(null)
+    setPage('referentiel')
+    persistView('referentiel', false)
+  }
+
+  const handleGoToReferentiel = (clientId: string) => {
+    setRefInitClientId(clientId)
     setPage('referentiel')
     persistView('referentiel', false)
   }
 
   const handleBackToProjectsFromRef = () => {
+    setRefInitClientId(null)
     setPage('projects')
     persistView('projects', false)
   }
@@ -366,6 +376,7 @@ export function ProtectedRoute() {
         <App
           onOpenAdminDashboard={openAdmin}
           onBackToProjects={handleBackToProjects}
+          onGoToReferentiel={handleGoToReferentiel}
           readOnly={readOnly}
           readOnlyVersion={readOnlyVersion}
         />
@@ -378,6 +389,7 @@ export function ProtectedRoute() {
           onNewProjectFromRoom={handleNewProjectFromRoom}
           onOpenProject={handleOpenProjectFromRef}
           onGoHome={handleGoHome}
+          initialClientId={refInitClientId}
         />
       )}
 

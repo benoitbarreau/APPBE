@@ -43,20 +43,23 @@ import {
   incrementVersion,
   computeProjectHash,
 } from "./lib/projectsApi";
+import { getProjectRoomInfo, type ProjectRoomInfo } from "./lib/referentielApi";
 
 interface AppProps {
   onOpenAdminDashboard?: () => void
   onBackToProjects?: () => void
+  onGoToReferentiel?: (clientId: string) => void
   readOnly?: boolean
   readOnlyVersion?: string
 }
 
-export default function App({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVersion }: AppProps) {
+export default function App({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, readOnly, readOnlyVersion }: AppProps) {
   return (
     <ReactFlowProvider>
       <AppInner
         onOpenAdminDashboard={onOpenAdminDashboard}
         onBackToProjects={onBackToProjects}
+        onGoToReferentiel={onGoToReferentiel}
         readOnly={readOnly}
         readOnlyVersion={readOnlyVersion}
       />
@@ -64,7 +67,7 @@ export default function App({ onOpenAdminDashboard, onBackToProjects, readOnly, 
   );
 }
 
-function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVersion }: AppProps) {
+function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, readOnly, readOnlyVersion }: AppProps) {
   const reactFlow = useReactFlow();
   const { profile, signOut } = useAuth();
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -158,6 +161,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
 
   // Modal "modifications non sauvegardées"
   const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
+  /** Action à exécuter après confirmation de navigation (enregistrer ou ignorer). */
+  const pendingLeaveAction = useRef<(() => void) | null>(null);
+
+  // Infos client/salle liées au projet (chip en en-tête)
+  const [linkedRoomInfo, setLinkedRoomInfo] = useState<ProjectRoomInfo | null>(null);
 
   // Initialise le hash de référence avec l'état chargé depuis la DB.
   // Toute modification ultérieure produira un hash différent.
@@ -258,13 +266,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     addBlankBlock({ x: 200 + offset, y: 100 + offset });
   };
 
-  const handleBackToProjects = () => {
-    // En lecture seule : pas de confirmation (rien ne peut être modifié)
-    if (readOnly) {
-      onBackToProjects?.();
-      return;
-    }
-    // Comparer le hash courant avec le hash au dernier enregistrement
+  /** Vérifie les modifications non sauvegardées et appelle `action` ou ouvre le modal. */
+  const guardedLeave = (action: () => void) => {
+    if (readOnly) { action(); return; }
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
     const currentHash = computeProjectHash(
@@ -276,11 +280,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     );
     const hasUnsavedChanges = currentHash !== lastSavedHash.current;
     if (hasUnsavedChanges) {
+      pendingLeaveAction.current = action;
       setUnsavedModalOpen(true);
       return;
     }
-    onBackToProjects?.();
+    action();
   };
+
+  const handleBackToProjects = () => guardedLeave(() => onBackToProjects?.());
+
+  const handleGoToClient = (clientId: string) =>
+    guardedLeave(() => onGoToReferentiel?.(clientId));
 
   const handleSave = async (): Promise<boolean> => {
     if (readOnly) return false;
@@ -509,6 +519,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
     );
     return () => clearTimeout(timer);
   }, [currentProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Charge les infos client/salle liées au projet courant (chip en-tête)
+  useEffect(() => {
+    if (!currentProjectId) { setLinkedRoomInfo(null); return; }
+    let cancelled = false;
+    getProjectRoomInfo(currentProjectId)
+      .then((info) => { if (!cancelled) setLinkedRoomInfo(info); })
+      .catch(() => { if (!cancelled) setLinkedRoomInfo(null); });
+    return () => { cancelled = true; };
+  }, [currentProjectId]);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [formattingOpen, setFormattingOpen] = useState(false);
@@ -754,6 +774,16 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             />
             {currentProjectId && !readOnly && (
               <span className="header-project-saved" title="Projet synchronisé dans le cloud">☁</span>
+            )}
+            {currentProjectId && !readOnly && linkedRoomInfo && (
+              <button
+                className="header-room-chip"
+                title={`Fiche client : ${linkedRoomInfo.clientName} › ${linkedRoomInfo.siteName} › ${linkedRoomInfo.roomName}`}
+                onClick={() => handleGoToClient(linkedRoomInfo.clientId)}
+              >
+                🏢 {linkedRoomInfo.clientName}
+                <span className="header-room-chip-room">· {linkedRoomInfo.roomName}</span>
+              </button>
             )}
 
             <div className="header-separator" />
@@ -1106,7 +1136,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
             void handleSave().then((success) => {
               if (success) {
                 setUnsavedModalOpen(false);
-                onBackToProjects?.();
+                pendingLeaveAction.current?.();
+                pendingLeaveAction.current = null;
               }
               // Si success=false, l'alert interne a déjà informé l'utilisateur
               // → on reste sur la page avec le modal ouvert
@@ -1114,9 +1145,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, readOnly, readOnlyVe
           }}
           onIgnoreAndLeave={() => {
             setUnsavedModalOpen(false);
-            onBackToProjects?.();
+            pendingLeaveAction.current?.();
+            pendingLeaveAction.current = null;
           }}
-          onCancel={() => setUnsavedModalOpen(false)}
+          onCancel={() => {
+            setUnsavedModalOpen(false);
+            pendingLeaveAction.current = null;
+          }}
         />
       )}
       {scopeModal && (

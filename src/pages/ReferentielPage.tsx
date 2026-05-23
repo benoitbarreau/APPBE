@@ -50,6 +50,8 @@ interface Props {
   onNewProjectFromRoom?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
   onOpenProject?: (projectId: string, projectName: string) => void
   onGoHome?: () => void
+  /** Si fourni, ouvre automatiquement la fiche de ce client à l'initialisation. */
+  initialClientId?: string | null
 }
 
 // ── Composant modal générique ──────────────────────────────────────────────
@@ -1320,7 +1322,7 @@ function profileInitials(p: ApprovedProfile): string {
 
 // ── Page principale ────────────────────────────────────────────────────────
 
-export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onGoHome }: Props) {
+export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onGoHome, initialClientId }: Props) {
   const { user, profile, signOut } = useAuth()
 
   // ── Navigation interne ──
@@ -1414,6 +1416,18 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
   }
 
   useEffect(() => { loadClients() }, [])
+
+  // ── Ouverture automatique d'un client via initialClientId ──
+  const hasOpenedInitClient = useRef(false)
+  useEffect(() => {
+    if (!initialClientId || hasOpenedInitClient.current) return
+    if (clients.length === 0) return
+    const client = clients.find(c => c.id === initialClientId)
+    if (client) {
+      hasOpenedInitClient.current = true
+      void openClient(client)
+    }
+  }, [initialClientId, clients]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Drill-down vers un client ──
   const openClient = async (client: Client) => {

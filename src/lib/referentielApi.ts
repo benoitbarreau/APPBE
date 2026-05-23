@@ -376,6 +376,60 @@ export async function linkProjectToRoom(projectId: string, roomId: string | null
   if (error) throw pgErr(error)
 }
 
+/** Infos client/salle liées à un projet (pour le chip dans l'éditeur). */
+export interface ProjectRoomInfo {
+  clientId: string
+  clientName: string
+  siteId: string
+  siteName: string
+  roomId: string
+  roomName: string
+}
+
+/** Retourne les infos client+salle liées à un projet, ou null si aucune liaison. */
+export async function getProjectRoomInfo(projectId: string): Promise<ProjectRoomInfo | null> {
+  // 1. Récupérer le room_id du projet
+  const { data: proj, error: projErr } = await supabase
+    .from('projects')
+    .select('room_id')
+    .eq('id', projectId)
+    .single()
+  if (projErr || !proj?.room_id) return null
+
+  // 2. Récupérer la salle
+  const { data: room, error: roomErr } = await supabase
+    .from('rooms')
+    .select('id, name, site_id')
+    .eq('id', proj.room_id)
+    .single()
+  if (roomErr || !room) return null
+
+  // 3. Récupérer le site
+  const { data: site, error: siteErr } = await supabase
+    .from('sites')
+    .select('id, name, client_id')
+    .eq('id', room.site_id)
+    .single()
+  if (siteErr || !site) return null
+
+  // 4. Récupérer le client
+  const { data: client, error: clientErr } = await supabase
+    .from('clients')
+    .select('id, name')
+    .eq('id', site.client_id)
+    .single()
+  if (clientErr || !client) return null
+
+  return {
+    clientId: client.id,
+    clientName: client.name,
+    siteId: site.id,
+    siteName: site.name,
+    roomId: room.id,
+    roomName: room.name,
+  }
+}
+
 // ── Contacts ───────────────────────────────────────────────────────────────
 
 export async function listContacts(entityType: ContactEntityType, entityId: string): Promise<Contact[]> {
