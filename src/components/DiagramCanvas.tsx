@@ -293,13 +293,19 @@ export function DiagramCanvas({
       ...pages,
       ...shapeRfNodes,   // formes en arrière-plan (zIndex -1000 à ~-971)
       ...bgImages,       // images arrière-plan (zIndex -800+)
-      ...nodes.map((n) => ({
-        id: n.id,
-        type: "product",
-        position: n.position,
-        data: { nodeId: n.id },
-        selected: selectedIds.has(n.id),
-      })),
+      ...nodes.map((n) => {
+        // Injecter les dimensions mesurées dans l'objet ReactFlow pour que
+        // nodeW / nodeH retournent les vraies tailles dans computeGuides.
+        const ms = measuredNodeSizes.current.get(n.id);
+        return {
+          id: n.id,
+          type: "product",
+          position: n.position,
+          data: { nodeId: n.id },
+          selected: selectedIds.has(n.id),
+          ...(ms ? { measured: ms } : {}),
+        };
+      }),
       ...fgImages,       // images premier plan (zIndex 1500+)
       ...textRfNodes,    // textes au premier plan (zIndex 2000)
     ];
