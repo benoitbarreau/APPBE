@@ -8427,4 +8427,304 @@ select {
   .home-header-username { display: none; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   REFONTE VISUELLE — Projets & Référentiel (thème Home Page)
+   ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Fond dégradé (même que home) ───────────────────────────────── */
+.projects-page {
+  background: linear-gradient(160deg, #eef2ff 0%, #f8faff 50%, #f0f4ff 100%);
+}
+
+/* ── Header frosted glass ──────────────────────────────────────── */
+.projects-page-header {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  height: 62px;
+  box-shadow: 0 1px 8px rgba(74,110,222,0.06);
+}
+.projects-page-title {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+/* ── Barre de navigation référentiel — style pilules ───────────── */
+.ref-main-nav {
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(74,110,222,0.15);
+  border-radius: 24px;
+  padding: 4px;
+  backdrop-filter: blur(6px);
+}
+.ref-nav-btn {
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.ref-nav-btn:hover {
+  background: rgba(74,110,222,0.08);
+  color: #4a6ede;
+}
+.ref-nav-btn-active {
+  background: linear-gradient(135deg, #4a6ede 0%, #7b5ea7 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(74,110,222,0.3);
+}
+.ref-nav-btn-active:hover { background: linear-gradient(135deg, #3d5fcf 0%, #6b4e97 100%); color: #fff; }
+
+/* ── Breadcrumb ────────────────────────────────────────────────── */
+.ref-breadcrumb {
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(74,110,222,0.1);
+  border-radius: 24px;
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+.ref-breadcrumb-item {
+  border-radius: 18px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.ref-breadcrumb-item:hover { background: rgba(74,110,222,0.08); color: #4a6ede; }
+.ref-breadcrumb-item.active { color: #4a6ede; font-weight: 700; }
+.ref-breadcrumb-item.active:hover { background: none; }
+.ref-breadcrumb-sep { color: #c8d6f0; font-size: 14px; }
+
+/* ── Cartes client ─────────────────────────────────────────────── */
+.ref-clients-grid { gap: 20px; }
+.ref-client-card {
+  border-radius: 18px;
+  border: 1.5px solid rgba(255,255,255,0.95);
+  box-shadow: 0 2px 14px rgba(74,110,222,0.07), 0 1px 4px rgba(0,0,0,0.04);
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+/* Barre d'accent en haut */
+.ref-client-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4a6ede 0%, #0ea5e9 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ref-client-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(74,110,222,0.14), 0 2px 8px rgba(0,0,0,0.06);
+  border-color: rgba(74,110,222,0.25);
+}
+.ref-client-card:hover::before { opacity: 1; }
+.ref-client-card-body { padding: 20px 20px 14px; }
+.ref-client-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+.ref-client-code {
+  background: linear-gradient(135deg, #eef2ff 0%, #e8edff 100%);
+  border: 1px solid #c8d6f0;
+  color: #4a6ede;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.ref-client-card-actions {
+  background: linear-gradient(135deg, #f8f9fc 0%, #f0f4ff 100%);
+  border-top: 1px solid rgba(74,110,222,0.08);
+}
+.ref-client-logo-placeholder {
+  background: linear-gradient(135deg, #4a6ede 0%, #7b5ea7 100%);
+  border-radius: 12px;
+  font-size: 22px;
+}
+.ref-client-logo { border-radius: 12px; border: 1.5px solid rgba(74,110,222,0.12); }
+
+/* ── Cartes site ───────────────────────────────────────────────── */
+.ref-sites-list { gap: 18px; }
+.ref-site-card {
+  border-radius: 16px;
+  border: 1.5px solid rgba(255,255,255,0.95);
+  box-shadow: 0 2px 12px rgba(74,110,222,0.06), 0 1px 3px rgba(0,0,0,0.03);
+  background: #fff;
+  overflow: hidden;
+}
+.ref-site-card-header {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fc 100%);
+  border-bottom: 1px solid rgba(74,110,222,0.1);
+  border-left: 4px solid #4a6ede;
+  padding: 14px 18px 14px 14px;
+}
+.ref-site-name { color: #3454c4; font-size: 15px; }
+.ref-site-address { color: var(--muted); }
+.ref-rooms-list {
+  background: rgba(255,255,255,0.5);
+  padding: 14px 18px;
+  gap: 8px;
+}
+
+/* ── Chips salles ──────────────────────────────────────────────── */
+.ref-room-chip {
+  background: linear-gradient(135deg, #f0f4ff 0%, #eef2ff 100%);
+  border: 1.5px solid #c8d6f0;
+  border-radius: 22px;
+  padding: 6px 14px;
+  gap: 6px;
+  transition: all 0.18s ease;
+}
+.ref-room-chip:hover {
+  background: linear-gradient(135deg, #e0e8ff 0%, #d8e3ff 100%);
+  border-color: #4a6ede;
+  box-shadow: 0 4px 14px rgba(74,110,222,0.2);
+  transform: translateY(-2px);
+}
+.ref-room-chip-name { font-weight: 700; color: #3454c4; }
+.ref-room-chip-icon { font-size: 14px; }
+
+/* ── Panneau détail salle ──────────────────────────────────────── */
+.ref-room-panel {
+  border-left: none;
+  box-shadow: -12px 0 60px rgba(0,0,0,0.2);
+}
+.ref-room-panel-header {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fc 100%);
+  border-bottom: 1px solid rgba(74,110,222,0.12);
+  padding: 16px 20px;
+  min-height: 58px;
+}
+.ref-room-panel-breadcrumb { font-size: 13px; font-weight: 500; }
+.ref-breadcrumb-muted { color: #9bacd6; }
+
+/* ── Titres de section dans le panneau ─────────────────────────── */
+.ref-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #4a6ede;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.ref-section-header .ref-section-title { margin-bottom: 0; }
+
+/* ── Bouton + Ajouter ──────────────────────────────────────────── */
+.ref-add-btn {
+  background: linear-gradient(135deg, #eef2ff 0%, #e8edff 100%);
+  border: 1.5px solid #c8d6f0;
+  color: #4a6ede;
+  font-weight: 700;
+  border-radius: 20px;
+  transition: all 0.15s;
+}
+.ref-add-btn:hover {
+  background: linear-gradient(135deg, #e0e8ff 0%, #d8e3ff 100%);
+  border-color: #4a6ede;
+  box-shadow: 0 2px 8px rgba(74,110,222,0.2);
+}
+
+/* ── Projets liés ──────────────────────────────────────────────── */
+.ref-linked-project-item {
+  background: linear-gradient(135deg, #f8f9fc 0%, #f2f4ff 100%);
+  border: 1.5px solid rgba(74,110,222,0.1);
+  border-radius: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ref-linked-project-item:hover {
+  border-color: rgba(74,110,222,0.25);
+  box-shadow: 0 2px 8px rgba(74,110,222,0.08);
+}
+
+/* ── Documents ─────────────────────────────────────────────────── */
+.ref-doc-item {
+  background: #fff;
+  border: 1.5px solid rgba(74,110,222,0.08);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ref-doc-item:hover {
+  border-color: rgba(74,110,222,0.2);
+  box-shadow: 0 3px 10px rgba(74,110,222,0.08);
+}
+.ref-doc-type { background: #eef2ff; color: #4a6ede; border-radius: 5px; }
+
+/* ── Sélecteur type de document ────────────────────────────────── */
+.ref-doc-type-btn {
+  background: rgba(255,255,255,0.8);
+  border: 1.5px solid rgba(74,110,222,0.1);
+  border-radius: 10px;
+  transition: all 0.15s;
+}
+.ref-doc-type-btn:hover { border-color: #4a6ede; background: #eef2ff; }
+.ref-doc-type-btn.active {
+  border-color: #4a6ede;
+  background: linear-gradient(135deg, #eef2ff 0%, #e8edff 100%);
+  box-shadow: 0 2px 8px rgba(74,110,222,0.12);
+}
+
+/* ── Formulaire ajout document ─────────────────────────────────── */
+.ref-add-doc-form {
+  background: rgba(255,255,255,0.8);
+  border: 1.5px solid rgba(74,110,222,0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Contacts ──────────────────────────────────────────────────── */
+.ref-contact-item {
+  background: #fff;
+  border: 1.5px solid rgba(74,110,222,0.08);
+  border-radius: 10px;
+}
+.ref-contact-avatar {
+  background: linear-gradient(135deg, #4a6ede 0%, #7b5ea7 100%);
+  border-radius: 50%;
+  color: #fff;
+}
+
+/* ── Modals ────────────────────────────────────────────────────── */
+.ref-modal {
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(74,110,222,0.18), 0 4px 20px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.9);
+}
+.ref-modal-header {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fc 100%);
+  border-bottom: 1px solid rgba(74,110,222,0.1);
+}
+.ref-modal-title { font-size: 16px; font-weight: 800; color: #3454c4; letter-spacing: -0.3px; }
+
+/* ── Barre de recherche ────────────────────────────────────────── */
+.projects-search-input {
+  background: rgba(255,255,255,0.85);
+  border: 1.5px solid rgba(74,110,222,0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  font-size: 14px;
+  padding: 10px 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.projects-search-input:focus {
+  border-color: #4a6ede;
+  box-shadow: 0 0 0 4px rgba(74,110,222,0.1);
+}
+
+/* ── En-têtes de page (Projets / Référentiel) ──────────────────── */
+.projects-page-heading {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #1e2a4a;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ref-clients-grid { grid-template-columns: 1fr; gap: 12px; }
+  .ref-room-panel { width: 100%; }
+  .projects-page-header { height: 54px; }
+}
