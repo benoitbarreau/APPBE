@@ -912,18 +912,18 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                 {linkedProjects.map(p => (
                   <li key={p.id} className="ref-linked-project-item">
                     <span className="ref-linked-project-icon">📐</span>
-                    <span className="ref-linked-project-name">{p.name}</span>
-                    <span className="ref-linked-project-date">{fmt(p.updated_at)}</span>
-                    {onOpenProject && (
+                    {onOpenProject ? (
                       <button
-                        className="primary"
-                        style={{ padding: '2px 8px', fontSize: 11 }}
-                        title="Ouvrir ce projet dans l'éditeur"
+                        className="ref-linked-project-name ref-linked-project-name--link"
+                        title="Cliquer pour ouvrir dans l'éditeur"
                         onClick={() => onOpenProject(p.id, p.name)}
                       >
-                        Ouvrir →
+                        {p.name}
                       </button>
+                    ) : (
+                      <span className="ref-linked-project-name">{p.name}</span>
                     )}
+                    <span className="ref-linked-project-date">{fmt(p.updated_at)}</span>
                     <button
                       className="danger"
                       style={{ padding: '2px 6px', fontSize: 11 }}
