@@ -13,7 +13,7 @@ import { HomePage } from '../pages/HomePage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
-import { fetchProjectVersion, saveProject } from '../lib/projectsApi'
+import { fetchProject, fetchProjectVersion, saveProject } from '../lib/projectsApi'
 import { linkProjectToRoom } from '../lib/referentielApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
@@ -272,6 +272,20 @@ export function ProtectedRoute() {
     }
   }
 
+  /** Ouvre un projet existant depuis le Référentiel */
+  const handleOpenProjectFromRef = async (projectId: string, projectName: string) => {
+    try {
+      const { data } = await fetchProject(projectId)
+      loadProjectData(projectId, projectName, data, [])
+      setReadOnly(false)
+      setReadOnlyVersion(undefined)
+      setPage('editor')
+      persistView('editor', false)
+    } catch (e) {
+      alert('Impossible d\'ouvrir le projet : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   // ── Erreur fatale d'initialisation (timeout, session corrompue, …) ─────
   // Prioritaire sur tout le reste pour ne JAMAIS rester sur "Chargement…"
   if (initError) {
@@ -362,6 +376,7 @@ export function ProtectedRoute() {
           onOpenProjects={handleBackToProjectsFromRef}
           onOpenAdminDashboard={openAdmin}
           onNewProjectFromRoom={handleNewProjectFromRoom}
+          onOpenProject={handleOpenProjectFromRef}
           onGoHome={handleGoHome}
         />
       )}

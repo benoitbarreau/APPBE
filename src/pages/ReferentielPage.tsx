@@ -46,6 +46,7 @@ interface Props {
   onOpenProjects: () => void
   onOpenAdminDashboard?: () => void
   onNewProjectFromRoom?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
+  onOpenProject?: (projectId: string, projectName: string) => void
   onGoHome?: () => void
 }
 
@@ -646,9 +647,10 @@ interface RoomPanelProps {
   onRoomUpdated: (updated: Room) => void
   onRoomDeleted: () => void
   onNewProject?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
+  onOpenProject?: (projectId: string, projectName: string) => void
 }
 
-function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, onNewProject }: RoomPanelProps) {
+function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, onNewProject, onOpenProject }: RoomPanelProps) {
   const { user } = useAuth()
   const [editing, setEditing] = useState(false)
   const [savingRoom, setSavingRoom] = useState(false)
@@ -912,6 +914,16 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                     <span className="ref-linked-project-icon">📐</span>
                     <span className="ref-linked-project-name">{p.name}</span>
                     <span className="ref-linked-project-date">{fmt(p.updated_at)}</span>
+                    {onOpenProject && (
+                      <button
+                        className="primary"
+                        style={{ padding: '2px 8px', fontSize: 11 }}
+                        title="Ouvrir ce projet dans l'éditeur"
+                        onClick={() => onOpenProject(p.id, p.name)}
+                      >
+                        Ouvrir →
+                      </button>
+                    )}
                     <button
                       className="danger"
                       style={{ padding: '2px 6px', fontSize: 11 }}
@@ -1185,7 +1197,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
 
 // ── Page principale ────────────────────────────────────────────────────────
 
-export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onGoHome }: Props) {
+export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onGoHome }: Props) {
   const { profile, signOut } = useAuth()
 
   // ── Navigation interne ──
@@ -1662,6 +1674,7 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
             setSelectedRoomSite(null)
           }}
           onNewProject={onNewProjectFromRoom}
+          onOpenProject={onOpenProject}
         />
       )}
 
