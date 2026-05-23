@@ -7,8 +7,7 @@
   --text: #1c1f24;
   --primary: #2f6fed;
   --danger: #d63838;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -27,40 +26,48 @@ body,
 
 button {
   background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
   cursor: pointer;
   font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.12s, transform 0.1s;
 }
 button:hover {
-  background: #f0f3f8;
-  border-color: #b3bcc8;
+  background: #eef1f6;
+  border-color: #aab4c2;
 }
 button:disabled,
 button:disabled:hover {
-  background: #fff;
+  background: #f5f6f8;
   border-color: var(--border);
   color: var(--muted);
   cursor: not-allowed;
   opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 button.primary {
-  background: var(--primary);
+  background: linear-gradient(135deg, #2f6fed 0%, #5a7ef0 100%);
   color: #fff;
-  border-color: var(--primary);
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(47,111,237,0.25);
 }
 button.primary:hover {
-  background: #2557c4;
-  border-color: #2557c4;
+  background: linear-gradient(135deg, #2557c4 0%, #4a6ede 100%);
+  border-color: transparent;
+  box-shadow: 0 3px 10px rgba(47,111,237,0.35);
 }
 button.danger {
-  background: #fff;
+  background: rgba(214,56,56,0.05);
   color: var(--danger);
-  border-color: #f4c1c1;
+  border-color: rgba(214,56,56,0.22);
 }
 button.danger:hover {
-  background: #fef2f2;
+  background: rgba(214,56,56,0.1);
   border-color: var(--danger);
 }
 
@@ -219,12 +226,12 @@ select {
 .tab-close {
   background: transparent;
   border: none;
-  padding: 2px 6px;
+  padding: 3px 5px;
   font-size: 14px;
   line-height: 1;
   color: #8a93a0;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
@@ -2720,7 +2727,7 @@ select {
   background: linear-gradient(135deg, #2563eb, #4f46e5);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   padding: 11px 20px;
   font-size: 13px;
   font-weight: 600;
@@ -2751,8 +2758,8 @@ select {
 .auth-btn-secondary {
   background: var(--panel);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
   padding: 9px 20px;
   font-size: 13px;
   font-weight: 500;
@@ -3419,10 +3426,12 @@ select {
 
 .btn-signout {
   color: var(--danger);
-  border-color: #f4c1c1;
+  border-color: rgba(214,56,56,0.22);
+  background: rgba(214,56,56,0.05);
 }
 .btn-signout:hover {
-  background: #fef2f2;
+  background: rgba(214,56,56,0.1);
+  border-color: var(--danger);
 }
 
 /* ── Page "Mes projets" ──────────────────────────────────────────────────── */
@@ -4318,13 +4327,13 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, #2f6fed 0%, #6b3fb5 100%);
   color: #fff;
   text-decoration: none;
   font-weight: 700;
   font-size: 14px;
-  border-radius: 6px;
+  border-radius: 20px;
   box-shadow: 0 2px 6px rgba(47, 111, 237, 0.25);
   transition: transform 0.1s, box-shadow 0.1s;
 }
