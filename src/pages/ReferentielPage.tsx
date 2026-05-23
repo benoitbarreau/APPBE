@@ -83,7 +83,7 @@ function formatSiret(value: string): string {
 interface ClientFormProps {
   initial?: Partial<Client>
   clientId?: string
-  onSave: (data: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>
+  onSave: (data: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'account_manager_id' | 'account_manager'>) => Promise<void>
   onLogoUploaded?: (url: string, path: string) => void
   onCancel: () => void
   saving: boolean
