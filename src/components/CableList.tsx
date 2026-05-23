@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReactFlow } from "@xyflow/react";
 import { jsPDF } from "jspdf";
 import { useAppStore } from "../store";
 import { isSynopticTab, type Cable } from "../types";
@@ -12,7 +13,9 @@ export function CableList() {
   const updateCable  = useAppStore((s) => s.updateCable);
   const removeCable  = useAppStore((s) => s.removeCable);
   const reverseCable = useAppStore((s) => s.reverseCable);
-  const selectedCableId = useAppStore((s) => s.selectedCableId);
+  const selectedCableId  = useAppStore((s) => s.selectedCableId);
+  const setSelectedCable = useAppStore((s) => s.setSelectedCable);
+  const reactFlow = useReactFlow();
 
   /** Câbles de tous les synoptiques, groupés par onglet. */
   const groups = useMemo(() => {
@@ -189,6 +192,19 @@ export function CableList() {
 
   const handleExport = (fn: () => void) => { setExportMenuOpen(false); fn(); };
 
+  /** Clic sur une ligne câble → sélectionne + centre le canvas (onglet actif uniquement). */
+  const handleRowClick = useCallback((cable: Cable, isActive: boolean) => {
+    setSelectedCable(cable.id);
+    if (!isActive) return;
+    const ids = [cable.fromNodeId, cable.toNodeId].filter((id): id is string => Boolean(id));
+    if (ids.length === 0) return;
+    try {
+      reactFlow.fitView({ nodes: ids.map((id) => ({ id })), duration: 400, padding: 0.4 });
+    } catch {
+      // fitView peut échouer si les nœuds ne sont pas encore rendus
+    }
+  }, [setSelectedCable, reactFlow]);
+
   return (
     <div className="cable-list">
       <div className="cable-list-header">
@@ -263,6 +279,7 @@ export function CableList() {
                 onChange={(patch) => updateCable(cable.id, patch)}
                 onRemove={() => removeCable(cable.id)}
                 onReverse={() => reverseCable(cable.id)}
+                onClick={() => handleRowClick(cable, g.editable)}
               />
             ))}
           </div>
@@ -277,7 +294,7 @@ export function CableList() {
 }
 
 function CableRow({
-  cable, from, to, selected, editable, onChange, onRemove, onReverse,
+  cable, from, to, selected, editable, onChange, onRemove, onReverse, onClick,
 }: {
   cable: Cable;
   from: string;
@@ -287,13 +304,22 @@ function CableRow({
   onChange: (patch: Partial<Cable>) => void;
   onRemove: () => void;
   onReverse: () => void;
+  onClick?: () => void;
 }) {
   const color = useAppStore((s) => s.signals[cable.signal]?.color) ?? "#888";
+
+  const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "BUTTON" || target.tagName === "INPUT") return;
+    onClick?.();
+  };
 
   return (
     <div
       data-cable-id={cable.id}
       className={`cable-row${selected ? " selected" : ""}${!editable ? " cable-row-readonly" : ""}`}
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
     >
       <div className="cable-row-top">
         <span className="cable-number" style={{ background: color, color: "#fff" }} title="Numérotation auto">
