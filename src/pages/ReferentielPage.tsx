@@ -1778,8 +1778,10 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                   </p>
                 </div>
                 <div className="projects-page-topbar-actions">
-                  <button onClick={() => setClientModal(selectedClient)}>Modifier le client</button>
-                  <button className="primary projects-page-new" onClick={() => setSiteModal('create')}>
+                  <button className="ref-topbar-btn" onClick={() => setClientModal(selectedClient)}>
+                    ✏ Modifier le client
+                  </button>
+                  <button className="ref-topbar-btn ref-topbar-btn--primary" onClick={() => setSiteModal('create')}>
                     + Nouveau site
                   </button>
                 </div>
@@ -1812,8 +1814,8 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                             {site.address && <span className="ref-site-address">{site.address}</span>}
                           </div>
                           <div className="ref-site-card-actions">
-                            <button onClick={() => setSiteModal(site)} title="Modifier le site">
-                              Modifier
+                            <button className="ref-manager-change-btn" onClick={() => setSiteModal(site)} title="Modifier le site">
+                              ✏ Modifier
                             </button>
                             <button
                               className="ref-add-btn"
@@ -1823,7 +1825,7 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                               + Salle
                             </button>
                             <button
-                              className="danger"
+                              className="ref-site-delete-btn"
                               onClick={() => void handleDeleteSite(site)}
                               title="Supprimer le site"
                             >
