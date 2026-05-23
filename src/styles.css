@@ -123,39 +123,57 @@ select {
 .tab-bar {
   display: flex;
   align-items: center;
-  flex-shrink: 0;          /* ne pas se comprimer dans la colonne flex */
-  background: #eef1f5;     /* fond légèrement grisé pour bien se distinguer du header */
-  border-bottom: 2px solid var(--border);
-  padding: 4px 8px 0;
+  flex-shrink: 0;
+  background: #e8ecf2;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 8px;
   gap: 3px;
-  min-height: 38px;
+  min-height: 42px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .tab-bar::-webkit-scrollbar { display: none; }
 
+/* ── Pills flottants ── */
 .tab-item {
   display: flex;
   align-items: center;
-  border-radius: 6px 6px 0 0;
+  border-radius: 8px;
   border: 1px solid transparent;
-  border-bottom: none;
   min-width: 0;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
   background: transparent;
 }
 
 .tab-item.active {
-  background: var(--panel);
-  border-color: var(--border);
-  border-bottom-color: var(--panel);
-  margin-bottom: -2px;   /* chevauche le border-bottom du tab-bar */
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .tab-item:not(.active):hover {
-  background: rgba(0,0,0,0.06);
-  border-color: var(--border);
+  background: rgba(255,255,255,0.55);
+  border-color: rgba(0,0,0,0.07);
 }
+
+/* ── Icône de type dans le nom d'onglet ── */
+.tab-kind-icon {
+  font-size: 11px;
+  margin-right: 4px;
+  opacity: 0.45;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.tab-item.active .tab-kind-icon { opacity: 0.9; }
+
+/* Couleur accent par type (onglet actif) */
+.tab-item.active[data-kind="synoptic"] .tab-kind-icon { color: var(--primary); }
+.tab-item.active[data-kind="synoptic"] .tab-name        { color: var(--primary); }
+.tab-item.active[data-kind="iptable"]  .tab-kind-icon { color: #16a34a; }
+.tab-item.active[data-kind="iptable"]  .tab-name        { color: #16a34a; }
+.tab-item.active[data-kind="bay"]      .tab-kind-icon { color: #ea580c; }
+.tab-item.active[data-kind="bay"]      .tab-name        { color: #ea580c; }
 
 /* ── Drag-and-drop des onglets ── */
 .tab-drag-handle {
@@ -196,8 +214,8 @@ select {
 }
 
 .tab-item.active .tab-name {
-  color: var(--primary);
   font-weight: 600;
+  /* La couleur est gérée par les règles [data-kind] ci-dessus */
 }
 
 .tab-name:hover {
@@ -207,7 +225,8 @@ select {
 }
 
 .tab-item.active .tab-name:hover {
-  color: var(--primary);
+  /* conserve la couleur du type au hover */
+  opacity: 0.85;
 }
 
 .tab-name-input {
@@ -5906,11 +5925,6 @@ select {
   vertical-align: middle;
 }
 
-/* ── Bay tab styling ─────────────────────────────────────────────────────── */
-
-.tab-item .tab-name[data-kind="bay"] {
-  /* Subtle tint for bay tabs (future enhancement) */
-}
 
 /* ── Modération du catalogue (pending / archives) ───────────────────────── */
 

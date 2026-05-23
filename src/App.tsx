@@ -863,6 +863,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           {tabs.map((tab) => (
             <div
               key={tab.id}
+              data-kind={tab.kind ?? 'synoptic'}
               className={`tab-item${activeTabId === tab.id ? " active" : ""}${dragTabId === tab.id ? " tab-dragging" : ""}${dragOverTabId === tab.id && dragOverTabId !== dragTabId ? " tab-drag-over" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -922,6 +923,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                   onDoubleClick={() => startTabEdit(tab.id, tab.name)}
                   title="Double-clic pour renommer"
                 >
+                  <span className="tab-kind-icon" aria-hidden>
+                    {isIPTableTab(tab) ? '⊞' : isBayTab(tab) ? '☰' : '⬡'}
+                  </span>
                   {tab.name}
                 </button>
               )}
