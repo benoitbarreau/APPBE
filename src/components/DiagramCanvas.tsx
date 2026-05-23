@@ -68,16 +68,11 @@ import { PAGE_BOUNDS, PAGE_NODE_ID } from "../page";
 
 // ── Rendu des guides d'alignement (à l'intérieur du contexte ReactFlow) ──────
 /** Guide d'alignement affiché pendant le drag.
- *  - v   : trait vertical rouge entre y1 et y2 à x (bord gauche/droit)
- *  - h   : trait horizontal rouge entre x1 et x2 à y (bord haut/bas)
- *  - eq-gap-h / eq-gap-v : indicateur d'espacement égal (orange) */
+ *  - v : trait vertical rouge pointillé entre y1 et y2 à x (bord gauche/droit/centre)
+ *  - h : trait horizontal rouge pointillé entre x1 et x2 à y (bord haut/bas/centre) */
 type Guide =
   | { type: "v"; x: number; y1: number; y2: number }
-  | { type: "h"; y: number; x1: number; x2: number }
-  | { type: "eq-gap-h"; x1: number; x2: number; yMid: number }
-  | { type: "eq-gap-v"; y1: number; y2: number; xMid: number };
-
-const TICK = 7;
+  | { type: "h"; y: number; x1: number; x2: number };
 
 function AlignGuides({ guides }: { guides: Guide[] }) {
   const { x: vpX, y: vpY, zoom } = useViewport();
@@ -96,26 +91,6 @@ function AlignGuides({ guides }: { guides: Guide[] }) {
           const sy = fy(g.y);
           return <line key={`h-${i}`} x1={fx(g.x1)} y1={sy} x2={fx(g.x2)} y2={sy}
             stroke="#e63946" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.9} />;
-        }
-        if (g.type === "eq-gap-h") {
-          const sx1 = fx(g.x1); const sx2 = fx(g.x2); const sy = fy(g.yMid);
-          return (
-            <g key={`eq-h-${i}`} stroke="#f77f00" strokeWidth={2} opacity={0.95}>
-              <line x1={sx1} y1={sy} x2={sx2} y2={sy} />
-              <line x1={sx1} y1={sy - TICK} x2={sx1} y2={sy + TICK} />
-              <line x1={sx2} y1={sy - TICK} x2={sx2} y2={sy + TICK} />
-            </g>
-          );
-        }
-        if (g.type === "eq-gap-v") {
-          const sx = fx(g.xMid); const sy1 = fy(g.y1); const sy2 = fy(g.y2);
-          return (
-            <g key={`eq-v-${i}`} stroke="#f77f00" strokeWidth={2} opacity={0.95}>
-              <line x1={sx} y1={sy1} x2={sx} y2={sy2} />
-              <line x1={sx - TICK} y1={sy1} x2={sx + TICK} y2={sy1} />
-              <line x1={sx - TICK} y1={sy2} x2={sx + TICK} y2={sy2} />
-            </g>
-          );
         }
         return null;
       })}
@@ -334,15 +309,10 @@ export function DiagramCanvas({
   }, [nodes, textNodes, shapeNodes, imageNodes, selectedIds, selectedNodeId, products, measuredVersion]);
 
   /** Calcule les guides d'alignement + la cible de snap pour une position candidate.
-   *  Phase 1 : bords gauche/droit/haut/bas (rouge pointillé, bornés au duo de blocs).
-   *  Phase 2 : espacement égal entre paires du même « bandeau » (orange).
-   *
-   *  Comportement voulu (style Visio) :
-   *  - Le 1er bloc qui correspond à un type d'alignement sur l'axe X fixe le snap X
-   *    ET crée le guide visuel.
-   *  - Les blocs suivants qui ont le même bord à la même position X ÉTENDENT
-   *    les bornes du guide (la ligne rouge s'allonge pour couvrir tous les blocs alignés).
-   *  - Idem sur l'axe Y indépendamment. */
+   *  Style Visio : bords gauche/droit/haut/bas (rouge pointillé, bornés).
+   *  - 1er bloc correspondant sur l'axe X fixe le snap ET crée le guide.
+   *  - Blocs suivants avec même bord à même X étendent les bornes du guide.
+   *  - Idem sur l'axe Y indépendamment → H + V guides simultanés possibles. */
   const computeGuides = useCallback(
     (nodeId: string, position: { x: number; y: number }, dW: number, dH: number) => {
       const dL = position.x;
@@ -442,115 +412,6 @@ export function DiagramCanvas({
           if (Math.abs(oT - hGuide.y) < 1 || Math.abs(oB - hGuide.y) < 1) {
             hGuide.x1 = Math.min(hGuide.x1, oL - MARGIN);
             hGuide.x2 = Math.max(hGuide.x2, oR + MARGIN);
-          }
-        }
-      }
-
-      // ── Phase 2 : espacement égal (uniquement dans le même bandeau) ─────────
-      // On ne compare que des paires de blocs dont la zone Y (ou X) chevauche
-      // celle du bloc glissé ± une tolérance. Évite les faux positifs distants.
-      const BAND  = Math.max(dH * 2, 120);
-      const BANDV = Math.max(dW * 2, 120);
-
-      for (let i = 0; i < fixed.length; i++) {
-        for (let j = i + 1; j < fixed.length; j++) {
-          const a = fixed[i];
-          const b = fixed[j];
-          const aW = nodeW(a); const aH = nodeH(a);
-          const bW = nodeW(b); const bH = nodeH(b);
-
-          // ── Espacement horizontal ──────────────────────────────────────
-          const [lft, rgt] = a.position.x <= b.position.x ? [a, b] : [b, a];
-          const lW = lft === a ? aW : bW; const lH = lft === a ? aH : bH;
-          const rW = rgt === a ? aW : bW; const rH = rgt === a ? aH : bH;
-          const lR = lft.position.x + lW;
-          const rL = rgt.position.x;
-          const gapH = rL - lR;
-
-          if (gapH > 0) {
-            const refMinY = Math.min(lft.position.y, rgt.position.y);
-            const refMaxY = Math.max(lft.position.y + lH, rgt.position.y + rH);
-            const inBand = dT < refMaxY + BAND && dB > refMinY - BAND;
-
-            if (inBand) {
-              const yRef  = (lft.position.y + lH / 2 + rgt.position.y + rH / 2) / 2;
-              const yDrag = dT + dH / 2;
-
-              if (snapX === undefined) {
-                // À droite de rgt
-                const cx = rgt.position.x + rW + gapH;
-                if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
-                  snapX = cx;
-                  rawGuides.push({ type: "eq-gap-h", x1: lR, x2: rL, yMid: yRef });
-                  rawGuides.push({ type: "eq-gap-h", x1: rgt.position.x + rW, x2: cx, yMid: yDrag });
-                }
-              }
-              if (snapX === undefined) {
-                // À gauche de lft
-                const cx = lft.position.x - gapH - dW;
-                if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
-                  snapX = cx;
-                  rawGuides.push({ type: "eq-gap-h", x1: lR, x2: rL, yMid: yRef });
-                  rawGuides.push({ type: "eq-gap-h", x1: cx + dW, x2: lft.position.x, yMid: yDrag });
-                }
-              }
-              if (snapX === undefined && gapH >= dW) {
-                // Entre lft et rgt
-                const cx = lR + (gapH - dW) / 2;
-                if (Math.abs(dL - cx) < SNAP_THRESHOLD) {
-                  snapX = cx;
-                  rawGuides.push({ type: "eq-gap-h", x1: lR,      x2: cx,  yMid: lft.position.y + lH / 2 });
-                  rawGuides.push({ type: "eq-gap-h", x1: cx + dW, x2: rL,  yMid: rgt.position.y + rH / 2 });
-                }
-              }
-            }
-          }
-
-          // ── Espacement vertical ────────────────────────────────────────
-          const [top, bot] = a.position.y <= b.position.y ? [a, b] : [b, a];
-          const tH = top === a ? aH : bH; const tW = top === a ? aW : bW;
-          const btH = bot === a ? aH : bH; const btW = bot === a ? aW : bW;
-          const tBot = top.position.y + tH;
-          const bTop = bot.position.y;
-          const gapV = bTop - tBot;
-
-          if (gapV > 0) {
-            const refMinX = Math.min(top.position.x, bot.position.x);
-            const refMaxX = Math.max(top.position.x + tW, bot.position.x + btW);
-            const inBandV = dL < refMaxX + BANDV && dR > refMinX - BANDV;
-
-            if (inBandV) {
-              const xRef  = (top.position.x + tW / 2 + bot.position.x + btW / 2) / 2;
-              const xDrag = dL + dW / 2;
-
-              if (snapY === undefined) {
-                // En dessous de bot
-                const cy = bot.position.y + btH + gapV;
-                if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
-                  snapY = cy;
-                  rawGuides.push({ type: "eq-gap-v", y1: tBot, y2: bTop, xMid: xRef });
-                  rawGuides.push({ type: "eq-gap-v", y1: bot.position.y + btH, y2: cy, xMid: xDrag });
-                }
-              }
-              if (snapY === undefined) {
-                // Au-dessus de top
-                const cy = top.position.y - gapV - dH;
-                if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
-                  snapY = cy;
-                  rawGuides.push({ type: "eq-gap-v", y1: tBot, y2: bTop, xMid: xRef });
-                  rawGuides.push({ type: "eq-gap-v", y1: cy + dH, y2: top.position.y, xMid: xDrag });
-                }
-              }
-              if (snapY === undefined && gapV >= dH) {
-                // Entre top et bot
-                const cy = tBot + (gapV - dH) / 2;
-                if (Math.abs(dT - cy) < SNAP_THRESHOLD) {
-                  snapY = cy;
-                  rawGuides.push({ type: "eq-gap-v", y1: tBot,    y2: cy,   xMid: top.position.x + tW / 2 });
-                  rawGuides.push({ type: "eq-gap-v", y1: cy + dH, y2: bTop, xMid: bot.position.x + btW / 2 });
-                }
-              }
-            }
           }
         }
       }
