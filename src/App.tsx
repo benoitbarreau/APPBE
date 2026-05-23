@@ -923,9 +923,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                   onDoubleClick={() => startTabEdit(tab.id, tab.name)}
                   title="Double-clic pour renommer"
                 >
-                  <span className="tab-kind-icon" aria-hidden>
-                    {isIPTableTab(tab) ? '⊞' : isBayTab(tab) ? '☰' : '⬡'}
-                  </span>
                   {tab.name}
                 </button>
               )}

@@ -156,24 +156,10 @@ select {
   border-color: rgba(0,0,0,0.07);
 }
 
-/* ── Icône de type dans le nom d'onglet ── */
-.tab-kind-icon {
-  font-size: 11px;
-  margin-right: 4px;
-  opacity: 0.45;
-  flex-shrink: 0;
-  line-height: 1;
-  transition: opacity 0.15s;
-}
-.tab-item.active .tab-kind-icon { opacity: 0.9; }
-
 /* Couleur accent par type (onglet actif) */
-.tab-item.active[data-kind="synoptic"] .tab-kind-icon { color: var(--primary); }
-.tab-item.active[data-kind="synoptic"] .tab-name        { color: var(--primary); }
-.tab-item.active[data-kind="iptable"]  .tab-kind-icon { color: #16a34a; }
-.tab-item.active[data-kind="iptable"]  .tab-name        { color: #16a34a; }
-.tab-item.active[data-kind="bay"]      .tab-kind-icon { color: #ea580c; }
-.tab-item.active[data-kind="bay"]      .tab-name        { color: #ea580c; }
+.tab-item.active[data-kind="synoptic"] .tab-name { color: var(--primary); }
+.tab-item.active[data-kind="iptable"]  .tab-name { color: #16a34a; }
+.tab-item.active[data-kind="bay"]      .tab-name { color: #ea580c; }
 
 /* ── Drag-and-drop des onglets ── */
 .tab-drag-handle {
