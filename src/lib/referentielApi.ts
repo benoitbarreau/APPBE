@@ -13,6 +13,8 @@ export interface Client {
   notes: string | null
   logo_url: string | null
   logo_storage_path: string | null
+  account_manager_id: string | null
+  account_manager?: { id: string; email: string; full_name: string | null } | null
   created_at: string
   updated_at: string
 }
@@ -81,7 +83,7 @@ const now = () => new Date().toISOString()
 export async function listClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
-    .select('*')
+    .select('*, account_manager:profiles!clients_account_manager_id_fkey(id, email, full_name)')
     .order('name')
   if (error) throw pgErr(error)
   return (data ?? []) as Client[]
@@ -114,6 +116,26 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase.from('clients').delete().eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+/** Liste tous les utilisateurs approuvés (pour l'assignation d'un gestionnaire de compte). */
+export async function listApprovedProfiles(): Promise<Array<{ id: string; email: string; full_name: string | null }>> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .eq('status', 'approved')
+    .order('full_name')
+  if (error) throw pgErr(error)
+  return (data ?? []) as Array<{ id: string; email: string; full_name: string | null }>
+}
+
+/** Assigne (ou retire si null) un gestionnaire de compte sur un client. */
+export async function assignClientManager(clientId: string, managerId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .update({ account_manager_id: managerId, updated_at: now() })
+    .eq('id', clientId)
   if (error) throw pgErr(error)
 }
 

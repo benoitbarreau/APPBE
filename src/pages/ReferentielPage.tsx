@@ -10,6 +10,7 @@ import {
   uploadClientLogo, deleteClientLogo,
   listContacts, createContact, updateContact, deleteContact,
   listRoomContacts, addRoomContact, removeRoomContact,
+  listApprovedProfiles, assignClientManager,
   type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject, type Contact, type ContactEntityType,
 } from '../lib/referentielApi'
 import { listProjects } from '../lib/projectsApi'
@@ -1298,10 +1299,28 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
   )
 }
 
+// ── Helpers profil ─────────────────────────────────────────────────────────
+
+type ApprovedProfile = { id: string; email: string; full_name: string | null }
+
+function profileDisplayName(p: ApprovedProfile): string {
+  return p.full_name?.trim() || p.email
+}
+function profileInitials(p: ApprovedProfile): string {
+  const name = p.full_name?.trim()
+  if (name) {
+    const parts = name.split(/\s+/)
+    return parts.length >= 2
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : name[0].toUpperCase()
+  }
+  return p.email[0].toUpperCase()
+}
+
 // ── Page principale ────────────────────────────────────────────────────────
 
 export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onGoHome }: Props) {
-  const { profile, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
 
   // ── Navigation interne ──
   const [view, setView] = useState<'clients' | 'client'>('clients')
@@ -1326,6 +1345,12 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
   const [siteModal, setSiteModal] = useState<'create' | Site | null>(null)
   const [roomModal, setRoomModal] = useState<{ mode: 'create'; siteId: string } | { mode: 'edit'; room: Room } | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // ── Gestionnaire de compte ──
+  const [managerModalOpen, setManagerModalOpen] = useState(false)
+  const [approvedProfiles, setApprovedProfiles] = useState<ApprovedProfile[]>([])
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [assigningManager, setAssigningManager] = useState(false)
 
   // ── Chargement clients ──
   const loadClients = () => {
@@ -1497,6 +1522,45 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
     }
   }
 
+  // ── Gestionnaire de compte ──
+  const canAssignManager =
+    profile?.role === 'admin' ||
+    (!!user && !!selectedClient && user.id === selectedClient.account_manager_id)
+
+  const handleAssignManager = async (profileId: string | null) => {
+    if (!selectedClient) return
+    setAssigningManager(true)
+    try {
+      await assignClientManager(selectedClient.id, profileId)
+      const newManager = profileId
+        ? (approvedProfiles.find(p => p.id === profileId) ?? null)
+        : null
+      const updated: Client = {
+        ...selectedClient,
+        account_manager_id: profileId,
+        account_manager: newManager,
+      }
+      setSelectedClient(updated)
+      setClients(prev => prev.map(c => c.id === updated.id ? updated : c))
+      setManagerModalOpen(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur assignation gestionnaire')
+    } finally {
+      setAssigningManager(false)
+    }
+  }
+
+  const openManagerModal = () => {
+    setManagerModalOpen(true)
+    if (approvedProfiles.length === 0) {
+      setProfilesLoading(true)
+      listApprovedProfiles()
+        .then(setApprovedProfiles)
+        .catch(() => setError('Impossible de charger la liste des utilisateurs'))
+        .finally(() => setProfilesLoading(false))
+    }
+  }
+
   // ── Filtrage ──
   const filteredClients = clients.filter(c => {
     if (!search.trim()) return true
@@ -1638,6 +1702,16 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                           {client.email && <span>{client.email}</span>}
                         </div>
                       )}
+                      {client.account_manager && (
+                        <div className="ref-client-manager">
+                          <span className="ref-client-manager-avatar">
+                            {profileInitials(client.account_manager)}
+                          </span>
+                          <span className="ref-client-manager-name">
+                            {profileDisplayName(client.account_manager)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="ref-client-card-actions">
                       <button onClick={() => setClientModal(client)} title="Modifier">
@@ -1682,6 +1756,26 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                       )}
                     </p>
                   )}
+                  <p className="projects-page-sub ref-manager-row">
+                    <span className="ref-manager-label">Gestionnaire</span>
+                    {selectedClient.account_manager ? (
+                      <>
+                        <span className="ref-manager-avatar">
+                          {profileInitials(selectedClient.account_manager)}
+                        </span>
+                        <span className="ref-manager-name">
+                          {profileDisplayName(selectedClient.account_manager)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="ref-manager-none">Non assigné</span>
+                    )}
+                    {canAssignManager && (
+                      <button className="ref-manager-change-btn" onClick={openManagerModal}>
+                        {selectedClient.account_manager ? '✏ Changer' : '+ Assigner'}
+                      </button>
+                    )}
+                  </p>
                 </div>
                 <div className="projects-page-topbar-actions">
                   <button onClick={() => setClientModal(selectedClient)}>Modifier le client</button>
@@ -1846,6 +1940,54 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
             onCancel={() => setRoomModal(null)}
             saving={saving}
           />
+        </Modal>
+      )}
+
+      {/* ── Modal Gestionnaire ── */}
+      {managerModalOpen && selectedClient && (
+        <Modal title="Gestionnaire de compte" onClose={() => setManagerModalOpen(false)}>
+          {profilesLoading ? (
+            <p className="ref-loading-hint">Chargement des utilisateurs…</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {selectedClient.account_manager && (
+                <button
+                  className="ref-manager-remove-btn"
+                  disabled={assigningManager}
+                  onClick={() => void handleAssignManager(null)}
+                >
+                  🗑 Retirer le gestionnaire actuel
+                </button>
+              )}
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 8px' }}>
+                Sélectionnez un utilisateur SynoX comme gestionnaire de ce compte :
+              </p>
+              <ul className="ref-link-project-list">
+                {approvedProfiles.map(p => (
+                  <li key={p.id} className={`ref-link-project-item${p.id === selectedClient.account_manager_id ? ' ref-manager-current' : ''}`}>
+                    <span className="ref-manager-avatar" style={{ width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>
+                      {profileInitials(p)}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{profileDisplayName(p)}</div>
+                      {p.full_name && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{p.email}</div>}
+                    </div>
+                    {p.id === selectedClient.account_manager_id ? (
+                      <span className="ref-manager-current-badge">Actuel</span>
+                    ) : (
+                      <button
+                        className="primary"
+                        disabled={assigningManager}
+                        onClick={() => void handleAssignManager(p.id)}
+                      >
+                        {assigningManager ? '…' : 'Choisir'}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Modal>
       )}
 
