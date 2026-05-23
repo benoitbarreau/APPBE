@@ -750,20 +750,19 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
         <header className="app-header">
           <div className="header-left">
+            <div className="brand">
+              <strong>SynoX-AV</strong>
+              <em className="brand-author"> by Benoit BARREAU</em>
+            </div>
             {onBackToProjects && (
               <button
                 onClick={handleBackToProjects}
                 title="Retour à la liste des projets"
                 className="btn-back"
               >
-                ← Projets
+                ‹ Projets
               </button>
             )}
-            <div className="brand">
-              <strong>SynoX-AV</strong>
-              <em className="brand-author"> by Benoit BARREAU</em>
-            </div>
-            <span className="header-sep">|</span>
             <input
               className="project-name-input"
               value={currentProjectName}

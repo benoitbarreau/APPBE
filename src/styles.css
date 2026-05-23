@@ -3419,16 +3419,25 @@ select {
 
 /* ── Bouton retour dans le header éditeur ────────────────────────────────── */
 .btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 6px;
   font-size: 12px;
-  color: var(--muted);
-  border-color: transparent;
-  background: transparent;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(47,111,237,0.08);
+  border: 1px solid rgba(47,111,237,0.18);
   flex-shrink: 0;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, border-color 0.15s;
 }
 .btn-back:hover {
-  color: var(--text);
-  border-color: var(--border);
-  background: var(--bg);
+  background: rgba(47,111,237,0.15);
+  border-color: rgba(47,111,237,0.30);
+  color: var(--primary);
 }
 
 .header-project-saved {
