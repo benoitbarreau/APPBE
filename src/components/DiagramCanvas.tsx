@@ -846,7 +846,7 @@ export function DiagramCanvas({
         const sorted = [...boxes].sort((a, b) => a.x - b.x);
         const totalW = sorted.reduce((s, b) => s + b.w, 0);
         // gap ≥ 0 : on ne laisse jamais les blocs se chevaucher
-        const gap = Math.max(0, (maxX - minX - totalW) / (sorted.length - 1));
+        const gap = Math.max(8, (maxX - minX - totalW) / (sorted.length - 1));
         let curX = minX;
         for (const b of sorted) {
           updateNodeByType(b.id, b.type, { x: curX, y: b.y });
