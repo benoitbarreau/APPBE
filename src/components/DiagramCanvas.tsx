@@ -844,8 +844,9 @@ export function DiagramCanvas({
 
       if (dir === "dist-x" && boxes.length >= 2) {
         const sorted = [...boxes].sort((a, b) => a.x - b.x);
-        const totalW  = sorted.reduce((s, b) => s + b.w, 0);
-        const gap     = (maxX - minX - totalW) / (sorted.length - 1);
+        const totalW = sorted.reduce((s, b) => s + b.w, 0);
+        // gap ≥ 0 : on ne laisse jamais les blocs se chevaucher
+        const gap = Math.max(0, (maxX - minX - totalW) / (sorted.length - 1));
         let curX = minX;
         for (const b of sorted) {
           updateNodeByType(b.id, b.type, { x: curX, y: b.y });
@@ -855,8 +856,9 @@ export function DiagramCanvas({
       }
       if (dir === "dist-y" && boxes.length >= 2) {
         const sorted = [...boxes].sort((a, b) => a.y - b.y);
-        const totalH  = sorted.reduce((s, b) => s + b.h, 0);
-        const gap     = (maxY - minY - totalH) / (sorted.length - 1);
+        const totalH = sorted.reduce((s, b) => s + b.h, 0);
+        // gap ≥ 0 : on ne laisse jamais les blocs se chevaucher
+        const gap = Math.max(0, (maxY - minY - totalH) / (sorted.length - 1));
         let curY = minY;
         for (const b of sorted) {
           updateNodeByType(b.id, b.type, { x: b.x, y: curY });
@@ -989,16 +991,8 @@ export function DiagramCanvas({
         <div className="multiselect-toolbar">
           <span className="multiselect-count">{selectedIds.size} sélectionnés</span>
           <div className="multiselect-sep" />
-          <button onClick={() => handleAlign("left")}     title="Aligner à gauche">⇤</button>
-          <button onClick={() => handleAlign("center-x")} title="Centrer horizontalement">⇔</button>
-          <button onClick={() => handleAlign("right")}    title="Aligner à droite">⇥</button>
-          <div className="multiselect-sep" />
-          <button onClick={() => handleAlign("top")}      title="Aligner en haut">⇡</button>
-          <button onClick={() => handleAlign("center-y")} title="Centrer verticalement">⇕</button>
-          <button onClick={() => handleAlign("bottom")}   title="Aligner en bas">⇣</button>
-          <div className="multiselect-sep" />
-          <button onClick={() => handleAlign("dist-x")}   title="Distribuer horizontalement">⠿</button>
-          <button onClick={() => handleAlign("dist-y")}   title="Distribuer verticalement">⠿</button>
+          <button onClick={() => handleAlign("dist-x")} title="Espacer horizontalement (gaps égaux)">⇔</button>
+          <button onClick={() => handleAlign("dist-y")} title="Espacer verticalement (gaps égaux)">⇕</button>
           <div className="multiselect-sep" />
           <button onClick={handleCopy}   title="Copier (Ctrl+C)">⎘</button>
           <div className="multiselect-sep" />
