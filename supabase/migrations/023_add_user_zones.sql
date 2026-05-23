@@ -1,7 +1,7 @@
 -- ── Migration 023 : Ajout de la table user_zones ─────────────────────────────
--- La table user_zones était prévue dans 010_user_signals_zones.sql mais n'a
--- pas été créée dans la base Supabase (seule user_signals avait été appliquée).
--- Ce fichier corrige cet oubli.
+-- La table user_zones était prévue dans 010_user_signals_zones.sql.
+-- Ce fichier est entièrement idempotent (IF NOT EXISTS / DROP IF EXISTS)
+-- et peut être réexécuté sans erreur même si la table existe déjà.
 --
 -- Même architecture que user_signals : catalogue partagé entre tous les
 -- utilisateurs approuvés (zones physiques / couleurs des blocs du synoptique).
@@ -39,6 +39,7 @@ BEGIN
   END IF;
 END$$;
 
+DROP TRIGGER IF EXISTS user_zones_updated_at ON public.user_zones;
 CREATE TRIGGER user_zones_updated_at
   BEFORE UPDATE ON public.user_zones
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
