@@ -88,6 +88,13 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(initial?.logo_url ?? null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  // Mode logo : 'file' = upload fichier, 'url' = lien externe
+  const [logoMode, setLogoMode] = useState<'file' | 'url'>(
+    initial?.logo_url && !initial?.logo_storage_path ? 'url' : 'file'
+  )
+  const [logoUrlInput, setLogoUrlInput] = useState(
+    initial?.logo_url && !initial?.logo_storage_path ? (initial.logo_url ?? '') : ''
+  )
   const nameRef    = useRef<HTMLInputElement>(null)
   const logoRef    = useRef<HTMLInputElement>(null)
 
@@ -103,6 +110,11 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+
+    // En mode URL : on sauvegarde le lien directement, pas d'upload
+    const savedLogoUrl = logoMode === 'url' ? (logoUrlInput.trim() || null) : (initial?.logo_url ?? null)
+    const savedLogoStoragePath = logoMode === 'url' ? null : (initial?.logo_storage_path ?? null)
+
     await onSave({
       name: name.trim(),
       code: code.trim() || null,
@@ -110,11 +122,11 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
       phone: phone.trim() || null,
       email: email.trim() || null,
       notes: notes.trim() || null,
-      logo_url: initial?.logo_url ?? null,
-      logo_storage_path: initial?.logo_storage_path ?? null,
+      logo_url: savedLogoUrl,
+      logo_storage_path: savedLogoStoragePath,
     })
-    // Upload logo séparé après sauvegarde (clientId connu)
-    if (logoFile && clientId && user) {
+    // Upload fichier uniquement en mode 'file'
+    if (logoMode === 'file' && logoFile && clientId && user) {
       setUploadingLogo(true)
       try {
         const { publicUrl, storagePath } = await uploadClientLogo(user.id, clientId, logoFile)
@@ -122,6 +134,21 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
       } catch { /* non bloquant */ }
       finally { setUploadingLogo(false) }
     }
+  }
+
+  const handleDeleteLogo = async () => {
+    if (!clientId) return
+    try {
+      if (initial?.logo_storage_path) {
+        await deleteClientLogo(clientId, initial.logo_storage_path)
+      } else {
+        await updateClient(clientId, { logo_url: null, logo_storage_path: null })
+      }
+      setLogoPreview(null)
+      setLogoFile(null)
+      setLogoUrlInput('')
+      onLogoUploaded?.('', '')
+    } catch { /* non bloquant */ }
   }
 
   return (
@@ -151,25 +178,65 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
         <div className="ref-logo-upload">
           <span className="ref-logo-upload-label">Logo</span>
           <div className="ref-logo-upload-inner">
+            {/* Aperçu */}
             {logoPreview
               ? <img src={logoPreview} alt="Logo" className="ref-logo-preview" />
               : <div className="ref-logo-placeholder">Pas de logo</div>
             }
-            <div className="ref-logo-upload-btns">
-              <button type="button" onClick={() => logoRef.current?.click()}>
-                {logoPreview ? 'Changer' : 'Ajouter un logo'}
+
+            {/* Bascule Fichier / URL */}
+            <div className="ref-logo-mode-toggle">
+              <button
+                type="button"
+                className={`ref-logo-mode-btn${logoMode === 'file' ? ' active' : ''}`}
+                onClick={() => setLogoMode('file')}
+              >
+                📁 Fichier
               </button>
-              {logoPreview && initial?.logo_storage_path && (
-                <button type="button" className="danger" onClick={async () => {
-                  await deleteClientLogo(clientId, initial.logo_storage_path!)
-                  setLogoPreview(null)
-                  setLogoFile(null)
-                  onLogoUploaded?.('', '')
-                }}>
-                  Supprimer
-                </button>
-              )}
+              <button
+                type="button"
+                className={`ref-logo-mode-btn${logoMode === 'url' ? ' active' : ''}`}
+                onClick={() => setLogoMode('url')}
+              >
+                🔗 URL
+              </button>
             </div>
+
+            {/* Mode Fichier */}
+            {logoMode === 'file' && (
+              <div className="ref-logo-upload-btns">
+                <button type="button" onClick={() => logoRef.current?.click()}>
+                  {logoPreview ? 'Changer' : 'Ajouter un logo'}
+                </button>
+                {logoPreview && (
+                  <button type="button" className="danger" onClick={() => void handleDeleteLogo()}>
+                    Supprimer
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Mode URL */}
+            {logoMode === 'url' && (
+              <div className="ref-logo-url-row">
+                <input
+                  type="url"
+                  className="ref-logo-url-input"
+                  value={logoUrlInput}
+                  placeholder="https://exemple.com/logo.png"
+                  onChange={e => {
+                    setLogoUrlInput(e.target.value)
+                    setLogoPreview(e.target.value.trim() || null)
+                  }}
+                />
+                {logoPreview && (
+                  <button type="button" className="danger" onClick={() => void handleDeleteLogo()}>
+                    Supprimer
+                  </button>
+                )}
+              </div>
+            )}
+
             <input
               ref={logoRef}
               type="file"

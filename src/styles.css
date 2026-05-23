@@ -7448,6 +7448,47 @@ select {
 }
 .ref-logo-upload-btns { display: flex; gap: 6px; }
 
+/* Bascule Fichier / URL pour le logo */
+.ref-logo-mode-toggle {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ref-logo-mode-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface, #f8f9fa);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.ref-logo-mode-btn:hover { background: #e9ecef; color: var(--text); }
+.ref-logo-mode-btn.active {
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border-color: var(--accent, #2563eb);
+}
+/* Champ URL logo */
+.ref-logo-url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.ref-logo-url-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: var(--text);
+}
+
 /* Liste projets à lier */
 .ref-link-project-list {
   list-style: none;
