@@ -8945,6 +8945,131 @@ select {
   color: #2d4fbb;
 }
 
+/* ── Bouton nav "Clients supprimés" (admin) ─────────────────────── */
+.ref-nav-btn-deleted {
+  color: var(--danger);
+  background: rgba(214,56,56,0.06);
+  border-color: rgba(214,56,56,0.2) !important;
+}
+.ref-nav-btn-deleted:hover {
+  background: rgba(214,56,56,0.12);
+  border-color: var(--danger) !important;
+  color: var(--danger);
+}
+.ref-nav-btn-deleted-active {
+  background: linear-gradient(135deg, #d63838 0%, #e05c5c 100%) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* ── Bouton suppression douce (bas de fiche client) ──────────────── */
+.ref-danger-zone {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(214,56,56,0.2);
+}
+.ref-delete-client-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+  background: rgba(214,56,56,0.05);
+  border: 1.5px solid rgba(214,56,56,0.2);
+  border-radius: 20px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.75;
+}
+.ref-delete-client-btn:hover {
+  background: rgba(214,56,56,0.1);
+  border-color: var(--danger);
+  opacity: 1;
+}
+
+/* ── Modale avertissement suppression ─────────────────────────────── */
+.ref-delete-warning {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: rgba(214,56,56,0.05);
+  border: 1.5px solid rgba(214,56,56,0.18);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+/* ── Liste des clients supprimés (vue admin) ─────────────────────── */
+.ref-deleted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.ref-deleted-card {
+  background: rgba(255,255,255,0.88);
+  border: 1.5px solid rgba(214,56,56,0.12);
+  border-radius: 16px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: box-shadow 0.15s;
+}
+.ref-deleted-card:hover {
+  box-shadow: 0 4px 16px rgba(214,56,56,0.08);
+}
+.ref-deleted-card-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.ref-deleted-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ref-deleted-logo-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(214,56,56,0.08);
+  color: var(--danger);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ref-deleted-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: #1e2a4a;
+}
+.ref-deleted-meta {
+  font-size: 12px;
+  color: #6b7f9e;
+  margin-top: 2px;
+}
+.ref-deleted-date {
+  font-size: 11px;
+  color: rgba(214,56,56,0.7);
+  margin-top: 4px;
+  font-style: italic;
+}
+.ref-deleted-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* ── Boutons topbar (détail client) ──────────────────────────────── */
 .ref-topbar-btn {
   display: inline-flex;

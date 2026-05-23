@@ -10,6 +10,7 @@ import {
   uploadClientLogo, deleteClientLogo,
   listContacts, createContact, updateContact, deleteContact,
   listRoomContacts, addRoomContact, removeRoomContact,
+  softDeleteClient, restoreClient, listDeletedClients,
   listApprovedProfiles, assignClientManager,
   type Client, type Site, type Room, type RefDocument, type DocType, type LinkedProject, type Contact, type ContactEntityType,
 } from '../lib/referentielApi'
@@ -1323,7 +1324,7 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
   const { user, profile, signOut } = useAuth()
 
   // ── Navigation interne ──
-  const [view, setView] = useState<'clients' | 'client'>('clients')
+  const [view, setView] = useState<'clients' | 'client' | 'deleted'>('clients')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [selectedRoomSite, setSelectedRoomSite] = useState<Site | null>(null)
@@ -1345,6 +1346,57 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
   const [siteModal, setSiteModal] = useState<'create' | Site | null>(null)
   const [roomModal, setRoomModal] = useState<{ mode: 'create'; siteId: string } | { mode: 'edit'; room: Room } | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // ── Clients supprimés (admin) ──
+  const [deletedClients, setDeletedClients] = useState<Client[]>([])
+  const [deletedLoading, setDeletedLoading] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [deletingClient, setDeletingClient] = useState(false)
+
+  const loadDeletedClients = () => {
+    setDeletedLoading(true)
+    listDeletedClients()
+      .then(setDeletedClients)
+      .catch(e => setError(e instanceof Error ? e.message : 'Erreur chargement clients supprimés'))
+      .finally(() => setDeletedLoading(false))
+  }
+
+  const handleSoftDeleteClient = async () => {
+    if (!selectedClient) return
+    setDeletingClient(true)
+    try {
+      await softDeleteClient(selectedClient.id)
+      setClients(prev => prev.filter(c => c.id !== selectedClient.id))
+      // Invalider le cache des supprimés pour forcer un rechargement
+      setDeletedClients([])
+      setConfirmDeleteOpen(false)
+      backToClients()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur suppression client')
+    } finally {
+      setDeletingClient(false)
+    }
+  }
+
+  const handleRestoreClient = async (client: Client) => {
+    try {
+      await restoreClient(client.id)
+      setDeletedClients(prev => prev.filter(c => c.id !== client.id))
+      loadClients()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur restauration client')
+    }
+  }
+
+  const handlePermanentDeleteClient = async (client: Client) => {
+    if (!confirm(`Supprimer définitivement « ${client.name} » et toutes ses données ? Cette action est irréversible.`)) return
+    try {
+      await deleteClient(client.id)
+      setDeletedClients(prev => prev.filter(c => c.id !== client.id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur suppression définitive')
+    }
+  }
 
   // ── Gestionnaire de compte ──
   const [managerModalOpen, setManagerModalOpen] = useState(false)
@@ -1590,9 +1642,24 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
           <button className="ref-nav-btn" onClick={onOpenProjects}>
             Projets en cours
           </button>
-          <button className="ref-nav-btn ref-nav-btn-active">
+          <button
+            className={`ref-nav-btn${view !== 'deleted' ? ' ref-nav-btn-active' : ''}`}
+            onClick={() => { setView('clients'); setSelectedClient(null) }}
+          >
             Référentiel
           </button>
+          {profile?.role === 'admin' && (
+            <button
+              className={`ref-nav-btn${view === 'deleted' ? ' ref-nav-btn-deleted-active' : ' ref-nav-btn-deleted'}`}
+              onClick={() => {
+                setView('deleted')
+                setSelectedClient(null)
+                if (deletedClients.length === 0) loadDeletedClients()
+              }}
+            >
+              🗑 Clients supprimés
+            </button>
+          )}
         </nav>
 
         <div className="projects-page-user">
@@ -1631,6 +1698,12 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
               <>
                 <span className="ref-breadcrumb-sep">›</span>
                 <span className="ref-breadcrumb-item active">{selectedClient.name}</span>
+              </>
+            )}
+            {view === 'deleted' && (
+              <>
+                <span className="ref-breadcrumb-sep">›</span>
+                <span className="ref-breadcrumb-item active" style={{ color: 'var(--danger)' }}>Clients supprimés</span>
               </>
             )}
           </nav>
@@ -1712,18 +1785,6 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                           </span>
                         </div>
                       )}
-                    </div>
-                    <div className="ref-client-card-actions">
-                      <button onClick={() => setClientModal(client)} title="Modifier">
-                        Modifier
-                      </button>
-                      <button
-                        className="danger"
-                        onClick={() => void handleDeleteClient(client)}
-                        title="Supprimer"
-                      >
-                        🗑
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -1857,6 +1918,71 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
                   })}
                 </div>
               )}
+
+              {/* ── Bouton suppression — bas droite de la fiche ── */}
+              <div className="ref-danger-zone">
+                <button className="ref-delete-client-btn" onClick={() => setConfirmDeleteOpen(true)}>
+                  🗑 Supprimer ce client
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── Vue : Clients supprimés (admin uniquement) ── */}
+          {view === 'deleted' && profile?.role === 'admin' && (
+            <>
+              <div className="projects-page-topbar">
+                <div>
+                  <h1 className="projects-page-heading" style={{ color: 'var(--danger)' }}>
+                    🗑 Clients supprimés
+                  </h1>
+                  <p className="projects-page-sub">
+                    {deletedLoading
+                      ? 'Chargement…'
+                      : `${deletedClients.length} client${deletedClients.length !== 1 ? 's' : ''} archivé${deletedClients.length !== 1 ? 's' : ''}`}
+                  </p>
+                </div>
+              </div>
+
+              {deletedLoading ? (
+                <div className="ref-loading">Chargement…</div>
+              ) : deletedClients.length === 0 ? (
+                <div className="projects-page-empty">
+                  <div className="projects-page-empty-icon">✅</div>
+                  <p>Aucun client supprimé.</p>
+                </div>
+              ) : (
+                <div className="ref-deleted-list">
+                  {deletedClients.map(client => (
+                    <div key={client.id} className="ref-deleted-card">
+                      <div className="ref-deleted-card-info">
+                        {client.logo_url
+                          ? <img src={client.logo_url} alt="" className="ref-deleted-logo" />
+                          : <div className="ref-deleted-logo-placeholder">{client.name[0].toUpperCase()}</div>
+                        }
+                        <div>
+                          <div className="ref-deleted-name">{client.name}</div>
+                          {client.code && <div className="ref-deleted-meta">{client.code}</div>}
+                          {client.address && <div className="ref-deleted-meta">{client.address}</div>}
+                          {client.deleted_at && (
+                            <div className="ref-deleted-date">
+                              Supprimé le {new Date(client.deleted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ref-deleted-card-actions">
+                        <button className="ref-topbar-btn" onClick={() => void handleRestoreClient(client)}>
+                          ↩ Restaurer
+                        </button>
+                        <button className="danger" onClick={() => void handlePermanentDeleteClient(client)}>
+                          Supprimer définitivement
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1942,6 +2068,31 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
             onCancel={() => setRoomModal(null)}
             saving={saving}
           />
+        </Modal>
+      )}
+
+      {/* ── Modal Confirmation suppression client ── */}
+      {confirmDeleteOpen && selectedClient && (
+        <Modal title="Supprimer ce client ?" onClose={() => setConfirmDeleteOpen(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="ref-delete-warning">
+              <span style={{ fontSize: 28, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <p style={{ fontWeight: 700, margin: 0, fontSize: 15 }}>{selectedClient.name}</p>
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  Ce client sera <strong>archivé</strong> et masqué du référentiel.<br />
+                  Ses sites, salles et documents seront conservés.<br />
+                  Un administrateur pourra le <strong>restaurer</strong> à tout moment depuis la section « Clients supprimés ».
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDeleteOpen(false)}>Annuler</button>
+              <button className="danger" disabled={deletingClient} onClick={() => void handleSoftDeleteClient()}>
+                {deletingClient ? '…' : '🗑 Archiver ce client'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 

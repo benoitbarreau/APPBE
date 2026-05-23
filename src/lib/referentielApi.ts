@@ -15,6 +15,7 @@ export interface Client {
   logo_storage_path: string | null
   account_manager_id: string | null
   account_manager?: { id: string; email: string; full_name: string | null } | null
+  deleted_at: string | null
   created_at: string
   updated_at: string
 }
@@ -84,6 +85,7 @@ export async function listClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
     .select('*, account_manager:profiles!clients_account_manager_id_fkey(id, email, full_name)')
+    .is('deleted_at', null)
     .order('name')
   if (error) throw pgErr(error)
   return (data ?? []) as Client[]
@@ -117,6 +119,35 @@ export async function updateClient(
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase.from('clients').delete().eq('id', id)
   if (error) throw pgErr(error)
+}
+
+/** Archive (soft-delete) un client sans le supprimer définitivement. */
+export async function softDeleteClient(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .update({ deleted_at: now(), updated_at: now() })
+    .eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+/** Restaure un client archivé (remet deleted_at à null). */
+export async function restoreClient(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .update({ deleted_at: null, updated_at: now() })
+    .eq('id', id)
+  if (error) throw pgErr(error)
+}
+
+/** Liste les clients archivés (deleted_at non null), pour les admins. */
+export async function listDeletedClients(): Promise<Client[]> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, account_manager:profiles!clients_account_manager_id_fkey(id, email, full_name)')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+  if (error) throw pgErr(error)
+  return (data ?? []) as Client[]
 }
 
 /** Liste tous les utilisateurs approuvés (pour l'assignation d'un gestionnaire de compte). */
