@@ -8722,6 +8722,172 @@ select {
   color: #1e2a4a;
 }
 
+/* ── Section Contacts (carte client) ───────────────────────────── */
+.ref-section-block {
+  background: #fff;
+  border: 1.5px solid rgba(74,110,222,0.1);
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(74,110,222,0.05);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.ref-section-block .ref-contacts-header {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fc 100%);
+  border-bottom: 1px solid rgba(74,110,222,0.1);
+}
+.ref-contacts-toggle-btn:hover .ref-section-title { color: #4a6ede; }
+.ref-contacts-body { padding: 8px 20px 16px; }
+.ref-count-badge {
+  background: linear-gradient(135deg, #4a6ede 0%, #7b5ea7 100%);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ref-toggle-arrow { color: #9bacd6; font-size: 10px; }
+
+/* ── Badge type de salle ───────────────────────────────────────── */
+.ref-room-type-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #eef2ff 0%, #e8edff 100%);
+  color: #4a6ede;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #c8d6f0;
+  letter-spacing: 0.2px;
+}
+
+/* ── Panneau salle — sections ──────────────────────────────────── */
+.ref-room-panel-section {
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(74,110,222,0.08);
+  position: relative;
+}
+.ref-room-panel-section:last-child { border-bottom: none; }
+/* Ligne d'accent colorée avant chaque section */
+.ref-room-panel-section::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 14px; bottom: 14px;
+  width: 3px;
+  background: linear-gradient(180deg, #4a6ede 0%, #0ea5e9 100%);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ref-room-panel-section:hover::before { opacity: 0.4; }
+
+/* ── Boutons type de document ──────────────────────────────────── */
+.ref-doc-type-btn {
+  background: rgba(255,255,255,0.9);
+  border: 1.5px solid rgba(74,110,222,0.12);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+.ref-doc-type-btn:hover {
+  border-color: #4a6ede;
+  background: #eef2ff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(74,110,222,0.12);
+}
+.ref-doc-type-btn.active {
+  border-color: #4a6ede;
+  background: linear-gradient(135deg, #eef2ff 0%, #e4ecff 100%);
+  box-shadow: 0 3px 10px rgba(74,110,222,0.18);
+  transform: translateY(-1px);
+}
+.ref-doc-type-btn.active .ref-doc-type-btn-label { color: #4a6ede; font-weight: 800; }
+.ref-doc-type-btn-icon { font-size: 22px; }
+
+/* ── Zone drag & drop document ─────────────────────────────────── */
+.ref-file-drop-zone {
+  background: rgba(255,255,255,0.8);
+  border: 2px dashed rgba(74,110,222,0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+}
+.ref-file-drop-zone:hover {
+  border-color: #4a6ede;
+  background: #eef2ff;
+}
+.ref-file-drop-zone.drag-over {
+  border-color: #4a6ede;
+  background: #e4ecff;
+  box-shadow: 0 0 0 4px rgba(74,110,222,0.12);
+}
+
+/* ── Items de document ─────────────────────────────────────────── */
+.ref-doc-item {
+  background: rgba(255,255,255,0.95);
+  border: 1.5px solid rgba(74,110,222,0.08);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(74,110,222,0.05);
+  transition: all 0.15s;
+}
+.ref-doc-item:hover {
+  border-color: rgba(74,110,222,0.2);
+  box-shadow: 0 3px 12px rgba(74,110,222,0.1);
+  transform: translateX(2px);
+}
+.ref-doc-name { color: #4a6ede; }
+.ref-doc-type {
+  background: linear-gradient(135deg, #eef2ff 0%, #e8edff 100%);
+  color: #4a6ede;
+  border-radius: 6px;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
+/* ── Header pannel amélioré ────────────────────────────────────── */
+.ref-room-panel-header {
+  background: linear-gradient(135deg, #eef2ff 0%, #f5f8ff 100%);
+  border-bottom: 1px solid rgba(74,110,222,0.12);
+  padding: 18px 20px;
+}
+.ref-panel-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(74,110,222,0.08);
+  color: #4a6ede;
+  font-size: 16px;
+  padding: 0;
+  transition: background 0.15s;
+}
+.ref-panel-close:hover { background: rgba(74,110,222,0.18); }
+
+/* ── Contacts list items ───────────────────────────────────────── */
+.ref-contact-item {
+  background: rgba(255,255,255,0.9);
+  border: 1.5px solid rgba(74,110,222,0.08);
+  border-radius: 12px;
+  transition: all 0.15s;
+}
+.ref-contact-item:hover {
+  border-color: rgba(74,110,222,0.2);
+  box-shadow: 0 3px 10px rgba(74,110,222,0.08);
+}
+.ref-contact-name { font-weight: 700; color: #1e2a4a; }
+.ref-contact-role { color: #4a6ede; font-size: 12px; font-weight: 500; }
+
+/* ── Heading + sous-titre client ───────────────────────────────── */
+.projects-page-heading { color: #1e2a4a; }
+.projects-page-sub { color: #6b7f9e; font-size: 14px; }
+
+/* ── Formulaire ajout document ─────────────────────────────────── */
+.ref-add-doc-form {
+  background: rgba(255,255,255,0.85);
+  border: 1.5px solid rgba(74,110,222,0.1);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ref-clients-grid { grid-template-columns: 1fr; gap: 12px; }

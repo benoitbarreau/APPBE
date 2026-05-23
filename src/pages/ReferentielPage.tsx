@@ -941,7 +941,7 @@ function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDeleted, 
                 {room.type && (
                   <div className="ref-room-info-item">
                     <span className="ref-room-info-label">Type</span>
-                    <span className="ref-room-info-value">{room.type}</span>
+                    <span className="ref-room-type-badge">{room.type}</span>
                   </div>
                 )}
                 {room.notes && (
