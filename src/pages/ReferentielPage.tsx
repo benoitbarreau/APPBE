@@ -88,6 +88,7 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(initial?.logo_url ?? null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [dragLogoOver, setDragLogoOver] = useState(false)
   // Mode logo : 'file' = upload fichier, 'url' = lien externe
   const [logoMode, setLogoMode] = useState<'file' | 'url'>(
     initial?.logo_url && !initial?.logo_storage_path ? 'url' : 'file'
@@ -176,49 +177,63 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
       {/* Logo — uniquement à la modification (clientId connu) */}
       {clientId && (
         <div className="ref-logo-upload">
-          <span className="ref-logo-upload-label">Logo</span>
-          <div className="ref-logo-upload-inner">
-            {/* Aperçu */}
-            {logoPreview
-              ? <img src={logoPreview} alt="Logo" className="ref-logo-preview" />
-              : <div className="ref-logo-placeholder">Pas de logo</div>
-            }
-
-            {/* Bascule Fichier / URL */}
+          {/* En-tête : label + bascule mode */}
+          <div className="ref-logo-section-header">
+            <span className="ref-logo-upload-label">Logo</span>
             <div className="ref-logo-mode-toggle">
-              <button
-                type="button"
+              <button type="button"
                 className={`ref-logo-mode-btn${logoMode === 'file' ? ' active' : ''}`}
-                onClick={() => setLogoMode('file')}
-              >
+                onClick={() => setLogoMode('file')}>
                 📁 Fichier
               </button>
-              <button
-                type="button"
+              <button type="button"
                 className={`ref-logo-mode-btn${logoMode === 'url' ? ' active' : ''}`}
-                onClick={() => setLogoMode('url')}
-              >
+                onClick={() => setLogoMode('url')}>
                 🔗 URL
               </button>
             </div>
+          </div>
 
-            {/* Mode Fichier */}
-            {logoMode === 'file' && (
-              <div className="ref-logo-upload-btns">
-                <button type="button" onClick={() => logoRef.current?.click()}>
-                  {logoPreview ? 'Changer' : 'Ajouter un logo'}
-                </button>
-                {logoPreview && (
-                  <button type="button" className="danger" onClick={() => void handleDeleteLogo()}>
-                    Supprimer
-                  </button>
-                )}
-              </div>
-            )}
+          {/* Zone glisser-déposer — mode Fichier */}
+          {logoMode === 'file' && (
+            <div
+              className={`ref-logo-drop-zone${dragLogoOver ? ' drag-over' : ''}${logoPreview ? ' has-logo' : ''}`}
+              onClick={() => logoRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragLogoOver(true) }}
+              onDragLeave={() => setDragLogoOver(false)}
+              onDrop={e => {
+                e.preventDefault()
+                setDragLogoOver(false)
+                const f = e.dataTransfer.files[0]
+                if (f && f.type.startsWith('image/')) {
+                  setLogoFile(f)
+                  setLogoPreview(URL.createObjectURL(f))
+                }
+              }}
+            >
+              {logoPreview ? (
+                <>
+                  <img src={logoPreview} alt="Logo" className="ref-logo-drop-preview" />
+                  <span className="ref-logo-drop-change">Cliquer ou glisser pour changer</span>
+                </>
+              ) : (
+                <>
+                  <span className="ref-logo-drop-icon">🖼</span>
+                  <span className="ref-logo-drop-label">Glissez votre logo ici ou cliquez pour parcourir</span>
+                  <span className="ref-logo-drop-ext">PNG, JPG, SVG, WebP</span>
+                </>
+              )}
+            </div>
+          )}
 
-            {/* Mode URL */}
-            {logoMode === 'url' && (
-              <div className="ref-logo-url-row">
+          {/* Saisie URL — mode URL */}
+          {logoMode === 'url' && (
+            <div className="ref-logo-url-zone">
+              {logoPreview
+                ? <img src={logoPreview} alt="Logo" className="ref-logo-url-preview" />
+                : <div className="ref-logo-url-placeholder">🖼</div>
+              }
+              <div className="ref-logo-url-input-wrap">
                 <input
                   type="url"
                   className="ref-logo-url-input"
@@ -229,23 +244,27 @@ function ClientForm({ initial, clientId, onSave, onLogoUploaded, onCancel, savin
                     setLogoPreview(e.target.value.trim() || null)
                   }}
                 />
-                {logoPreview && (
-                  <button type="button" className="danger" onClick={() => void handleDeleteLogo()}>
-                    Supprimer
-                  </button>
-                )}
+                <p className="ref-logo-url-hint">Lien direct vers une image (SharePoint, CDN, site web…)</p>
               </div>
-            )}
+            </div>
+          )}
 
-            <input
-              ref={logoRef}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-              style={{ display: 'none' }}
-              onChange={handleLogoChange}
-            />
-          </div>
-          {uploadingLogo && <p className="ref-loading-hint">Upload logo…</p>}
+          {/* Supprimer */}
+          {logoPreview && (
+            <button type="button" className="ref-logo-delete-btn danger"
+              onClick={() => void handleDeleteLogo()}>
+              🗑 Supprimer le logo
+            </button>
+          )}
+
+          <input
+            ref={logoRef}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+            style={{ display: 'none' }}
+            onChange={handleLogoChange}
+          />
+          {uploadingLogo && <p className="ref-loading-hint">Upload en cours…</p>}
         </div>
       )}
       <div className="ref-form-actions">

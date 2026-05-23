@@ -7411,55 +7411,30 @@ select {
 .ref-logo-upload {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 12px;
   background: #f8f9fc;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+}
+.ref-logo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .ref-logo-upload-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text);
 }
-.ref-logo-upload-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.ref-logo-preview {
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #fff;
-}
-.ref-logo-placeholder {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  border: 2px dashed var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--muted);
-  text-align: center;
-}
-.ref-logo-upload-btns { display: flex; gap: 6px; }
-
-/* Bascule Fichier / URL pour le logo */
-.ref-logo-mode-toggle {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
+/* Bascule Fichier / URL */
+.ref-logo-mode-toggle { display: flex; gap: 4px; }
 .ref-logo-mode-btn {
-  padding: 3px 10px;
+  padding: 3px 12px;
   font-size: 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface, #f8f9fa);
+  border-radius: 20px;
+  background: #fff;
   color: var(--muted);
   cursor: pointer;
   transition: background .15s, color .15s, border-color .15s;
@@ -7470,24 +7445,88 @@ select {
   color: #fff;
   border-color: var(--accent, #2563eb);
 }
-/* Champ URL logo */
-.ref-logo-url-row {
+/* Zone glisser-déposer logo */
+.ref-logo-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex: 1;
-  min-width: 0;
+  transition: border-color .2s, background .2s;
+  background: #fff;
+  user-select: none;
 }
-.ref-logo-url-input {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 8px;
-  font-size: 12px;
-  border: 1px solid var(--border);
+.ref-logo-drop-zone:hover,
+.ref-logo-drop-zone.drag-over {
+  border-color: var(--accent, #2563eb);
+  background: #eff6ff;
+}
+.ref-logo-drop-zone.has-logo {
+  border-style: solid;
+  border-color: var(--border);
+  padding: 14px;
+}
+.ref-logo-drop-preview {
+  max-height: 72px;
+  max-width: 180px;
+  object-fit: contain;
   border-radius: 6px;
-  background: var(--bg, #fff);
-  color: var(--text);
 }
+.ref-logo-drop-change { font-size: 11px; color: var(--muted); }
+.ref-logo-drop-icon { font-size: 28px; line-height: 1; }
+.ref-logo-drop-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.ref-logo-drop-ext { font-size: 11px; color: var(--muted); }
+/* Zone URL logo */
+.ref-logo-url-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.ref-logo-url-preview {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #f8f9fc;
+  flex-shrink: 0;
+}
+.ref-logo-url-placeholder {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.ref-logo-url-input-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ref-logo-url-input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text);
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.ref-logo-url-input:focus { border-color: var(--accent, #2563eb); outline: none; }
+.ref-logo-url-hint { font-size: 11px; color: var(--muted); margin: 0; }
+/* Bouton supprimer logo */
+.ref-logo-delete-btn { font-size: 12px; padding: 4px 12px; align-self: flex-start; }
 
 /* Liste projets à lier */
 .ref-link-project-list {
