@@ -54,10 +54,12 @@ function ProductCard({
   const portOut = product.outputs.length
   const portMid = (product.middle ?? []).length
 
+  const hasFront = !!product.imageFront
+
   return (
     <button className="cat-card" onClick={onClick} title={`Ouvrir la fiche : ${product.manufacturer} ${product.reference}`}>
       <div className="cat-card-stripe" style={{ background: categoryColor }} />
-      <div className="cat-card-body">
+      <div className={`cat-card-body${hasFront ? ' cat-card-body--has-thumb' : ''}`}>
         <div className="cat-card-top">
           <span className="cat-card-ref">{product.reference}</span>
           <span className={`cat-card-badge cat-card-badge--${status}`}>
@@ -99,6 +101,13 @@ function ProductCard({
             </a>
           )}
         </div>
+
+        {/* Miniature image de face */}
+        {hasFront && (
+          <div className="cat-card-thumb" aria-hidden="true">
+            <img src={product.imageFront} alt="" className="cat-card-thumb-img" />
+          </div>
+        )}
       </div>
     </button>
   )

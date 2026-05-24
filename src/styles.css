@@ -10434,6 +10434,7 @@ select {
   border-radius: 0;
 }
 .cat-card-body {
+  position: relative;
   flex: 1;
   padding: 12px 13px 10px;
   display: flex;
@@ -10487,6 +10488,34 @@ select {
   font-style: italic;
   opacity: 0.6;
 }
+
+/* Réserve de l'espace à droite quand une miniature est présente */
+.cat-card-body--has-thumb {
+  padding-right: 64px;
+}
+
+/* Miniature image de face — positionnée en absolu en bas à droite */
+.cat-card-thumb {
+  position: absolute;
+  bottom: 9px;
+  right: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  background: #f4f5f7;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.10);
+  flex-shrink: 0;
+  pointer-events: none; /* le clic passe à travers vers le bouton parent */
+}
+.cat-card-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .cat-card-meta {
   display: flex;
   align-items: center;
