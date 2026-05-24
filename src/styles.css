@@ -1970,19 +1970,120 @@ select {
 }
 /* ── Titres de section dans la fiche produit ── */
 .pe-section-title {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  padding: 14px 0 6px;
-  border-top: 1px solid var(--border);
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  padding: 14px 0 8px;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pe-section-title::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 12px;
+  background: var(--primary);
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.pe-section-title::after {
+  content: '';
+  display: block;
+  height: 1px;
+  flex: 1;
+  background: var(--border);
 }
 .pe-section-title:first-child {
-  border-top: none;
   padding-top: 0;
   margin-top: 0;
+}
+
+/* ── Groupes inline (dimensions, alimentation) ─────────────────────────── */
+
+.pe-inline-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.pe-measure-field {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pe-measure-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  min-width: 28px;
+}
+
+.pe-measure-input {
+  width: 70px !important;
+  flex: none !important;
+  text-align: right;
+}
+
+.pe-measure-sep {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 300;
+  padding: 0 1px;
+}
+
+.pe-unit-hint {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Toggle d'unité (kg ↔ lbs) */
+.pe-unit-toggle {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 11px;
+  border-radius: 12px;
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background 0.1s;
+  line-height: 1.4;
+}
+.pe-unit-toggle:hover {
+  background: #eff6ff;
+}
+
+/* Bouton "Calculer depuis X W" */
+.pe-calc-btn {
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  color: var(--primary);
+  background: #eff6ff;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.1s;
+  line-height: 1.4;
+}
+.pe-calc-btn:hover {
+  background: #dbeafe;
 }
 
 .form-row {
@@ -2149,6 +2250,39 @@ select {
 }
 .modal-preview-url-btn:hover {
   background: rgba(47,111,237,0.15);
+}
+
+/* ── Caractéristiques techniques dans l'aperçu ── */
+.modal-preview-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  margin: 6px 0 4px;
+}
+
+.modal-preview-spec-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.modal-preview-spec-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.modal-preview-spec-alt {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: 2px;
 }
 
 /* ── Images produit cliquables ── */

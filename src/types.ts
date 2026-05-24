@@ -41,6 +41,17 @@ export interface Product {
   rackWidth?: RackWidth;
   imageFront?: string;
   imageBack?: string;
+  // ── Dimensions (en cm) ───────────────────────────────────────────────────
+  widthCm?: number;
+  depthCm?: number;
+  heightCm?: number;
+  // ── Poids (toujours stocké en kg) ────────────────────────────────────────
+  weightKg?: number;
+  // ── Alimentation ─────────────────────────────────────────────────────────
+  powerStandbyW?: number;   // Consommation en veille (Watts)
+  powerOperatingW?: number; // Consommation en fonctionnement (Watts)
+  // ── Dissipation thermique ─────────────────────────────────────────────────
+  thermalBtuH?: number;     // BTU/h
 }
 
 export type PortPlacement = "left" | "right" | "middle";

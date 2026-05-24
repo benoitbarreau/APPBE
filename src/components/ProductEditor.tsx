@@ -216,6 +216,33 @@ export function ProductEditor({
     });
   };
 
+  // ── Poids : bascule d'unité (stocké toujours en kg) ─────────────────────
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
+  const KG_TO_LBS = 2.20462;
+
+  const weightDisplay =
+    draft.weightKg == null
+      ? ""
+      : weightUnit === "kg"
+        ? String(Math.round(draft.weightKg * 100) / 100)
+        : String(Math.round(draft.weightKg * KG_TO_LBS * 100) / 100);
+
+  const onWeightChange = (v: string) => {
+    const n = parseFloat(v);
+    if (isNaN(n) || v === "") { setDraft({ ...draft, weightKg: undefined }); return; }
+    const kg = weightUnit === "kg" ? n : n / KG_TO_LBS;
+    setDraft({ ...draft, weightKg: Math.round(kg * 1000) / 1000 });
+  };
+
+  const toggleWeightUnit = () =>
+    setWeightUnit((u) => (u === "kg" ? "lbs" : "kg"));
+
+  // ── Calcul BTU/h depuis la puissance de fonctionnement ──────────────────
+  const calcBtu = () => {
+    if (!draft.powerOperatingW) return;
+    setDraft({ ...draft, thermalBtuH: Math.round(draft.powerOperatingW * 3.41214) });
+  };
+
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const meta: UserProductMeta | undefined = productMeta[draft.id];
@@ -435,6 +462,127 @@ export function ProductEditor({
             )}
           </div>
 
+          <div className="pe-section-title">Caractéristiques techniques</div>
+
+          {/* Dimensions L × P × H */}
+          <div className="form-row">
+            <label>Dimensions (cm)</label>
+            <div className="pe-inline-group">
+              <div className="pe-measure-field">
+                <span className="pe-measure-label">L</span>
+                <input
+                  type="number" min={0} step={0.1}
+                  value={draft.widthCm ?? ""}
+                  onChange={e => setDraft({ ...draft, widthCm: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="pe-measure-input"
+                />
+              </div>
+              <span className="pe-measure-sep">×</span>
+              <div className="pe-measure-field">
+                <span className="pe-measure-label">P</span>
+                <input
+                  type="number" min={0} step={0.1}
+                  value={draft.depthCm ?? ""}
+                  onChange={e => setDraft({ ...draft, depthCm: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="pe-measure-input"
+                />
+              </div>
+              <span className="pe-measure-sep">×</span>
+              <div className="pe-measure-field">
+                <span className="pe-measure-label">H</span>
+                <input
+                  type="number" min={0} step={0.1}
+                  value={draft.heightCm ?? ""}
+                  onChange={e => setDraft({ ...draft, heightCm: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="pe-measure-input"
+                />
+              </div>
+              <span className="pe-unit-hint">cm</span>
+            </div>
+          </div>
+
+          {/* Poids avec bascule kg ↔ lbs */}
+          <div className="form-row">
+            <label>Poids</label>
+            <input
+              type="number" min={0} step={0.01}
+              value={weightDisplay}
+              onChange={e => onWeightChange(e.target.value)}
+              placeholder="—"
+              style={{ width: 90, flex: "none" }}
+            />
+            <button
+              type="button"
+              className="pe-unit-toggle"
+              onClick={toggleWeightUnit}
+              title={weightUnit === "kg" ? "Basculer en livres" : "Basculer en kilogrammes"}
+            >
+              {weightUnit}
+            </button>
+            {draft.weightKg != null && weightUnit === "lbs" && (
+              <span className="pe-unit-hint">= {(draft.weightKg).toFixed(2)} kg</span>
+            )}
+            {draft.weightKg != null && weightUnit === "kg" && (
+              <span className="pe-unit-hint">= {(draft.weightKg * KG_TO_LBS).toFixed(2)} lbs</span>
+            )}
+          </div>
+
+          <div className="pe-section-title">Alimentation</div>
+
+          {/* Consommation électrique */}
+          <div className="form-row">
+            <label>Consommation</label>
+            <div className="pe-inline-group">
+              <div className="pe-measure-field">
+                <span className="pe-measure-label">Veille</span>
+                <input
+                  type="number" min={0} step={1}
+                  value={draft.powerStandbyW ?? ""}
+                  onChange={e => setDraft({ ...draft, powerStandbyW: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="pe-measure-input"
+                />
+              </div>
+              <div className="pe-measure-field">
+                <span className="pe-measure-label">Fonct.</span>
+                <input
+                  type="number" min={0} step={1}
+                  value={draft.powerOperatingW ?? ""}
+                  onChange={e => setDraft({ ...draft, powerOperatingW: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="pe-measure-input"
+                />
+              </div>
+              <span className="pe-unit-hint">W</span>
+            </div>
+          </div>
+
+          {/* Dissipation thermique */}
+          <div className="form-row">
+            <label>Dissipation</label>
+            <input
+              type="number" min={0} step={1}
+              value={draft.thermalBtuH ?? ""}
+              onChange={e => setDraft({ ...draft, thermalBtuH: e.target.value === "" ? undefined : Number(e.target.value) })}
+              placeholder="—"
+              style={{ width: 90, flex: "none" }}
+            />
+            <span className="pe-unit-hint">BTU/h</span>
+            {draft.powerOperatingW != null && draft.powerOperatingW > 0 && (
+              <button
+                type="button"
+                className="pe-calc-btn"
+                onClick={calcBtu}
+                title={`Calculer depuis ${draft.powerOperatingW} W de fonctionnement`}
+              >
+                ↻ Calculer depuis {draft.powerOperatingW} W
+              </button>
+            )}
+          </div>
+
           <div className="pe-section-title">Visuels</div>
           <ImageField
             label="Image de face"
@@ -552,6 +700,48 @@ export function ProductEditor({
                   >
                     ↗ Fiche fabricant
                   </a>
+                )}
+              </div>
+            )}
+
+            {/* Caractéristiques techniques */}
+            {(draft.widthCm || draft.depthCm || draft.heightCm ||
+              draft.weightKg || draft.powerStandbyW || draft.powerOperatingW || draft.thermalBtuH) && (
+              <div className="modal-preview-specs">
+                {(draft.widthCm || draft.depthCm || draft.heightCm) && (
+                  <div className="modal-preview-spec-row">
+                    <span className="modal-preview-spec-icon">📐</span>
+                    <span>
+                      {[draft.widthCm, draft.depthCm, draft.heightCm]
+                        .map(v => v != null ? `${v}` : "—").join(" × ")} cm
+                    </span>
+                  </div>
+                )}
+                {draft.weightKg != null && (
+                  <div className="modal-preview-spec-row">
+                    <span className="modal-preview-spec-icon">⚖️</span>
+                    <span>{draft.weightKg} kg</span>
+                    <span className="modal-preview-spec-alt">
+                      {(draft.weightKg * KG_TO_LBS).toFixed(2)} lbs
+                    </span>
+                  </div>
+                )}
+                {(draft.powerStandbyW != null || draft.powerOperatingW != null) && (
+                  <div className="modal-preview-spec-row">
+                    <span className="modal-preview-spec-icon">⚡</span>
+                    <span>
+                      {draft.powerOperatingW != null ? `${draft.powerOperatingW} W` : "—"}
+                      {draft.powerStandbyW != null && (
+                        <span className="modal-preview-spec-alt"> / veille {draft.powerStandbyW} W</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {draft.thermalBtuH != null && (
+                  <div className="modal-preview-spec-row">
+                    <span className="modal-preview-spec-icon">🌡️</span>
+                    <span>{draft.thermalBtuH.toLocaleString("fr-FR")} BTU/h</span>
+                  </div>
                 )}
               </div>
             )}
