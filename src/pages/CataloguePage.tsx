@@ -6,7 +6,7 @@ import { AdminSettings } from '../components/AdminSettings'
 import type { Panel } from '../components/AdminSettings'
 import type { Product } from '../types'
 import type { UserProductMeta } from '../lib/userProductsApi'
-import { upsertUserProduct } from '../lib/userProductsApi'
+import { upsertUserProduct, validateUserProduct } from '../lib/userProductsApi'
 import { BUILTIN_CATALOG } from '../catalog'
 import { exportToCsv, importFromCsv } from '../lib/catalogueApi'
 
@@ -16,9 +16,10 @@ const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
 const BUILTIN_IDS = new Set(BUILTIN_CATALOG.map(p => p.id))
 
-type FilterMode = 'all' | 'builtin' | 'approved' | 'mine' | 'pending'
-type SortKey   = 'manufacturer' | 'reference' | 'category'
-type ViewMode  = 'grid' | 'list' | 'byBrand' | 'byCategory'
+type FilterMode  = 'all' | 'builtin' | 'approved' | 'mine' | 'pending'
+type SortKey     = 'manufacturer' | 'reference' | 'category'
+type ViewMode    = 'grid' | 'list' | 'byBrand' | 'byCategory'
+type ListSortKey = 'reference' | 'manufacturer' | 'category' | 'rack'
 
 const PILL_DEFS: { mode: FilterMode; label: string; alert?: boolean }[] = [
   { mode: 'all',      label: 'Tous' },
@@ -27,6 +28,15 @@ const PILL_DEFS: { mode: FilterMode; label: string; alert?: boolean }[] = [
   { mode: 'mine',     label: 'Mes fiches' },
   { mode: 'pending',  label: 'En attente', alert: true },
 ]
+
+// ── Utilitaire PDF ─────────────────────────────────────────────────────────
+
+function pdfFileName(url: string): string {
+  try {
+    const decoded = decodeURIComponent(url.split('/product-datasheets/')[1] ?? url)
+    return decoded.split('?')[0].split('/').pop() ?? url
+  } catch { return url }
+}
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +47,191 @@ interface Props {
   onOpenAdminDashboard?: () => void
 }
 
+// ── A : Aperçu rapide (slide panel) ───────────────────────────────────────
+
+function ProductPreviewPanel({
+  product,
+  meta,
+  isBuiltin,
+  catColor,
+  onClose,
+  onEdit,
+}: {
+  product: Product
+  meta: UserProductMeta | undefined
+  isBuiltin: boolean
+  catColor: string
+  onClose: () => void
+  onEdit: () => void
+}) {
+  const status  = isBuiltin ? 'builtin' : (meta?.status ?? 'unknown')
+  const portIn  = product.inputs.length
+  const portOut = product.outputs.length
+  const portMid = (product.middle ?? []).length
+
+  return (
+    <div
+      className="cat-preview-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Aperçu produit"
+    >
+      <aside className="cat-preview-panel" onClick={e => e.stopPropagation()}>
+
+        {/* Bandeau coloré catégorie */}
+        <div className="cat-preview-header" style={{ background: catColor }}>
+          <span className="cat-preview-cat-label">
+            {product.category || 'Sans catégorie'}
+          </span>
+          <button className="cat-preview-close" onClick={onClose} aria-label="Fermer">✕</button>
+        </div>
+
+        <div className="cat-preview-body">
+
+          {/* Image de face */}
+          {product.imageFront ? (
+            <div className="cat-preview-img-wrap">
+              <img
+                src={product.imageFront}
+                alt={product.reference}
+                className="cat-preview-img"
+              />
+            </div>
+          ) : (
+            <div className="cat-preview-img-placeholder">
+              <span>Pas d'image disponible</span>
+            </div>
+          )}
+
+          {/* Référence + badge statut */}
+          <div className="cat-preview-title-row">
+            <div className="cat-preview-names">
+              <div className="cat-preview-ref">{product.reference}</div>
+              <div className="cat-preview-brand">{product.manufacturer}</div>
+            </div>
+            <span className={`cat-card-badge cat-card-badge--${status}`}>
+              {isBuiltin ? 'Intégré'
+                : status === 'approved' ? 'Commun'
+                : status === 'pending'  ? 'En attente'
+                : '—'}
+            </span>
+          </div>
+
+          {/* Spécifications */}
+          <div className="cat-preview-specs">
+            {product.articleCode && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Code article</span>
+                <strong className="cat-preview-spec-val">{product.articleCode}</strong>
+              </div>
+            )}
+            {(product.rackHeightU || product.rackSize) && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Rack</span>
+                <strong className="cat-preview-spec-val">
+                  {[
+                    product.rackHeightU && `${product.rackHeightU}U`,
+                    product.rackSize    && `${product.rackSize}"`,
+                  ].filter(Boolean).join(' · ')}
+                </strong>
+              </div>
+            )}
+            {product.widthCm && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Largeur</span>
+                <strong className="cat-preview-spec-val">{product.widthCm} cm</strong>
+              </div>
+            )}
+            {product.depthCm && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Profondeur</span>
+                <strong className="cat-preview-spec-val">{product.depthCm} cm</strong>
+              </div>
+            )}
+            {product.heightCm && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Hauteur</span>
+                <strong className="cat-preview-spec-val">{product.heightCm} cm</strong>
+              </div>
+            )}
+            {product.weightKg && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Poids</span>
+                <strong className="cat-preview-spec-val">{product.weightKg} kg</strong>
+              </div>
+            )}
+            {product.powerStandbyW && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Puissance veille</span>
+                <strong className="cat-preview-spec-val">{product.powerStandbyW} W</strong>
+              </div>
+            )}
+            {product.powerOperatingW && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Puissance marche</span>
+                <strong className="cat-preview-spec-val">{product.powerOperatingW} W</strong>
+              </div>
+            )}
+            {product.thermalBtuH && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Dégagement thermique</span>
+                <strong className="cat-preview-spec-val">{product.thermalBtuH} BTU/h</strong>
+              </div>
+            )}
+            {(portIn + portOut + portMid) > 0 && (
+              <div className="cat-preview-spec">
+                <span className="cat-preview-spec-label">Ports</span>
+                <strong className="cat-preview-spec-val">
+                  {[
+                    portIn  > 0 && `↙ ${portIn} entrée${portIn  > 1 ? 's' : ''}`,
+                    portOut > 0 && `↗ ${portOut} sortie${portOut > 1 ? 's' : ''}`,
+                    portMid > 0 && `⇄ ${portMid} middle`,
+                  ].filter(Boolean).join('  ·  ')}
+                </strong>
+              </div>
+            )}
+          </div>
+
+          {/* Fiches techniques PDF */}
+          {(product.datasheetUrls?.length ?? 0) > 0 && (
+            <div className="cat-preview-pdfs">
+              <div className="cat-preview-section-label">Fiches techniques</div>
+              {product.datasheetUrls!.map((url, i) => (
+                <a
+                  key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="cat-preview-pdf-link"
+                >
+                  📄 {pdfFileName(url)}
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Boutons d'action */}
+          <div className="cat-preview-actions">
+            <button className="primary" onClick={onEdit}>✏️ Modifier la fiche</button>
+            {product.productUrl && (
+              <a
+                href={product.productUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="cat-preview-ext-link"
+              >
+                🔗 Page produit
+              </a>
+            )}
+          </div>
+
+        </div>
+      </aside>
+    </div>
+  )
+}
+
 // ── Carte produit (vue grille) ─────────────────────────────────────────────
 
 function ProductCard({
@@ -44,12 +239,16 @@ function ProductCard({
   meta,
   isBuiltin,
   categoryColor,
+  isSelected,
+  onSelect,
   onClick,
 }: {
   product: Product
   meta: UserProductMeta | undefined
   isBuiltin: boolean
   categoryColor: string
+  isSelected: boolean
+  onSelect: () => void
   onClick: () => void
 }) {
   const status  = isBuiltin ? 'builtin' : (meta?.status ?? 'unknown')
@@ -60,10 +259,21 @@ function ProductCard({
 
   return (
     <button
-      className="cat-card"
+      className={`cat-card${isSelected ? ' cat-card--selected' : ''}`}
       onClick={onClick}
-      title={`Ouvrir la fiche : ${product.manufacturer} ${product.reference}`}
+      title={`Aperçu : ${product.manufacturer} ${product.reference}`}
     >
+      {/* C : Checkbox de sélection (div pour éviter button imbriqué) */}
+      <div
+        className={`cat-card-checkbox${isSelected ? ' cat-card-checkbox--checked' : ''}`}
+        onClick={e => { e.stopPropagation(); onSelect() }}
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label="Sélectionner ce produit"
+      >
+        {isSelected && '✓'}
+      </div>
+
       {/* Bandeau coloré catégorie */}
       <div className="cat-card-top-band" style={{ background: categoryColor }}>
         <span className="cat-card-cat-label">
@@ -136,12 +346,16 @@ function ProductListRow({
   meta,
   isBuiltin,
   categoryColor,
+  isSelected,
+  onSelect,
   onClick,
 }: {
   product: Product
   meta: UserProductMeta | undefined
   isBuiltin: boolean
   categoryColor: string
+  isSelected: boolean
+  onSelect: () => void
   onClick: () => void
 }) {
   const status  = isBuiltin ? 'builtin' : (meta?.status ?? 'unknown')
@@ -154,20 +368,36 @@ function ProductListRow({
   ].filter(Boolean).join(' ') || '—'
 
   return (
-    <button className="cat-list-row" onClick={onClick}>
-      <div className="cat-list-color-dot" style={{ background: categoryColor }} />
+    <button
+      className={`cat-list-row${isSelected ? ' cat-list-row--selected' : ''}`}
+      onClick={onClick}
+    >
+      {/* C : Checkbox */}
+      <div
+        className={`cat-list-checkbox cat-list-col-cb${isSelected ? ' cat-list-checkbox--checked' : ''}`}
+        onClick={e => { e.stopPropagation(); onSelect() }}
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label="Sélectionner"
+      >
+        {isSelected && '✓'}
+      </div>
+
+      <div className="cat-list-color-dot cat-list-col-dot" style={{ background: categoryColor }} />
       {product.imageFront
-        ? <img src={product.imageFront} className="cat-list-thumb" alt="" />
-        : <div className="cat-list-thumb-placeholder" />
+        ? <img src={product.imageFront} className="cat-list-thumb cat-list-col-img" alt="" />
+        : <div className="cat-list-thumb-placeholder cat-list-col-img" />
       }
-      <span className="cat-list-ref">{product.reference}</span>
-      <span className="cat-list-brand">{product.manufacturer}</span>
-      <span className="cat-list-cat">{product.category || <em className="cat-card-na">—</em>}</span>
-      <span className="cat-list-rack">{rackStr}</span>
-      <span className="cat-list-ports">
+      <span className="cat-list-ref cat-list-col-ref">{product.reference}</span>
+      <span className="cat-list-brand cat-list-col-brand">{product.manufacturer}</span>
+      <span className="cat-list-cat cat-list-col-cat">
+        {product.category || <em className="cat-card-na">—</em>}
+      </span>
+      <span className="cat-list-rack cat-list-col-rack">{rackStr}</span>
+      <span className="cat-list-ports cat-list-col-ports">
         {portIn + portOut > 0 ? `↙${portIn} ↗${portOut}` : '—'}
       </span>
-      <span className={`cat-card-badge cat-card-badge--${status} cat-list-status`}>
+      <span className={`cat-card-badge cat-card-badge--${status} cat-list-col-status`}>
         {isBuiltin ? 'Intégré'
           : status === 'approved' ? 'Commun'
           : status === 'pending'  ? 'En attente'
@@ -183,12 +413,16 @@ function ProductGrid({
   products,
   productMeta,
   catColorMap,
-  onEdit,
+  selectedIds,
+  onToggleSelect,
+  onPreview,
 }: {
   products: Product[]
   productMeta: Record<string, UserProductMeta>
   catColorMap: Record<string, string>
-  onEdit: (id: string) => void
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
+  onPreview: (id: string) => void
 }) {
   return (
     <div className="catalogue-grid">
@@ -199,7 +433,9 @@ function ProductGrid({
           meta={productMeta[p.id]}
           isBuiltin={BUILTIN_IDS.has(p.id)}
           categoryColor={catColorMap[p.category] ?? '#9ca3af'}
-          onClick={() => onEdit(p.id)}
+          isSelected={selectedIds.has(p.id)}
+          onSelect={() => onToggleSelect(p.id)}
+          onClick={() => onPreview(p.id)}
         />
       ))}
     </div>
@@ -231,6 +467,22 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [importSuccess,   setImportSuccess]   = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
 
+  // ── A : Aperçu rapide ──
+  const [previewId, setPreviewId] = useState<string | null>(null)
+
+  // ── B : Filtres avancés ──
+  const [showAdvFilters, setShowAdvFilters] = useState(false)
+  const [advRackUs,      setAdvRackUs]      = useState<string[]>([])
+  const [advWithImage,   setAdvWithImage]   = useState(false)
+  const [advWithPdf,     setAdvWithPdf]     = useState(false)
+
+  // ── C : Sélection multiple ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // ── D : Tri colonne liste ──
+  const [listSortKey, setListSortKey] = useState<ListSortKey>('manufacturer')
+  const [listSortDir, setListSortDir] = useState<'asc' | 'desc'>('asc')
+
   // ── Couleurs des catégories ──
   const catColorMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -257,7 +509,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     pending:  products.filter(p => productMeta[p.id]?.status === 'pending').length,
   }), [products, productMeta, profile?.id])
 
-  // ── Filtrage + tri ──
+  // ── Filtrage + tri (inclut les filtres avancés B) ──
   const filtered = useMemo(() => {
     let list = [...products]
     if (filterMode === 'builtin')  list = list.filter(p => BUILTIN_IDS.has(p.id))
@@ -275,13 +527,39 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
         (p.articleCode ?? '').toLowerCase().includes(q),
       )
     }
+    // B : filtres avancés spécifications
+    if (advRackUs.length > 0) {
+      list = list.filter(p => {
+        const u = p.rackHeightU ?? 0
+        return advRackUs.some(r => r === '4+' ? u >= 4 : u === parseInt(r, 10))
+      })
+    }
+    if (advWithImage) list = list.filter(p => !!p.imageFront)
+    if (advWithPdf)   list = list.filter(p => (p.datasheetUrls?.length ?? 0) > 0)
+
     list.sort((a, b) => {
       if (sortKey === 'reference') return a.reference.localeCompare(b.reference, 'fr')
       if (sortKey === 'category')  return a.category.localeCompare(b.category, 'fr') || a.manufacturer.localeCompare(b.manufacturer, 'fr')
       return a.manufacturer.localeCompare(b.manufacturer, 'fr') || a.reference.localeCompare(b.reference, 'fr')
     })
     return list
-  }, [products, productMeta, filterMode, filterCategory, filterBrand, search, sortKey, profile?.id])
+  }, [products, productMeta, filterMode, filterCategory, filterBrand, search, sortKey, profile?.id, advRackUs, advWithImage, advWithPdf])
+
+  // ── D : Liste triée par colonne ──
+  const displayList = useMemo(() => {
+    const list = [...filtered]
+    list.sort((a, b) => {
+      let cmp = 0
+      switch (listSortKey) {
+        case 'reference':    cmp = a.reference.localeCompare(b.reference, 'fr'); break
+        case 'manufacturer': cmp = (a.manufacturer || '').localeCompare(b.manufacturer || '', 'fr'); break
+        case 'category':     cmp = (a.category || '').localeCompare(b.category || '', 'fr'); break
+        case 'rack':         cmp = (a.rackHeightU ?? 0) - (b.rackHeightU ?? 0); break
+      }
+      return listSortDir === 'asc' ? cmp : -cmp
+    })
+    return list
+  }, [filtered, listSortKey, listSortDir])
 
   // ── Groupements ──
   const groupedByBrand = useMemo(() => {
@@ -303,6 +581,48 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     })
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
   }, [filtered])
+
+  // ── A : Produit en aperçu ──
+  const previewProduct = previewId ? (products.find(p => p.id === previewId) ?? null) : null
+
+  // ── C : Sélection ──
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkApprove = async () => {
+    const ids = [...selectedIds].filter(id => !BUILTIN_IDS.has(id))
+    for (const id of ids) {
+      const existing = productMeta[id]
+      if (!existing) continue
+      setProductMeta(id, { ...existing, status: 'approved' })
+      validateUserProduct(id).catch(() => {})
+    }
+    setSelectedIds(new Set())
+  }
+
+  const handleBulkExport = () => {
+    const sel = products.filter(p => selectedIds.has(p.id))
+    exportToCsv(sel, productMeta, `selection-${new Date().toISOString().slice(0, 10)}.csv`)
+  }
+
+  // ── D : Tri colonne ──
+  const toggleListSort = (key: ListSortKey) => {
+    if (key === listSortKey) {
+      setListSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setListSortKey(key)
+      setListSortDir('asc')
+    }
+  }
+
+  const sortArrow = (key: ListSortKey) =>
+    listSortKey === key ? (listSortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
 
   // ── Import CSV ──
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,13 +663,26 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const handleExport = () =>
     exportToCsv(filtered, productMeta, `catalogue-synox-${new Date().toISOString().slice(0, 10)}.csv`)
 
-  const hasActiveFilter = filterMode !== 'all' || filterCategory || filterBrand || search
-  const clearFilters = () => { setFilterMode('all'); setFilterCategory(''); setFilterBrand(''); setSearch('') }
+  // ── Filtres ──
+  const hasAdvFilter = advRackUs.length > 0 || advWithImage || advWithPdf
+  const hasActiveFilter = filterMode !== 'all' || filterCategory || filterBrand || search || hasAdvFilter
+  const clearFilters = () => {
+    setFilterMode('all')
+    setFilterCategory('')
+    setFilterBrand('')
+    setSearch('')
+    setAdvRackUs([])
+    setAdvWithImage(false)
+    setAdvWithPdf(false)
+  }
+
+  // ── Nombre de filtres avancés actifs ──
+  const advFilterCount = advRackUs.length + (advWithImage ? 1 : 0) + (advWithPdf ? 1 : 0)
 
   return (
     <div className="catalogue-page">
 
-      {/* ── Header unifié (même navbar que Projets / Référentiel) ── */}
+      {/* ── Header unifié ── */}
       <header className="projects-page-header">
         <div className="projects-page-brand">
           <img src={logoUrl} alt="SynoX" className="projects-page-logo" />
@@ -390,7 +723,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
         </div>
       </header>
 
-      {/* ── Toolbar compacte (stats + filtres fusionnés) ── */}
+      {/* ── Toolbar compacte ── */}
       <div className="catalogue-toolbar">
 
         {/* Ligne 1 : recherche + pills de statut */}
@@ -448,6 +781,16 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
             <option value="category">Trier : Catégorie</option>
           </select>
 
+          {/* B : Bouton filtres avancés */}
+          <button
+            className={`catalogue-adv-filter-btn${hasAdvFilter ? ' active' : ''}`}
+            onClick={() => setShowAdvFilters(v => !v)}
+            title="Filtres avancés (rack, image, PDF)"
+          >
+            ⚙ Filtres{advFilterCount > 0 ? ` (${advFilterCount})` : ''}
+            <span style={{ fontSize: 10, marginLeft: 3 }}>{showAdvFilters ? '▲' : '▼'}</span>
+          </button>
+
           <div className="catalogue-toolbar-sep" />
 
           {/* Toggle vue */}
@@ -500,6 +843,48 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
             </button>
           )}
         </div>
+
+        {/* B : Section filtres avancés (collapsible) */}
+        {showAdvFilters && (
+          <div className="catalogue-adv-filters">
+            <div className="catalogue-adv-filter-group">
+              <span className="catalogue-adv-filter-label">Hauteur rack :</span>
+              {['1', '2', '3', '4+'].map(r => (
+                <label key={r} className="catalogue-adv-filter-check">
+                  <input
+                    type="checkbox"
+                    checked={advRackUs.includes(r)}
+                    onChange={() =>
+                      setAdvRackUs(prev =>
+                        prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r],
+                      )
+                    }
+                  />
+                  {r}{r !== '4+' ? 'U' : ''}
+                </label>
+              ))}
+            </div>
+            <div className="catalogue-adv-filter-sep" />
+            <div className="catalogue-adv-filter-group">
+              <label className="catalogue-adv-filter-check">
+                <input
+                  type="checkbox"
+                  checked={advWithImage}
+                  onChange={e => setAdvWithImage(e.target.checked)}
+                />
+                Avec image
+              </label>
+              <label className="catalogue-adv-filter-check">
+                <input
+                  type="checkbox"
+                  checked={advWithPdf}
+                  onChange={e => setAdvWithPdf(e.target.checked)}
+                />
+                Avec PDF
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Messages import */}
@@ -523,6 +908,11 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           {hasActiveFilter && (
             <span className="catalogue-results-filter-hint">filtrés sur {products.length}</span>
           )}
+          {selectedIds.size > 0 && (
+            <span className="catalogue-results-selected">
+              · {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
         {filtered.length === 0 ? (
@@ -537,26 +927,53 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           </div>
 
         ) : viewMode === 'list' ? (
-          /* ── Vue liste ── */
+          /* ── D : Vue liste avec colonnes triables ── */
           <div className="catalogue-list">
             <div className="cat-list-header">
+              <span className="cat-list-col-cb" />
               <span className="cat-list-col-dot" />
               <span className="cat-list-col-img" />
-              <span className="cat-list-col-ref">Référence</span>
-              <span className="cat-list-col-brand">Marque</span>
-              <span className="cat-list-col-cat">Catégorie</span>
-              <span className="cat-list-col-rack">Rack</span>
+              <button
+                className={`cat-list-sort-btn cat-list-col-ref${listSortKey === 'reference' ? ' active' : ''}`}
+                onClick={() => toggleListSort('reference')}
+                title="Trier par référence"
+              >
+                Référence<span className="cat-list-sort-arrow">{sortArrow('reference')}</span>
+              </button>
+              <button
+                className={`cat-list-sort-btn cat-list-col-brand${listSortKey === 'manufacturer' ? ' active' : ''}`}
+                onClick={() => toggleListSort('manufacturer')}
+                title="Trier par marque"
+              >
+                Marque<span className="cat-list-sort-arrow">{sortArrow('manufacturer')}</span>
+              </button>
+              <button
+                className={`cat-list-sort-btn cat-list-col-cat${listSortKey === 'category' ? ' active' : ''}`}
+                onClick={() => toggleListSort('category')}
+                title="Trier par catégorie"
+              >
+                Catégorie<span className="cat-list-sort-arrow">{sortArrow('category')}</span>
+              </button>
+              <button
+                className={`cat-list-sort-btn cat-list-col-rack${listSortKey === 'rack' ? ' active' : ''}`}
+                onClick={() => toggleListSort('rack')}
+                title="Trier par hauteur rack"
+              >
+                Rack<span className="cat-list-sort-arrow">{sortArrow('rack')}</span>
+              </button>
               <span className="cat-list-col-ports">Ports</span>
               <span className="cat-list-col-status">Statut</span>
             </div>
-            {filtered.map(p => (
+            {displayList.map(p => (
               <ProductListRow
                 key={p.id}
                 product={p}
                 meta={productMeta[p.id]}
                 isBuiltin={BUILTIN_IDS.has(p.id)}
                 categoryColor={catColorMap[p.category] ?? '#9ca3af'}
-                onClick={() => setEditingProductId(p.id)}
+                isSelected={selectedIds.has(p.id)}
+                onSelect={() => toggleSelect(p.id)}
+                onClick={() => setPreviewId(p.id)}
               />
             ))}
           </div>
@@ -575,7 +992,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                   products={prods}
                   productMeta={productMeta}
                   catColorMap={catColorMap}
-                  onEdit={id => setEditingProductId(id)}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onPreview={id => setPreviewId(id)}
                 />
               </div>
             ))}
@@ -598,7 +1017,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                   products={prods}
                   productMeta={productMeta}
                   catColorMap={catColorMap}
-                  onEdit={id => setEditingProductId(id)}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onPreview={id => setPreviewId(id)}
                 />
               </div>
             ))}
@@ -610,7 +1031,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
             products={filtered}
             productMeta={productMeta}
             catColorMap={catColorMap}
-            onEdit={id => setEditingProductId(id)}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onPreview={id => setPreviewId(id)}
           />
         )}
       </div>
@@ -623,6 +1046,52 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       >
         + Nouveau produit
       </button>
+
+      {/* ── C : Barre de sélection multiple ── */}
+      {selectedIds.size > 0 && (
+        <div className="cat-selection-bar">
+          <span className="cat-selection-count">
+            {selectedIds.size} fiche{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
+          </span>
+          <div className="cat-selection-actions">
+            {isAdmin && (
+              <button
+                className="cat-selection-btn cat-selection-btn--approve"
+                onClick={handleBulkApprove}
+                title="Approuver les fiches sélectionnées"
+              >
+                ✓ Approuver
+              </button>
+            )}
+            <button
+              className="cat-selection-btn"
+              onClick={handleBulkExport}
+              title="Exporter la sélection en CSV"
+            >
+              ↓ Exporter CSV
+            </button>
+            <button
+              className="cat-selection-btn cat-selection-btn--clear"
+              onClick={() => setSelectedIds(new Set())}
+              title="Désélectionner tout"
+            >
+              × Tout désélectionner
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── A : Panneau d'aperçu rapide ── */}
+      {previewProduct && (
+        <ProductPreviewPanel
+          product={previewProduct}
+          meta={productMeta[previewProduct.id]}
+          isBuiltin={BUILTIN_IDS.has(previewProduct.id)}
+          catColor={catColorMap[previewProduct.category] ?? '#9ca3af'}
+          onClose={() => setPreviewId(null)}
+          onEdit={() => { setPreviewId(null); setEditingProductId(previewProduct.id) }}
+        />
+      )}
 
       {/* ── Éditeur de fiche ── */}
       {editingProductId !== null && (
