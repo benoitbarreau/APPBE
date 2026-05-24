@@ -75,6 +75,12 @@ type Page = 'home' | 'projects' | 'editor' | 'referentiel'
  *  de navigateur. On stocke aussi le userId pour ne PAS restaurer l'éditeur
  *  d'un autre compte si quelqu'un se connecte sur le même navigateur. */
 const SESSION_VIEW_KEY = 'synox.session.view'
+
+/** Clé sessionStorage : présente si l'utilisateur était déjà connecté dans
+ *  cet onglet (survit au F5, détruite à la fermeture de l'onglet / logout).
+ *  Permet de distinguer un vrai login (→ accueil) d'un simple rafraîchissement
+ *  (→ restaurer la dernière vue). */
+const SESSION_INIT_KEY = 'synox.session.initialized'
 interface PersistedView {
   userId: string
   page: Page
@@ -148,6 +154,18 @@ export function ProtectedRoute() {
     if (hasRestoredRef.current) return
     hasRestoredRef.current = true
 
+    // Distinguer un vrai login d'un rafraîchissement de page (F5).
+    // sessionStorage survit au F5 mais est vide lors d'un nouveau login.
+    const alreadyInit = sessionStorage.getItem(SESSION_INIT_KEY)
+    const isPageRefresh = alreadyInit === user.id
+    sessionStorage.setItem(SESSION_INIT_KEY, user.id)
+
+    if (!isPageRefresh) {
+      // Vrai login → toujours aller à la page d'accueil, ignorer la vue persistée
+      clearPersistedView()
+      return
+    }
+
     const saved = loadPersistedView()
     if (!saved || saved.userId !== user.id) {
       // Vue d'un autre utilisateur ou aucune sauvegarde → page d'accueil
@@ -198,9 +216,11 @@ export function ProtectedRoute() {
       .catch(() => { /* échec silencieux */ })
   }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
-  // Revenir à la page d'accueil si la session expire
+  // Revenir à la page d'accueil si la session expire ou si l'utilisateur se déconnecte.
+  // On efface aussi SESSION_INIT_KEY pour que le prochain login reparte toujours de l'accueil.
   useEffect(() => {
     if (!user) {
+      sessionStorage.removeItem(SESSION_INIT_KEY)
       setPage('home')
       setShowAdminDashboard(false)
       setShowRegister(false)
