@@ -49,6 +49,7 @@ interface Props {
   onOpenAdminDashboard?: () => void
   onNewProjectFromRoom?: (roomId: string, roomName: string, siteName: string, clientName: string) => void
   onOpenProject?: (projectId: string, projectName: string) => void
+  onOpenCatalogue?: () => void
   onGoHome?: () => void
   /** Si fourni, ouvre automatiquement la fiche de ce client à l'initialisation. */
   initialClientId?: string | null
@@ -1322,7 +1323,7 @@ function profileInitials(p: ApprovedProfile): string {
 
 // ── Page principale ────────────────────────────────────────────────────────
 
-export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onGoHome, initialClientId }: Props) {
+export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewProjectFromRoom, onOpenProject, onOpenCatalogue, onGoHome, initialClientId }: Props) {
   const { user, profile, signOut } = useAuth()
 
   // ── Navigation interne ──
@@ -1650,6 +1651,9 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
             onClick={() => { setView('clients'); setSelectedClient(null) }}
           >
             Référentiel
+          </button>
+          <button className="ref-nav-btn" onClick={onOpenCatalogue}>
+            Catalogue
           </button>
           {profile?.role === 'admin' && (
             <button

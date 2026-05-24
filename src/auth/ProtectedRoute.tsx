@@ -404,6 +404,7 @@ export function ProtectedRoute() {
           onOpenAdminDashboard={openAdmin}
           onOpenVersion={handleOpenVersion}
           onOpenReferentiel={handleOpenReferentiel}
+          onOpenCatalogue={handleOpenCatalogue}
           onGoHome={handleGoHome}
         />
       )}
@@ -424,6 +425,7 @@ export function ProtectedRoute() {
           onOpenAdminDashboard={openAdmin}
           onNewProjectFromRoom={handleNewProjectFromRoom}
           onOpenProject={handleOpenProjectFromRef}
+          onOpenCatalogue={handleOpenCatalogue}
           onGoHome={handleGoHome}
           initialClientId={refInitClientId}
         />
