@@ -274,15 +274,16 @@ function ProductCard({
         {isSelected && '✓'}
       </div>
 
-      {/* Bandeau coloré catégorie */}
-      <div className="cat-card-top-band" style={{ background: categoryColor }}>
-        <span className="cat-card-cat-label">
-          {product.category || 'Sans catégorie'}
-        </span>
-      </div>
+      {/* Ligne d'accent colorée (fine) */}
+      <div className="cat-card-top-band" style={{ background: categoryColor }} aria-hidden="true" />
 
       {/* Corps */}
       <div className={`cat-card-body${hasFront ? ' cat-card-body--has-thumb' : ''}`}>
+        {/* Catégorie en texte discret */}
+        <div className="cat-card-category-label">
+          {product.category || 'Sans catégorie'}
+        </div>
+
         <div className="cat-card-head-row">
           <span className="cat-card-ref">{product.reference}</span>
           <span className={`cat-card-badge cat-card-badge--${status}`}>
