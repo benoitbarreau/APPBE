@@ -24,7 +24,6 @@ export function HomePage({ onOpenProjects, onOpenReferentiel, onOpenAdminDashboa
       <header className="home-header">
         <div className="home-header-brand">
           <img src={logoUrl} alt="SynoX" className="home-header-logo" />
-          <span className="home-header-appname">SynoX</span>
         </div>
 
         <div className="home-header-right">

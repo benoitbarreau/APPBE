@@ -1633,7 +1633,6 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
       <header className="projects-page-header">
         <div className="projects-page-brand">
           <img src={logoUrl} alt="SynoX" className="projects-page-logo" />
-          <span className="projects-page-title">SynoX</span>
         </div>
 
         {/* Navigation principale */}
