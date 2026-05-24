@@ -3301,8 +3301,8 @@ select {
 }
 
 .catmeta-presets {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(12, 18px);
   gap: 4px;
 }
 
@@ -3316,11 +3316,13 @@ select {
   transition: border-color 0.1s, transform 0.1s;
 }
 .catmeta-preset:hover {
-  transform: scale(1.15);
-  border: 2px solid rgba(0,0,0,0.2);
+  transform: scale(1.2);
+  border: 2px solid rgba(0,0,0,0.25);
+  z-index: 1;
 }
 .catmeta-preset.active {
   border: 2px solid var(--text);
+  transform: scale(1.15);
 }
 
 .catmeta-add-row {
