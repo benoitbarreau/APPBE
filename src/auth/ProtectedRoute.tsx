@@ -9,6 +9,7 @@ import { ProjectsPage } from '../pages/ProjectsPage'
 import App from '../App'
 import { AdminDashboard } from '../pages/AdminDashboard'
 import { ReferentielPage } from '../pages/ReferentielPage'
+import { CataloguePage } from '../pages/CataloguePage'
 import { HomePage } from '../pages/HomePage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
@@ -69,7 +70,7 @@ function InitErrorScreen({
   )
 }
 
-type Page = 'home' | 'projects' | 'editor' | 'referentiel'
+type Page = 'home' | 'projects' | 'editor' | 'referentiel' | 'catalogue'
 
 /** Persistance de la dernière vue active pour survivre à un F5 / fermeture
  *  de navigateur. On stocke aussi le userId pour ne PAS restaurer l'éditeur
@@ -87,7 +88,7 @@ function loadPersistedView(): PersistedView | null {
     const raw = localStorage.getItem(SESSION_VIEW_KEY)
     if (!raw) return null
     const v = JSON.parse(raw) as PersistedView
-    if (!v || (v.page !== 'home' && v.page !== 'projects' && v.page !== 'editor' && v.page !== 'referentiel')) return null
+    if (!v || (v.page !== 'home' && v.page !== 'projects' && v.page !== 'editor' && v.page !== 'referentiel' && v.page !== 'catalogue')) return null
     return v
   } catch {
     return null
@@ -193,7 +194,7 @@ export function ProtectedRoute() {
       setPage('editor')
       setReadOnly(saved.readOnly)
       setReadOnlyVersion(saved.readOnlyVersion)
-    } else if (saved.page === 'projects' || saved.page === 'referentiel') {
+    } else if (saved.page === 'projects' || saved.page === 'referentiel' || saved.page === 'catalogue') {
       setPage(saved.page)
     }
   }, [user?.id, profile?.status, setReadOnly])
@@ -277,6 +278,11 @@ export function ProtectedRoute() {
     setRefInitClientId(null)
     setPage('referentiel')
     persistView('referentiel', false)
+  }
+
+  const handleOpenCatalogue = () => {
+    setPage('catalogue')
+    persistView('catalogue', false)
   }
 
   const handleGoToReferentiel = (clientId: string) => {
@@ -387,6 +393,7 @@ export function ProtectedRoute() {
         <HomePage
           onOpenProjects={() => { setPage('projects'); persistView('projects', false) }}
           onOpenReferentiel={handleOpenReferentiel}
+          onOpenCatalogue={handleOpenCatalogue}
           onOpenAdminDashboard={openAdmin}
         />
       )}
@@ -419,6 +426,13 @@ export function ProtectedRoute() {
           onOpenProject={handleOpenProjectFromRef}
           onGoHome={handleGoHome}
           initialClientId={refInitClientId}
+        />
+      )}
+
+      {page === 'catalogue' && (
+        <CataloguePage
+          onGoHome={handleGoHome}
+          onOpenAdminDashboard={openAdmin}
         />
       )}
 

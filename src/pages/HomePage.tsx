@@ -8,10 +8,11 @@ const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 interface Props {
   onOpenProjects: () => void
   onOpenReferentiel: () => void
+  onOpenCatalogue: () => void
   onOpenAdminDashboard?: () => void
 }
 
-export function HomePage({ onOpenProjects, onOpenReferentiel, onOpenAdminDashboard }: Props) {
+export function HomePage({ onOpenProjects, onOpenReferentiel, onOpenCatalogue, onOpenAdminDashboard }: Props) {
   const { profile, signOut } = useAuth()
   const [accountOpen, setAccountOpen] = useState(false)
   const [accountInitialPanel, setAccountInitialPanel] = useState<Panel>('info')
@@ -120,6 +121,41 @@ export function HomePage({ onOpenProjects, onOpenReferentiel, onOpenAdminDashboa
               </div>
             </div>
             <div className="home-card-bg home-card-bg--ref" />
+          </button>
+
+          {/* Card — Catalogue produits */}
+          <button className="home-card" onClick={onOpenCatalogue}>
+            <div className="home-card-inner">
+              <div className="home-card-icon home-card-icon--catalogue">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                  <rect x="5" y="5" width="11" height="11" rx="2.5" fill="white" fillOpacity="0.9"/>
+                  <rect x="20" y="5" width="11" height="11" rx="2.5" fill="white" fillOpacity="0.55"/>
+                  <rect x="5" y="20" width="11" height="11" rx="2.5" fill="white" fillOpacity="0.55"/>
+                  <rect x="20" y="20" width="11" height="11" rx="2.5" fill="white" fillOpacity="0.9"/>
+                  <rect x="8" y="8" width="5" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="8" y="11" width="3" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="23" y="8" width="5" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="23" y="11" width="3" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="8" y="23" width="5" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="8" y="26" width="3" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="23" y="23" width="5" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                  <rect x="23" y="26" width="3" height="2" rx="1" fill="white" fillOpacity="0.4"/>
+                </svg>
+              </div>
+              <div className="home-card-content">
+                <h2 className="home-card-title">Catalogue produits</h2>
+                <p className="home-card-desc">
+                  Parcourez, créez et gérez les fiches produits AV du catalogue commun
+                </p>
+                <span className="home-card-cta">
+                  Accéder au catalogue
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div className="home-card-bg home-card-bg--catalogue" />
           </button>
 
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /** Ouvre une image (data URL ou URL externe) dans un nouvel onglet.
  *  Chrome bloque l'ouverture directe des data URLs — on crée une mini-page HTML. */
@@ -24,6 +24,7 @@ import {
   archiveUserProduct,
   type UserProductMeta,
 } from "../lib/userProductsApi";
+import { supabase } from "../lib/supabase";
 import {
   type Port,
   type PortDirection,
@@ -594,6 +595,11 @@ export function ProductEditor({
             value={draft.imageBack}
             onChange={(v) => setDraft({ ...draft, imageBack: v })}
           />
+          <PdfField
+            productId={draft.id}
+            value={draft.datasheetUrl}
+            onChange={(v) => setDraft({ ...draft, datasheetUrl: v })}
+          />
 
           <div className="pe-section-title">Connectique</div>
           {SPEAKER_CATEGORIES.has(draft.category) ? (
@@ -701,6 +707,21 @@ export function ProductEditor({
                     ↗ Fiche fabricant
                   </a>
                 )}
+              </div>
+            )}
+
+            {/* Lien fiche technique PDF */}
+            {draft.datasheetUrl && (
+              <div className="modal-preview-links" style={{ marginTop: 4 }}>
+                <a
+                  className="modal-preview-url-btn"
+                  href={draft.datasheetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Fiche technique PDF"
+                >
+                  📄 Fiche technique PDF
+                </a>
               </div>
             )}
 
@@ -1042,6 +1063,86 @@ function SpeakerPortEditor({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Champ fiche technique PDF (Supabase Storage) ─────────────────────────────
+function PdfField({
+  productId,
+  value,
+  onChange,
+}: {
+  productId: string;
+  value: string | undefined;
+  onChange: (next: string | undefined) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const path = `${productId}.pdf`;
+      const { error } = await supabase.storage
+        .from("product-datasheets")
+        .upload(path, file, { upsert: true, contentType: "application/pdf" });
+      if (error) throw error;
+      const { data } = supabase.storage.from("product-datasheets").getPublicUrl(path);
+      onChange(data.publicUrl);
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Échec de l'upload");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = () => {
+    const prev = value;
+    onChange(undefined);
+    if (prev) {
+      const parts = prev.split("/product-datasheets/");
+      const path = parts.length > 1 ? decodeURIComponent(parts[1].split("?")[0]) : null;
+      if (path) supabase.storage.from("product-datasheets").remove([path]).catch(() => {});
+    }
+  };
+
+  return (
+    <div className="form-row form-row-pdf">
+      <label>Fiche technique</label>
+      <div className="pdf-field">
+        {value && (
+          <div className="pdf-field-current">
+            <a href={value} target="_blank" rel="noreferrer" className="pdf-field-link" title="Ouvrir la fiche technique">
+              📄 Voir la fiche
+            </a>
+            <button type="button" className="pdf-field-remove" onClick={handleRemove} title="Retirer la fiche">
+              ✕
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          className="pe-calc-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+        >
+          {busy ? "⏳ Upload…" : value ? "↑ Remplacer le PDF" : "📄 Ajouter un PDF"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          style={{ display: "none" }}
+          onChange={onFile}
+        />
+        {err && <span className="muted danger-text" style={{ fontSize: 11, display: "block", marginTop: 2 }}>{err}</span>}
+      </div>
     </div>
   );
 }
