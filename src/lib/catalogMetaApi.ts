@@ -10,6 +10,7 @@ export interface CatalogCategory {
   id: string
   name: string
   color: string
+  logo?: string   // URL externe (https://…) OU data-URL base64
 }
 
 const pgErr = (e: { message: string }) => new Error(e.message)
@@ -65,7 +66,7 @@ export async function deleteBrand(id: string): Promise<void> {
 export async function fetchCategories(): Promise<CatalogCategory[]> {
   const { data, error } = await supabase
     .from('catalog_categories')
-    .select('id, name, color')
+    .select('id, name, color, logo')
     .order('name', { ascending: true })
   if (error) throw pgErr(error)
   return (data ?? []) as CatalogCategory[]
@@ -75,10 +76,19 @@ export async function createCategory(name: string, color: string): Promise<Catal
   const { data, error } = await supabase
     .from('catalog_categories')
     .insert({ name: name.trim(), color })
-    .select('id, name, color')
+    .select('id, name, color, logo')
     .single()
   if (error) throw pgErr(error)
   return data as CatalogCategory
+}
+
+/** Met à jour le logo d'une catégorie (URL externe ou base64). Passer null pour supprimer. */
+export async function updateCategoryLogo(id: string, logo: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('catalog_categories')
+    .update({ logo })
+    .eq('id', id)
+  if (error) throw pgErr(error)
 }
 
 export async function updateCategory(id: string, name: string, color: string): Promise<void> {

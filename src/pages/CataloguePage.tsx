@@ -9,7 +9,7 @@ import type { UserProductMeta } from '../lib/userProductsApi'
 import { upsertUserProduct, validateUserProduct } from '../lib/userProductsApi'
 import { BUILTIN_CATALOG } from '../catalog'
 import { exportToCsv, importFromCsv } from '../lib/catalogueApi'
-import { updateBrandLogo } from '../lib/catalogMetaApi'
+import { updateBrandLogo, updateCategoryLogo } from '../lib/catalogMetaApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -91,24 +91,33 @@ function ActionsMenu({
 // ── Tuile catégorie ────────────────────────────────────────────────────────
 
 function CategoryTile({
-  catName,
-  count,
-  color,
-  onOpen,
+  catName, count, color, logo, catId, isAdmin, onOpen, onEditLogo,
 }: {
-  catName: string
-  count: number
-  color: string
-  onOpen: () => void
+  catName: string; count: number; color: string; logo?: string; catId?: string
+  isAdmin: boolean; onOpen: () => void; onEditLogo: () => void
 }) {
   return (
-    <button className="category-tile" onClick={onOpen}>
-      <div className="category-tile-band" style={{ background: color }} />
-      <div className="category-tile-body">
-        <div className="category-tile-name">{catName}</div>
-        <div className="category-tile-count">{count} produit{count > 1 ? 's' : ''}</div>
-      </div>
-    </button>
+    <div className="brand-tile">
+      {isAdmin && catId && (
+        <button
+          className="brand-tile-edit-btn"
+          onClick={e => { e.stopPropagation(); onEditLogo() }}
+          title={`Modifier le logo de ${catName}`}
+        >✏️</button>
+      )}
+      <button className="brand-tile-inner" onClick={onOpen}>
+        <div className="brand-tile-logo-area" style={!logo ? { background: color + '22' } : undefined}>
+          {logo
+            ? <img src={logo} alt={catName} className="brand-tile-logo-img" />
+            : <div className="brand-tile-logo-placeholder" style={{ background: color, color: '#fff' }}>
+                {(catName[0] ?? '?').toUpperCase()}
+              </div>
+          }
+        </div>
+        <div className="brand-tile-name">{catName}</div>
+        <div className="brand-tile-count">{count} produit{count > 1 ? 's' : ''}</div>
+      </button>
+    </div>
   )
 }
 
@@ -489,7 +498,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [detailView, setDetailView] = useState<DetailView>('grid')
 
   // ── Marques : logo editor ──
-  const [editingLogoForBrand, setEditingLogoForBrand] = useState<string | null>(null)
+  const [editingLogoForBrand,    setEditingLogoForBrand]    = useState<string | null>(null)
+  // ── Catégories : logo editor ──
+  const [editingLogoForCategory, setEditingLogoForCategory] = useState<string | null>(null)
 
   // ── Catégories : repliables ──
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set())
@@ -559,6 +570,18 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     catalogBrands.forEach(b => { m[b.name] = b.id })
     return m
   }, [catalogBrands])
+
+  const categoryLogoMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    catalogCategories.forEach(c => { if (c.logo) m[c.name] = c.logo })
+    return m
+  }, [catalogCategories])
+
+  const categoryIdMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    catalogCategories.forEach(c => { m[c.name] = c.id })
+    return m
+  }, [catalogCategories])
 
   // ── Statistiques ──
   const stats = useMemo(() => ({
@@ -657,6 +680,16 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     setCatalogMeta(catalogBrands.map(b => b.id === brandId ? { ...b, logo: logo ?? undefined } : b), catalogCategories)
     updateBrandLogo(brandId, logo).catch(() => {})
     setEditingLogoForBrand(null)
+  }
+
+  // ── Logo catégorie ──
+  const handleSaveCategoryLogo = (logo: string | null) => {
+    if (!editingLogoForCategory) return
+    const catId = categoryIdMap[editingLogoForCategory]
+    if (!catId) return
+    setCatalogMeta(catalogBrands, catalogCategories.map(c => c.id === catId ? { ...c, logo: logo ?? undefined } : c))
+    updateCategoryLogo(catId, logo).catch(() => {})
+    setEditingLogoForCategory(null)
   }
 
   // ── Tri colonne ──
@@ -926,10 +959,15 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
 
         {/* ── Vue Catégories : tuiles ── */}
         {viewMode === 'byCategory' && !catView && (
-          <div className="category-tiles-grid">
+          <div className="brand-tiles-grid">
             {groupedByCategory.map(([cat, prods]) => (
               <CategoryTile key={cat} catName={cat} count={prods.length}
-                color={catColorMap[cat] ?? '#9ca3af'} onOpen={() => openCategory(cat)} />
+                color={catColorMap[cat] ?? '#9ca3af'}
+                logo={categoryLogoMap[cat]}
+                catId={categoryIdMap[cat]}
+                isAdmin={isAdmin}
+                onOpen={() => openCategory(cat)}
+                onEditLogo={() => setEditingLogoForCategory(cat)} />
             ))}
           </div>
         )}
@@ -981,6 +1019,12 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       {editingLogoForBrand && (
         <BrandLogoEditor brandName={editingLogoForBrand} currentLogo={brandLogoMap[editingLogoForBrand]}
           onSave={handleSaveBrandLogo} onClose={() => setEditingLogoForBrand(null)} />
+      )}
+
+      {/* ── Éditeur logo catégorie ── */}
+      {editingLogoForCategory && (
+        <BrandLogoEditor brandName={editingLogoForCategory} currentLogo={categoryLogoMap[editingLogoForCategory]}
+          onSave={handleSaveCategoryLogo} onClose={() => setEditingLogoForCategory(null)} />
       )}
     </div>
   )
