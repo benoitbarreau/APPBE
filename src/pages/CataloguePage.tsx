@@ -460,7 +460,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [filterCategory,  setFilterCategory]  = useState('')
   const [filterBrand,     setFilterBrand]     = useState('')
   const [sortKey,         setSortKey]         = useState<SortKey>('manufacturer')
-  const [viewMode,        setViewMode]        = useState<ViewMode>('grid')
+  const [viewMode,        setViewMode]        = useState<ViewMode>('byBrand')
   const [editingProductId, setEditingProductId] = useState<string | 'new' | null>(null)
   const [accountOpen,     setAccountOpen]     = useState(false)
   const [accountInitialPanel, setAccountInitialPanel] = useState<Panel>('info')
