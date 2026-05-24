@@ -7,13 +7,10 @@ export function LoginPage({ onSwitchToRegister }: { onSwitchToRegister: () => vo
     <div className="auth-page">
       <div className="auth-hero">
         <img src={logoUrl} alt="SynoX" className="auth-logo" />
-        <p className="auth-hero-sub">Générateur de synoptiques Audiovisuel</p>
       </div>
 
       <div className="auth-card">
         <div className="auth-card-header">
-          <div className="auth-card-icon">✦</div>
-          <h1 className="auth-card-title">Bon retour&nbsp;!</h1>
           <p className="auth-card-subtitle">Connectez-vous à votre espace SynoX</p>
         </div>
 
