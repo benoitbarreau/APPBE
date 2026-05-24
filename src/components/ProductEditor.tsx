@@ -597,8 +597,8 @@ export function ProductEditor({
           />
           <PdfField
             productId={draft.id}
-            value={draft.datasheetUrl}
-            onChange={(v) => setDraft({ ...draft, datasheetUrl: v })}
+            values={draft.datasheetUrls ?? []}
+            onChange={(v) => setDraft({ ...draft, datasheetUrls: v })}
           />
 
           <div className="pe-section-title">Connectique</div>
@@ -710,18 +710,21 @@ export function ProductEditor({
               </div>
             )}
 
-            {/* Lien fiche technique PDF */}
-            {draft.datasheetUrl && (
-              <div className="modal-preview-links" style={{ marginTop: 4 }}>
-                <a
-                  className="modal-preview-url-btn"
-                  href={draft.datasheetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Fiche technique PDF"
-                >
-                  📄 Fiche technique PDF
-                </a>
+            {/* Fiches techniques PDF */}
+            {(draft.datasheetUrls?.length ?? 0) > 0 && (
+              <div className="modal-preview-links" style={{ marginTop: 4, flexDirection: 'column', gap: 3 }}>
+                {draft.datasheetUrls!.map((url, i) => (
+                  <a
+                    key={i}
+                    className="modal-preview-url-btn"
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={pdfFileName(url)}
+                  >
+                    📄 {pdfFileName(url)}
+                  </a>
+                ))}
               </div>
             )}
 
@@ -1067,81 +1070,152 @@ function SpeakerPortEditor({
   );
 }
 
-// ── Champ fiche technique PDF (Supabase Storage) ─────────────────────────────
+// ── Utilitaire : extrait le nom de fichier depuis une URL de stockage ─────────
+const pdfFileName = (url: string): string => {
+  try {
+    const decoded = decodeURIComponent(url);
+    const name = decoded.split("/").pop()?.split("?")[0] ?? "";
+    // Retirer le segment productId/ devant le nom si présent
+    return name.includes("/") ? name.split("/").pop()! : name || "Fiche PDF";
+  } catch {
+    return "Fiche PDF";
+  }
+};
+
+// ── Champ fiches techniques PDF — multi-fichiers avec drag & drop ─────────────
 function PdfField({
   productId,
-  value,
+  values,
   onChange,
 }: {
   productId: string;
-  value: string | undefined;
-  onChange: (next: string | undefined) => void;
+  values: string[];
+  onChange: (next: string[]) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<string[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const path = `${productId}.pdf`;
-      const { error } = await supabase.storage
-        .from("product-datasheets")
-        .upload(path, file, { upsert: true, contentType: "application/pdf" });
-      if (error) throw error;
-      const { data } = supabase.storage.from("product-datasheets").getPublicUrl(path);
-      onChange(data.publicUrl);
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : "Échec de l'upload");
-    } finally {
-      setBusy(false);
+  const uploadFiles = async (files: File[]) => {
+    const pdfs = files.filter(
+      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
+    );
+    if (pdfs.length === 0) return;
+    setUploading(pdfs.map((f) => f.name));
+    setErrors([]);
+    const newUrls: string[] = [];
+    const errs: string[] = [];
+    for (const file of pdfs) {
+      try {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._\-() ]/g, "_");
+        const path = `${productId}/${safeName}`;
+        const { error } = await supabase.storage
+          .from("product-datasheets")
+          .upload(path, file, { upsert: true, contentType: "application/pdf" });
+        if (error) throw error;
+        const { data } = supabase.storage.from("product-datasheets").getPublicUrl(path);
+        newUrls.push(data.publicUrl);
+      } catch (ex) {
+        errs.push(`${file.name} : ${ex instanceof Error ? ex.message : "Erreur"}`);
+      }
     }
+    setUploading([]);
+    if (errs.length > 0) setErrors(errs);
+    if (newUrls.length > 0) onChange([...values, ...newUrls]);
   };
 
-  const handleRemove = () => {
-    const prev = value;
-    onChange(undefined);
-    if (prev) {
-      const parts = prev.split("/product-datasheets/");
-      const path = parts.length > 1 ? decodeURIComponent(parts[1].split("?")[0]) : null;
-      if (path) supabase.storage.from("product-datasheets").remove([path]).catch(() => {});
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    uploadFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    uploadFiles(files);
+  };
+
+  const removeUrl = (url: string) => {
+    onChange(values.filter((u) => u !== url));
+    const parts = url.split("/product-datasheets/");
+    if (parts.length > 1) {
+      const path = decodeURIComponent(parts[1].split("?")[0]);
+      supabase.storage.from("product-datasheets").remove([path]).catch(() => {});
     }
   };
 
   return (
     <div className="form-row form-row-pdf">
-      <label>Fiche technique</label>
+      <label>Fiches techniques</label>
       <div className="pdf-field">
-        {value && (
-          <div className="pdf-field-current">
-            <a href={value} target="_blank" rel="noreferrer" className="pdf-field-link" title="Ouvrir la fiche technique">
-              📄 Voir la fiche
-            </a>
-            <button type="button" className="pdf-field-remove" onClick={handleRemove} title="Retirer la fiche">
-              ✕
-            </button>
+        {/* Liste des PDFs existants */}
+        {values.length > 0 && (
+          <div className="pdf-list">
+            {values.map((url, i) => (
+              <div key={i} className="pdf-list-item">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="pdf-field-link"
+                  title={pdfFileName(url)}
+                >
+                  📄 {pdfFileName(url)}
+                </a>
+                <button
+                  type="button"
+                  className="pdf-field-remove"
+                  onClick={() => removeUrl(url)}
+                  title="Retirer ce fichier"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
-        <button
-          type="button"
-          className="pe-calc-btn"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
+
+        {/* Zone de dépôt drag & drop */}
+        <div
+          className={`pdf-drop-zone${isDragOver ? " pdf-drop-zone--over" : ""}${uploading.length > 0 ? " pdf-drop-zone--busy" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); }}
+          onDrop={handleDrop}
+          onClick={() => uploading.length === 0 && fileRef.current?.click()}
+          role="button"
+          aria-label="Zone de dépôt PDF"
         >
-          {busy ? "⏳ Upload…" : value ? "↑ Remplacer le PDF" : "📄 Ajouter un PDF"}
-        </button>
+          {uploading.length > 0 ? (
+            <span className="pdf-drop-busy-text">
+              ⏳ Upload… {uploading.length > 1 ? `${uploading.length} fichiers` : uploading[0]}
+            </span>
+          ) : (
+            <>
+              <span className="pdf-drop-icon">📄</span>
+              <span className="pdf-drop-text">
+                Glisser des PDF ici
+                <span className="pdf-drop-sub">ou cliquer pour parcourir</span>
+              </span>
+            </>
+          )}
+        </div>
+
         <input
           ref={fileRef}
           type="file"
           accept=".pdf,application/pdf"
+          multiple
           style={{ display: "none" }}
-          onChange={onFile}
+          onChange={handleFileChange}
         />
-        {err && <span className="muted danger-text" style={{ fontSize: 11, display: "block", marginTop: 2 }}>{err}</span>}
+
+        {errors.map((err, i) => (
+          <span key={i} className="muted danger-text" style={{ fontSize: 11, display: "block" }}>
+            ⚠ {err}
+          </span>
+        ))}
       </div>
     </div>
   );

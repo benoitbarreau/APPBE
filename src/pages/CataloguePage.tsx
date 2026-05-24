@@ -82,16 +82,20 @@ function ProductCard({
               {portMid > 0 && ` ⇄${portMid}`}
             </span>
           )}
-          {product.datasheetUrl && (
+          {(product.datasheetUrls?.length ?? 0) > 0 && (
             <a
               className="cat-card-pdf-link"
-              href={product.datasheetUrl}
+              href={product.datasheetUrls![0]}
               target="_blank"
               rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              title="Voir la fiche technique PDF"
+              title={product.datasheetUrls!.length > 1
+                ? `${product.datasheetUrls!.length} fiches techniques PDF`
+                : 'Voir la fiche technique PDF'}
             >
-              📄
+              📄{product.datasheetUrls!.length > 1 && (
+                <span style={{ fontSize: 9, marginLeft: 1 }}>{product.datasheetUrls!.length}</span>
+              )}
             </a>
           )}
         </div>

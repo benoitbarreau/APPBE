@@ -52,8 +52,8 @@ export interface Product {
   powerOperatingW?: number; // Consommation en fonctionnement (Watts)
   // ── Dissipation thermique ─────────────────────────────────────────────────
   thermalBtuH?: number;     // BTU/h
-  // ── Fiche technique PDF (URL publique Supabase Storage) ──────────────────
-  datasheetUrl?: string;
+  // ── Fiches techniques PDF (URLs publiques Supabase Storage) ─────────────
+  datasheetUrls?: string[];
 }
 
 export type PortPlacement = "left" | "right" | "middle";
