@@ -642,8 +642,25 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const importRef = useRef<HTMLInputElement>(null)
 
   // ── Navigation marques ──
-  const [brandView,          setBrandView]          = useState<string | null>(null)   // null = grille marques, string = marque sélectionnée
+  const [brandView,           setBrandView]           = useState<string | null>(null)  // null = grille tuiles, string = marque sélectionnée
   const [editingLogoForBrand, setEditingLogoForBrand] = useState<string | null>(null) // nom de la marque dont on édite le logo
+  const [openCategories,      setOpenCategories]      = useState<Set<string>>(new Set()) // catégories dépliées dans la vue détail marque
+
+  /** Ouvre la vue détail d'une marque en réinitialisant les catégories (toutes repliées). */
+  const openBrand = (brand: string) => {
+    setBrandView(brand)
+    setOpenCategories(new Set())
+  }
+
+  /** Bascule l'état ouvert/fermé d'une catégorie. */
+  const toggleCategory = (cat: string) => {
+    setOpenCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
 
   // ── A : Aperçu rapide ──
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -1217,33 +1234,41 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           </div>
 
         ) : viewMode === 'byBrand' && brandView ? (
-          /* ── Vue détail marque : produits groupés par catégorie ── */
+          /* ── Vue détail marque : catégories repliables ── */
           <>
             {groupedBrandDetail.length === 0 ? (
               <div className="catalogue-empty">
                 <p>Aucun produit pour cette marque avec les filtres actifs.</p>
                 {hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}
               </div>
-            ) : groupedBrandDetail.map(([cat, prods]) => (
-              <div key={cat} className="catalogue-group">
-                <div
-                  className="catalogue-group-header"
-                  style={{ borderLeftColor: catColorMap[cat] ?? '#9ca3af' }}
-                >
-                  <span className="catalogue-group-icon">📂</span>
-                  <span className="catalogue-group-title">{cat}</span>
-                  <span className="catalogue-group-count">{prods.length}</span>
+            ) : groupedBrandDetail.map(([cat, prods]) => {
+              const isOpen = openCategories.has(cat)
+              return (
+                <div key={cat} className="catalogue-group">
+                  <button
+                    className={`catalogue-group-header catalogue-group-header--collapsible${isOpen ? ' open' : ''}`}
+                    style={{ borderLeftColor: catColorMap[cat] ?? '#9ca3af' }}
+                    onClick={() => toggleCategory(cat)}
+                  >
+                    <span className="catalogue-group-collapse-arrow">{isOpen ? '▼' : '▶'}</span>
+                    <span className="catalogue-group-title">{cat}</span>
+                    <span className="catalogue-group-count">{prods.length}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="catalogue-group-content">
+                      <ProductGrid
+                        products={prods}
+                        productMeta={productMeta}
+                        catColorMap={catColorMap}
+                        selectedIds={selectedIds}
+                        onToggleSelect={toggleSelect}
+                        onPreview={id => setPreviewId(id)}
+                      />
+                    </div>
+                  )}
                 </div>
-                <ProductGrid
-                  products={prods}
-                  productMeta={productMeta}
-                  catColorMap={catColorMap}
-                  selectedIds={selectedIds}
-                  onToggleSelect={toggleSelect}
-                  onPreview={id => setPreviewId(id)}
-                />
-              </div>
-            ))}
+              )
+            })}
           </>
 
         ) : viewMode === 'byBrand' ? (
@@ -1257,7 +1282,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                 logo={brandLogoMap[brand]}
                 brandId={brandIdMap[brand]}
                 isAdmin={isAdmin}
-                onOpen={() => setBrandView(brand)}
+                onOpen={() => openBrand(brand)}
                 onEditLogo={() => setEditingLogoForBrand(brand)}
               />
             ))}

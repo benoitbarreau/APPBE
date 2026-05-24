@@ -10585,7 +10585,7 @@ select {
 .cat-list-status { }
 
 /* ── Vues groupées (par marque / par catégorie) ── */
-.catalogue-group { margin-bottom: 28px; }
+.catalogue-group { margin-bottom: 16px; }
 .catalogue-group-header {
   display: flex;
   align-items: center;
@@ -10596,6 +10596,52 @@ select {
   border-left: 4px solid var(--primary);
   border-radius: 8px;
   margin-bottom: 12px;
+}
+
+/* Variante repliable (vue détail marque) */
+.catalogue-group-header--collapsible {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: 8px;
+  transition: background 0.12s, box-shadow 0.12s;
+  user-select: none;
+}
+.catalogue-group-header--collapsible:hover {
+  background: #f4f6fa;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.catalogue-group-header--collapsible.open {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.catalogue-group-collapse-arrow {
+  font-size: 9px;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color 0.12s;
+  width: 10px;
+  text-align: center;
+}
+.catalogue-group-header--collapsible.open .catalogue-group-collapse-arrow {
+  color: var(--primary);
+}
+
+/* Contenu déplié avec animation */
+.catalogue-group-content {
+  border: 1.5px solid var(--border);
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  padding: 12px;
+  margin-bottom: 0;
+  animation: group-open 0.15s ease-out;
+}
+@keyframes group-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .catalogue-group-icon { font-size: 14px; flex-shrink: 0; }
 .catalogue-group-title {
