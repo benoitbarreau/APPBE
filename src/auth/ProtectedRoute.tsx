@@ -76,11 +76,6 @@ type Page = 'home' | 'projects' | 'editor' | 'referentiel'
  *  d'un autre compte si quelqu'un se connecte sur le même navigateur. */
 const SESSION_VIEW_KEY = 'synox.session.view'
 
-/** Clé sessionStorage : présente si l'utilisateur était déjà connecté dans
- *  cet onglet (survit au F5, détruite à la fermeture de l'onglet / logout).
- *  Permet de distinguer un vrai login (→ accueil) d'un simple rafraîchissement
- *  (→ restaurer la dernière vue). */
-const SESSION_INIT_KEY = 'synox.session.initialized'
 interface PersistedView {
   userId: string
   page: Page
@@ -126,12 +121,26 @@ export function ProtectedRoute() {
   /** Évite de re-restaurer la vue à chaque changement de user (n'arme qu'une fois par session) */
   const hasRestoredRef = useRef(false)
 
+  /** Vrai si loading=false a été observé alors que user=null.
+   *  Cela indique que le formulaire de login a été affiché → c'est un vrai login.
+   *  Sur un simple F5, le bootstrap charge la session pendant que loading=true,
+   *  donc cet état intermédiaire n'est jamais atteint. */
+  const loginWaitedRef = useRef(false)
+
   const clearForUser = useAppStore(s => s.clearForUser)
   const mergeUserProducts = useAppStore(s => s.mergeUserProducts)
   const mergeUserSignals = useAppStore(s => s.mergeUserSignals)
   const mergeUserZones = useAppStore(s => s.mergeUserZones)
   const setCatalogMeta = useCatalogMeta(s => s.setCatalogMeta)
   const loadProjectData = useAppStore(s => s.loadProjectData)
+
+  // Détecte le moment où le formulaire de login est affiché (loading=false, user=null).
+  // Cela ne se produit PAS sur un F5 (le bootstrap charge la session pendant loading=true).
+  useEffect(() => {
+    if (!loading && !user) {
+      loginWaitedRef.current = true
+    }
+  }, [loading, user])
 
   // Sécurité : isoler les données du store par utilisateur.
   useEffect(() => {
@@ -155,12 +164,12 @@ export function ProtectedRoute() {
     hasRestoredRef.current = true
 
     // Distinguer un vrai login d'un rafraîchissement de page (F5).
-    // sessionStorage survit au F5 mais est vide lors d'un nouveau login.
-    const alreadyInit = sessionStorage.getItem(SESSION_INIT_KEY)
-    const isPageRefresh = alreadyInit === user.id
-    sessionStorage.setItem(SESSION_INIT_KEY, user.id)
+    // loginWaitedRef est true si le formulaire de login a été affiché avant que user apparaisse.
+    // Sur un F5, le bootstrap charge la session pendant loading=true → cet état n'est jamais atteint.
+    const isFreshLogin = loginWaitedRef.current
+    loginWaitedRef.current = false // consommer le flag
 
-    if (!isPageRefresh) {
+    if (isFreshLogin) {
       // Vrai login → toujours aller à la page d'accueil, ignorer la vue persistée
       clearPersistedView()
       return
@@ -217,10 +226,10 @@ export function ProtectedRoute() {
   }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
   // Revenir à la page d'accueil si la session expire ou si l'utilisateur se déconnecte.
-  // On efface aussi SESSION_INIT_KEY pour que le prochain login reparte toujours de l'accueil.
+  // loginWaitedRef sera remis à true naturellement quand loading=false + user=null
+  // sera observé après le logout (voir l'effet ci-dessus).
   useEffect(() => {
     if (!user) {
-      sessionStorage.removeItem(SESSION_INIT_KEY)
       setPage('home')
       setShowAdminDashboard(false)
       setShowRegister(false)
