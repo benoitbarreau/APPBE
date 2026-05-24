@@ -434,6 +434,8 @@ export function ProtectedRoute() {
       {page === 'catalogue' && (
         <CataloguePage
           onGoHome={handleGoHome}
+          onOpenProjects={() => { setPage('projects'); persistView('projects', false) }}
+          onOpenReferentiel={handleOpenReferentiel}
           onOpenAdminDashboard={openAdmin}
         />
       )}
