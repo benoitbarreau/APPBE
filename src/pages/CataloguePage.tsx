@@ -807,8 +807,10 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                 ← {viewMode === 'byBrand' ? 'Marques' : 'Catégories'}
               </button>
               <span className="catalogue-brand-nav-sep">›</span>
-              {brandView && brandLogoMap[brandView] && (
-                <img src={brandLogoMap[brandView]} alt={brandView} className="brand-nav-logo-sm" />
+              {brandView && (
+                brandLogoMap[brandView]
+                  ? <img src={brandLogoMap[brandView]} alt={brandView} className="brand-nav-logo-lg" />
+                  : <div className="brand-nav-initial">{(brandView[0] ?? '?').toUpperCase()}</div>
               )}
               {catView && (
                 <div className="catalogue-subnav-cat-dot" style={{ background: catColorMap[catView] ?? '#9ca3af' }} />
@@ -902,9 +904,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       )}
 
       {/* ── Contenu ── */}
-      <div className="catalogue-content">
+      <div className={`catalogue-content${viewMode === 'byBrand' && !!brandView ? ' catalogue-content--brand-detail' : ''}`}>
 
-        {/* ── Vue Marques ── */}
+        {/* ── Vue Marques : tuiles ── */}
         {viewMode === 'byBrand' && !brandView && (
           <div className="brand-tiles-grid">
             {groupedByBrand.map(([brand, prods]) => (
@@ -916,45 +918,67 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           </div>
         )}
 
-        {/* ── Détail marque : catégories repliables ── */}
+        {/* ── Détail marque : sidebar + catégories repliables ── */}
         {viewMode === 'byBrand' && brandView && (
-          <>
-            {detailView === 'grid' && (
-              brandDetailGroups.length === 0
-                ? <div className="catalogue-empty"><p>Aucun résultat.{hasActiveFilter && ' '}</p>{hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}</div>
-                : brandDetailGroups.map(([cat, prods]) => {
-                  const isOpen = openCategories.has(cat)
-                  return (
-                    <div key={cat} className="catalogue-group">
-                      <button
-                        className={`catalogue-group-header catalogue-group-header--collapsible${isOpen ? ' open' : ''}`}
-                        style={{ borderLeftColor: catColorMap[cat] ?? '#9ca3af' }}
-                        onClick={() => toggleCategory(cat)}
-                      >
-                        <span className="catalogue-group-collapse-arrow">{isOpen ? '▼' : '▶'}</span>
-                        <span className="catalogue-group-title">{cat}</span>
-                        <span className="catalogue-group-count">{prods.length}</span>
-                      </button>
-                      {isOpen && (
-                        <div className="catalogue-group-content">
-                          <ProductGrid products={prods} productMeta={productMeta} catColorMap={catColorMap}
-                            selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)} />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
-            )}
-            {detailView === 'list' && (
-              brandDetailGroups.length === 0
-                ? <div className="catalogue-empty"><p>Aucun résultat.</p>{hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}</div>
-                : <ProductListView
-                    products={brandDetailGroups.flatMap(([, p]) => p)}
-                    productMeta={productMeta} catColorMap={catColorMap}
-                    selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)}
-                    listSortKey={listSortKey} listSortDir={listSortDir} onSort={toggleListSort} />
-            )}
-          </>
+          <div className="brand-detail-layout">
+
+            {/* Bandeau gauche — toutes les marques */}
+            <nav className="brand-sidebar" aria-label="Navigation marques">
+              {groupedByBrand.map(([brand]) => (
+                <button
+                  key={brand}
+                  className={`brand-sidebar-item${brand === brandView ? ' active' : ''}`}
+                  onClick={() => openBrand(brand)}
+                  title={brand}
+                  aria-label={brand}
+                >
+                  {brandLogoMap[brand]
+                    ? <img src={brandLogoMap[brand]} alt={brand} className="brand-sidebar-logo" />
+                    : <div className="brand-sidebar-initial">{(brand[0] ?? '?').toUpperCase()}</div>
+                  }
+                </button>
+              ))}
+            </nav>
+
+            {/* Contenu principal */}
+            <div className="brand-detail-main">
+              {detailView === 'grid' && (
+                brandDetailGroups.length === 0
+                  ? <div className="catalogue-empty"><p>Aucun résultat.{hasActiveFilter && ' '}</p>{hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}</div>
+                  : brandDetailGroups.map(([cat, prods]) => {
+                    const isOpen = openCategories.has(cat)
+                    return (
+                      <div key={cat} className="catalogue-group">
+                        <button
+                          className={`catalogue-group-header catalogue-group-header--collapsible${isOpen ? ' open' : ''}`}
+                          style={{ borderLeftColor: catColorMap[cat] ?? '#9ca3af' }}
+                          onClick={() => toggleCategory(cat)}
+                        >
+                          <span className="catalogue-group-collapse-arrow">{isOpen ? '▼' : '▶'}</span>
+                          <span className="catalogue-group-title">{cat}</span>
+                          <span className="catalogue-group-count">{prods.length}</span>
+                        </button>
+                        {isOpen && (
+                          <div className="catalogue-group-content">
+                            <ProductGrid products={prods} productMeta={productMeta} catColorMap={catColorMap}
+                              selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+              )}
+              {detailView === 'list' && (
+                brandDetailGroups.length === 0
+                  ? <div className="catalogue-empty"><p>Aucun résultat.</p>{hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}</div>
+                  : <ProductListView
+                      products={brandDetailGroups.flatMap(([, p]) => p)}
+                      productMeta={productMeta} catColorMap={catColorMap}
+                      selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)}
+                      listSortKey={listSortKey} listSortDir={listSortDir} onSort={toggleListSort} />
+              )}
+            </div>
+          </div>
         )}
 
         {/* ── Vue Catégories : tuiles ── */}
