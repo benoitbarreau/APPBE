@@ -29,7 +29,7 @@ export function HomePage({ onOpenProjects, onOpenReferentiel, onOpenAdminDashboa
         <div className="home-header-right">
           {profile?.role === 'admin' && onOpenAdminDashboard && (
             <button className="home-header-action-btn" onClick={onOpenAdminDashboard} title="Tableau de bord administrateur">
-              ⚙️ Admin
+              ⚙️ Tableau de bord
             </button>
           )}
           <button

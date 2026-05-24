@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { UserTable } from '../components/auth/UserTable'
@@ -20,12 +20,43 @@ import {
   deleteUserProduct,
 } from '../lib/userProductsApi'
 
-// ── Onglet utilisateurs ───────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────
 
 type FilterStatus = UserStatus | 'all'
 
 const FILTER_LABELS: Record<FilterStatus, string> = {
   all: 'Tous', pending: 'En attente', approved: 'Approuvés', rejected: 'Refusés',
+}
+
+interface AdminLog {
+  id: string
+  admin_id: string | null
+  action: string
+  target_id: string | null
+  target_label: string | null
+  details: Record<string, unknown>
+  created_at: string
+  admin?: { full_name: string | null; email: string | null } | null
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  approve_user:   'Utilisateur approuvé',
+  reject_user:    'Utilisateur refusé',
+  delete_user:    'Utilisateur supprimé',
+  update_user:    'Utilisateur modifié',
+  invite_user:    'Invitation envoyée',
+  restore_product:'Produit restauré',
+  delete_product: 'Produit supprimé définitivement',
+}
+
+const ACTION_ICONS: Record<string, string> = {
+  approve_user:   '✅',
+  reject_user:    '❌',
+  delete_user:    '🗑',
+  update_user:    '✏️',
+  invite_user:    '✉️',
+  restore_product:'↻',
+  delete_product: '🗑',
 }
 
 // ── Onglet catalogue ──────────────────────────────────────────────────────
@@ -164,7 +195,11 @@ function CategoryRow({
 
 // ── Panneau Invitations ───────────────────────────────────────────────────
 
-function InvitationsPanel() {
+function InvitationsPanel({
+  onSuccess,
+}: {
+  onSuccess?: (email: string, role: 'user' | 'admin') => void
+}) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<'user' | 'admin'>('user')
@@ -190,7 +225,9 @@ function InvitationsPanel() {
         method,
         password: method === 'password' ? password : undefined,
       })
-      setSuccess({ email: email.trim(), role, method, password: method === 'password' ? password : undefined })
+      const invited = { email: email.trim(), role, method, password: method === 'password' ? password : undefined }
+      setSuccess(invited)
+      onSuccess?.(email.trim(), role)
       setEmail('')
       setFullName('')
       setRole('user')
@@ -359,13 +396,47 @@ function InvitationsPanel() {
 
 // ── Composant principal ───────────────────────────────────────────────────
 
-type AdminTab = 'users' | 'catalog' | 'archives' | 'invitations'
+type AdminTab = 'users' | 'invitations' | 'catalog' | 'archives' | 'logs'
 
 export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const { profile: currentProfile } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
 
-  // ── Utilisateurs ──
+  // ── Logging ──────────────────────────────────────────────────────────────
+  const logAction = useCallback(async (
+    action: string,
+    targetId?: string,
+    targetLabel?: string,
+    details?: Record<string, unknown>,
+  ) => {
+    try {
+      await supabase.from('admin_logs').insert({
+        admin_id: currentProfile?.id ?? null,
+        action,
+        target_id: targetId ?? null,
+        target_label: targetLabel ?? null,
+        details: details ?? {},
+      })
+    } catch {
+      // Erreur de log non bloquante
+    }
+  }, [currentProfile?.id])
+
+  // ── Stats globaux ─────────────────────────────────────────────────────────
+  const [projectsCount, setProjectsCount] = useState<number | null>(null)
+  const [clientsCount, setClientsCount]   = useState<number | null>(null)
+
+  useEffect(() => {
+    void Promise.all([
+      supabase.from('projects').select('*', { count: 'exact', head: true }),
+      supabase.from('clients').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    ]).then(([proj, cli]) => {
+      setProjectsCount(proj.count ?? 0)
+      setClientsCount(cli.count ?? 0)
+    })
+  }, [])
+
+  // ── Utilisateurs ─────────────────────────────────────────────────────────
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
@@ -382,8 +453,14 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   }, [])
 
   const updateStatus = async (id: string, status: UserStatus) => {
+    const target = profiles.find(p => p.id === id)
     await supabase.from('profiles').update({ status }).eq('id', id)
     setProfiles(prev => prev.map(p => p.id === id ? { ...p, status } : p))
+    void logAction(
+      status === 'approved' ? 'approve_user' : 'reject_user',
+      id,
+      target?.full_name ?? target?.email ?? id,
+    )
   }
 
   const updateRole = async (id: string, role: UserRole) => {
@@ -392,35 +469,36 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   }
 
   const deleteUser = async (id: string) => {
+    const target = profiles.find(p => p.id === id)
     await supabase.rpc('admin_delete_user', { target_user_id: id })
     setProfiles(prev => prev.filter(p => p.id !== id))
+    void logAction('delete_user', id, target?.full_name ?? target?.email ?? id)
   }
 
   const handleUserSaved = (updated: Profile) => {
     setProfiles(prev => prev.map(p => p.id === updated.id ? updated : p))
-    // Ne pas fermer la modal pour permettre de continuer l'édition
+    void logAction('update_user', updated.id, updated.full_name ?? updated.email ?? updated.id)
   }
 
-  const filtered = filterStatus === 'all' ? profiles : profiles.filter(p => p.status === filterStatus)
+  const pendingUsers  = profiles.filter(p => p.status === 'pending')
+  const pendingCount  = pendingUsers.length
+  const filtered      = filterStatus === 'all' ? profiles : profiles.filter(p => p.status === filterStatus)
   const filters: FilterStatus[] = ['all', 'pending', 'approved', 'rejected']
 
-  // ── Catalogue ──
+  // ── Catalogue ─────────────────────────────────────────────────────────────
   const setCatalogMeta = useCatalogMeta(s => s.setCatalogMeta)
-  const [brands, setBrands] = useState<CatalogBrand[]>([])
+  const [brands, setBrands]         = useState<CatalogBrand[]>([])
   const [categories, setCategories] = useState<CatalogCategory[]>([])
   const [loadingCatalog, setLoadingCatalog] = useState(false)
-  const [catalogErr, setCatalogErr] = useState<string | null>(null)
+  const [catalogErr, setCatalogErr]         = useState<string | null>(null)
   const [migrationMissing, setMigrationMissing] = useState(false)
-  const [importing, setImporting] = useState(false)
+  const [importing, setImporting]               = useState(false)
 
-  // Nouvelle marque
-  const [newBrand, setNewBrand] = useState('')
+  const [newBrand, setNewBrand]     = useState('')
   const [addingBrand, setAddingBrand] = useState(false)
-
-  // Nouvelle catégorie
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#3B82F6')
-  const [addingCat, setAddingCat] = useState(false)
+  const [addingCat, setAddingCat]   = useState(false)
 
   const loadCatalog = async (autoImport = false) => {
     setLoadingCatalog(true)
@@ -428,16 +506,12 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     setMigrationMissing(false)
     try {
       const [b, c] = await Promise.all([fetchBrands(), fetchCategories()])
-      // Si les deux listes sont vides, importer automatiquement depuis les produits existants
       if (autoImport && b.length === 0 && c.length === 0) {
-        // Produits cloud
         await importMetaFromProducts()
-        // Produits builtin
         const builtinBrands = [...new Set(BUILTIN_CATALOG.map(p => p.manufacturer?.trim() ?? '').filter(Boolean))]
         const builtinCategories = [...new Set(BUILTIN_CATALOG.map(p => p.category?.trim() ?? '').filter(Boolean))]
         for (const name of builtinBrands) { try { await createBrand(name) } catch { /* doublon ignoré */ } }
         for (const name of builtinCategories) { try { await createCategory(name, '#6c7480') } catch { /* doublon ignoré */ } }
-        // Recharger
         const [b2, c2] = await Promise.all([fetchBrands(), fetchCategories()])
         setBrands(b2)
         setCategories(c2)
@@ -463,33 +537,15 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     setImporting(true)
     setCatalogErr(null)
     try {
-      // 1. Importer depuis user_products (produits cloud)
       const fromCloud = await importMetaFromProducts()
-
-      // 2. Ajouter les marques/catégories du catalogue intégré (BUILTIN_CATALOG)
-      //    qui ne sont JAMAIS dans user_products (ils sont dans le code)
-      const builtinBrands = [...new Set(
-        BUILTIN_CATALOG.map(p => p.manufacturer?.trim() ?? '').filter(Boolean)
-      )]
-      const builtinCategories = [...new Set(
-        BUILTIN_CATALOG.map(p => p.category?.trim() ?? '').filter(Boolean)
-      )]
-
-      // Insérer les marques builtin manquantes
+      const builtinBrands = [...new Set(BUILTIN_CATALOG.map(p => p.manufacturer?.trim() ?? '').filter(Boolean))]
+      const builtinCategories = [...new Set(BUILTIN_CATALOG.map(p => p.category?.trim() ?? '').filter(Boolean))]
       const existingBrandNames = new Set([...brands.map(b => b.name), ...fromCloud.brands.map(b => b.name)])
       const missingBrands = builtinBrands.filter(n => !existingBrandNames.has(n))
-      for (const name of missingBrands) {
-        try { await createBrand(name) } catch { /* doublon ignoré */ }
-      }
-
-      // Insérer les catégories builtin manquantes
+      for (const name of missingBrands) { try { await createBrand(name) } catch { /* doublon ignoré */ } }
       const existingCatNames = new Set([...categories.map(c => c.name), ...fromCloud.categories.map(c => c.name)])
       const missingCats = builtinCategories.filter(n => !existingCatNames.has(n))
-      for (const name of missingCats) {
-        try { await createCategory(name, '#6c7480') } catch { /* doublon ignoré */ }
-      }
-
-      // 3. Recharger la liste complète
+      for (const name of missingCats) { try { await createCategory(name, '#6c7480') } catch { /* doublon ignoré */ } }
       await loadCatalog(false)
     } catch (e) {
       setCatalogErr(e instanceof Error ? e.message : 'Erreur lors de l\'import')
@@ -501,52 +557,6 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (activeTab === 'catalog') void loadCatalog(true)
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Archives produits ──
-  const archivedProducts = useAppStore(s => s.archivedProducts)
-  const archivedProductsMeta = useAppStore(s => s.archivedProductsMeta)
-  const setArchivedProducts = useAppStore(s => s.setArchivedProducts)
-  const restoreProductLocal = useAppStore(s => s.restoreProductLocal)
-  const hardDeleteArchivedLocal = useAppStore(s => s.hardDeleteArchivedLocal)
-  const [loadingArchives, setLoadingArchives] = useState(false)
-  const [archivesErr, setArchivesErr] = useState<string | null>(null)
-  const [hardDeleting, setHardDeleting] = useState<string | null>(null)
-
-  const loadArchives = async () => {
-    setLoadingArchives(true)
-    setArchivesErr(null)
-    try {
-      const rows = await fetchArchivedUserProducts()
-      setArchivedProducts(rows)
-    } catch (e) {
-      setArchivesErr(e instanceof Error ? e.message : 'Erreur de chargement')
-    } finally {
-      setLoadingArchives(false)
-    }
-  }
-
-  useEffect(() => {
-    if (activeTab === 'archives') void loadArchives()
-  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleRestore = async (productId: string) => {
-    try {
-      await restoreUserProduct(productId)
-      restoreProductLocal(productId)
-    } catch (e) {
-      alert('Erreur lors de la restauration : ' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
-
-  const handleHardDelete = async (productId: string) => {
-    try {
-      await deleteUserProduct(productId)
-      hardDeleteArchivedLocal(productId)
-      setHardDeleting(null)
-    } catch (e) {
-      alert('Erreur lors de la suppression : ' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
 
   // Marques
   const handleAddBrand = async () => {
@@ -613,44 +623,188 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     setCatalogMeta(brands, next)
   }
 
+  // ── Archives produits ─────────────────────────────────────────────────────
+  const archivedProducts     = useAppStore(s => s.archivedProducts)
+  const archivedProductsMeta = useAppStore(s => s.archivedProductsMeta)
+  const setArchivedProducts  = useAppStore(s => s.setArchivedProducts)
+  const restoreProductLocal  = useAppStore(s => s.restoreProductLocal)
+  const hardDeleteArchivedLocal = useAppStore(s => s.hardDeleteArchivedLocal)
+  const [loadingArchives, setLoadingArchives] = useState(false)
+  const [archivesErr, setArchivesErr]         = useState<string | null>(null)
+  const [hardDeleting, setHardDeleting]       = useState<string | null>(null)
+
+  const loadArchives = async () => {
+    setLoadingArchives(true)
+    setArchivesErr(null)
+    try {
+      const rows = await fetchArchivedUserProducts()
+      setArchivedProducts(rows)
+    } catch (e) {
+      setArchivesErr(e instanceof Error ? e.message : 'Erreur de chargement')
+    } finally {
+      setLoadingArchives(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'archives') void loadArchives()
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRestore = async (productId: string) => {
+    const p = archivedProducts.find(x => x.id === productId)
+    try {
+      await restoreUserProduct(productId)
+      restoreProductLocal(productId)
+      void logAction('restore_product', productId, p?.reference ?? productId)
+    } catch (e) {
+      alert('Erreur lors de la restauration : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  const handleHardDelete = async (productId: string) => {
+    const p = archivedProducts.find(x => x.id === productId)
+    try {
+      await deleteUserProduct(productId)
+      hardDeleteArchivedLocal(productId)
+      setHardDeleting(null)
+      void logAction('delete_product', productId, p?.reference ?? productId)
+    } catch (e) {
+      alert('Erreur lors de la suppression : ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  // ── Journal d'activité ────────────────────────────────────────────────────
+  const [logs, setLogs]           = useState<AdminLog[]>([])
+  const [loadingLogs, setLoadingLogs] = useState(false)
+
+  const loadLogs = async () => {
+    setLoadingLogs(true)
+    try {
+      const { data } = await supabase
+        .from('admin_logs')
+        .select('*, admin:profiles!admin_logs_admin_id_fkey(full_name, email)')
+        .order('created_at', { ascending: false })
+        .limit(200)
+      setLogs((data ?? []) as AdminLog[])
+    } catch (e) {
+      console.error('Erreur chargement logs:', e)
+    } finally {
+      setLoadingLogs(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'logs') void loadLogs()
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Rendu ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="modal-backdrop">
       <div className="modal admin-dashboard-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
+
+        {/* ── Header avec titre + onglets ── */}
+        <div className="modal-header admin-dashboard-modal-header">
+          <div className="admin-dashboard-header-top">
+            <h2 className="admin-dashboard-title">Tableau de bord</h2>
+            <button onClick={onClose} title="Fermer">✕</button>
+          </div>
           <div className="admin-tabs">
             <button
               className={`admin-tab${activeTab === 'users' ? ' active' : ''}`}
               onClick={() => setActiveTab('users')}
             >
-              Utilisateurs
-            </button>
-            <button
-              className={`admin-tab${activeTab === 'catalog' ? ' active' : ''}`}
-              onClick={() => setActiveTab('catalog')}
-            >
-              Catalogue
-            </button>
-            <button
-              className={`admin-tab${activeTab === 'archives' ? ' active' : ''}`}
-              onClick={() => setActiveTab('archives')}
-            >
-              Archives produits
+              👥 Utilisateurs
+              {pendingCount > 0 && <span className="admin-tab-badge">{pendingCount}</span>}
             </button>
             <button
               className={`admin-tab${activeTab === 'invitations' ? ' active' : ''}`}
               onClick={() => setActiveTab('invitations')}
             >
-              Invitations
+              ✉️ Invitations
+            </button>
+            <button
+              className={`admin-tab${activeTab === 'catalog' ? ' active' : ''}`}
+              onClick={() => setActiveTab('catalog')}
+            >
+              📦 Catalogue
+            </button>
+            <button
+              className={`admin-tab${activeTab === 'archives' ? ' active' : ''}`}
+              onClick={() => setActiveTab('archives')}
+            >
+              🗄️ Archives
+            </button>
+            <button
+              className={`admin-tab${activeTab === 'logs' ? ' active' : ''}`}
+              onClick={() => setActiveTab('logs')}
+            >
+              📋 Journal
             </button>
           </div>
-          <button onClick={onClose}>✕</button>
         </div>
 
+        {/* ── Barre de stats KPI ── */}
+        <div className="admin-stats-bar">
+          <div className="admin-stat-card">
+            <span className="admin-stat-value">{profiles.length}</span>
+            <span className="admin-stat-label">Utilisateurs</span>
+          </div>
+          {pendingCount > 0 && (
+            <div className="admin-stat-card admin-stat-card--alert">
+              <span className="admin-stat-value">{pendingCount}</span>
+              <span className="admin-stat-label">En attente</span>
+            </div>
+          )}
+          <div className="admin-stat-card">
+            <span className="admin-stat-value">{projectsCount ?? '—'}</span>
+            <span className="admin-stat-label">Projets</span>
+          </div>
+          <div className="admin-stat-card">
+            <span className="admin-stat-value">{clientsCount ?? '—'}</span>
+            <span className="admin-stat-label">Clients</span>
+          </div>
+        </div>
+
+        {/* ── Contenu ── */}
         <div className="admin-dashboard-body">
 
           {/* ── Onglet Utilisateurs ── */}
           {activeTab === 'users' && (
             <>
+              {/* Section "À traiter" */}
+              {!loadingUsers && pendingCount > 0 && (
+                <div className="admin-pending-section">
+                  <div className="admin-pending-header">
+                    <span className="admin-pending-title">⏳ À traiter — {pendingCount} inscription{pendingCount > 1 ? 's' : ''} en attente</span>
+                  </div>
+                  <div className="admin-pending-list">
+                    {pendingUsers.map(p => (
+                      <div key={p.id} className="admin-pending-row">
+                        <div className="admin-pending-user">
+                          <span className="admin-pending-name">{p.full_name || '—'}</span>
+                          <span className="admin-pending-email">{p.email}</span>
+                        </div>
+                        <div className="admin-pending-actions">
+                          <button
+                            className="primary admin-pending-btn"
+                            onClick={() => void updateStatus(p.id, 'approved')}
+                          >
+                            ✓ Approuver
+                          </button>
+                          <button
+                            className="danger admin-pending-btn"
+                            onClick={() => void updateStatus(p.id, 'rejected')}
+                          >
+                            ✕ Refuser
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="admin-filter-bar">
                 <span className="muted">Filtrer :</span>
                 {filters.map(s => (
@@ -680,10 +834,20 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
             </>
           )}
 
+          {/* ── Onglet Invitations ── */}
+          {activeTab === 'invitations' && (
+            <div style={{ padding: '12px 16px' }}>
+              <InvitationsPanel
+                onSuccess={(email, role) => {
+                  void logAction('invite_user', undefined, email, { role })
+                }}
+              />
+            </div>
+          )}
+
           {/* ── Onglet Catalogue ── */}
           {activeTab === 'catalog' && (
             <>
-              {/* Migration manquante */}
               {migrationMissing && (
                 <div className="catmeta-migration-warning">
                   <strong>⚠ Migration SQL requise</strong>
@@ -892,10 +1056,53 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
               )}
             </div>
           )}
-          {/* ── Onglet Invitations ── */}
-          {activeTab === 'invitations' && (
-            <div style={{ padding: '12px 16px' }}>
-              <InvitationsPanel />
+
+          {/* ── Onglet Journal d'activité ── */}
+          {activeTab === 'logs' && (
+            <div className="admin-logs-panel">
+              <div className="admin-logs-header">
+                <h3 className="admin-logs-title">Journal d'activité</h3>
+                <button onClick={() => void loadLogs()} disabled={loadingLogs}>
+                  ↻ Recharger
+                </button>
+              </div>
+              {loadingLogs ? (
+                <div className="auth-loading-inline">Chargement…</div>
+              ) : logs.length === 0 ? (
+                <div className="catmeta-empty">
+                  Aucune activité enregistrée pour l'instant.<br />
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    Les actions admin (approbation, invitation, suppression…) apparaîtront ici.
+                  </span>
+                </div>
+              ) : (
+                <div className="admin-logs-list">
+                  {logs.map(log => {
+                    const icon     = ACTION_ICONS[log.action] ?? '•'
+                    const label    = ACTION_LABELS[log.action] ?? log.action
+                    const adminName = log.admin?.full_name ?? log.admin?.email ?? 'Admin'
+                    const date     = new Date(log.created_at)
+                    const dateStr  = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+                    const timeStr  = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                    return (
+                      <div key={log.id} className={`admin-log-entry admin-log-entry--${log.action.replace('_', '-')}`}>
+                        <span className="admin-log-icon">{icon}</span>
+                        <div className="admin-log-content">
+                          <span className="admin-log-label">{label}</span>
+                          {log.target_label && (
+                            <span className="admin-log-target">— {log.target_label}</span>
+                          )}
+                          <span className="admin-log-by">par {adminName}</span>
+                        </div>
+                        <div className="admin-log-time">
+                          <span>{dateStr}</span>
+                          <span className="admin-log-hour">{timeStr}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
