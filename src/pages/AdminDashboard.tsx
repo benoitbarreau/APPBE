@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/useAuth'
 import { UserTable } from '../components/auth/UserTable'
@@ -75,6 +75,66 @@ const PRESET_COLORS = [
   '#14B8A6', '#0D9488', '#0891B2', '#78716C', '#57534E', '#6B7280',
   '#4B5563', '#374151', '#1F2937', '#0F172A', '#92400E', '#7F1D1D',
 ]
+
+// ── Sélecteur couleur avec popover ────────────────────────────────────────
+
+function ColorPickerPopover({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (c: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div className="color-picker-wrap" ref={ref}>
+      <button
+        className="color-picker-swatch"
+        style={{ background: value }}
+        onClick={() => setOpen(v => !v)}
+        title="Choisir une couleur"
+        type="button"
+      />
+      {open && (
+        <div className="color-picker-popover">
+          <div className="color-picker-presets">
+            {PRESET_COLORS.map(c => (
+              <button
+                key={c}
+                className={`color-picker-dot${value === c ? ' active' : ''}`}
+                style={{ background: c }}
+                onClick={() => { onChange(c); setOpen(false) }}
+                title={c}
+                type="button"
+              />
+            ))}
+          </div>
+          <div className="color-picker-custom-row">
+            <span className="color-picker-custom-label">Couleur personnalisée :</span>
+            <input
+              type="color"
+              value={value}
+              onChange={e => onChange(e.target.value)}
+              className="color-picker-input-native"
+              title="Couleur libre"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function BrandRow({
   brand, onSave, onDelete,
@@ -161,26 +221,7 @@ function CategoryRow({
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') { setName(category.name); setColor(category.color); setEditing(false) } }}
           />
-          <div className="catmeta-color-picker">
-            <input
-              type="color"
-              value={color}
-              onChange={e => setColor(e.target.value)}
-              title="Choisir la couleur"
-              className="catmeta-color-input"
-            />
-            <div className="catmeta-presets">
-              {PRESET_COLORS.map(c => (
-                <button
-                  key={c}
-                  className={`catmeta-preset${color === c ? ' active' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setColor(c)}
-                  title={c}
-                />
-              ))}
-            </div>
-          </div>
+          <ColorPickerPopover value={color} onChange={setColor} />
         </div>
       ) : (
         <span className="catmeta-name">{category.name}</span>
