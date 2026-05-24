@@ -10443,7 +10443,7 @@ select {
 }
 
 .brand-sidebar {
-  width: 62px;
+  width: 124px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -10459,9 +10459,9 @@ select {
 }
 
 .brand-sidebar-item {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
+  width: 104px;
+  height: 92px;
+  border-radius: 12px;
   border: 1.5px solid transparent;
   padding: 0;
   cursor: pointer;
@@ -10496,19 +10496,19 @@ select {
 }
 
 .brand-sidebar-logo {
-  width: 34px;
-  height: 34px;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   display: block;
 }
 
 .brand-sidebar-initial {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
   background: #e5e7eb;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 28px;
   font-weight: 700;
   display: flex;
   align-items: center;
