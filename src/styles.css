@@ -11566,3 +11566,246 @@ select {
   border-top: 1.5px solid var(--border);
   margin-top: 12px;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   TOOLBAR REDESIGN — Onglets principaux + navigation sous-vues
+   ══════════════════════════════════════════════════════════════ */
+
+/* Ligne 1 : onglets principaux + bouton + menu ••• */
+.catalogue-toolbar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Groupe d'onglets "Marques / Catégories" */
+.catalogue-main-tabs {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 24px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.catalogue-main-tab {
+  background: transparent;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+.catalogue-main-tab:hover {
+  background: #eef1f6;
+  color: var(--text);
+}
+.catalogue-main-tab.active {
+  background: var(--panel);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Bouton "+ Nouveau" */
+.catalogue-new-btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.12s;
+}
+.catalogue-new-btn:hover {
+  background: #1a5fd4;
+  border-color: #1a5fd4;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(47,111,237,0.28);
+}
+
+/* Menu ••• */
+.catalogue-actions-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+.catalogue-actions-trigger {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 13px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.catalogue-actions-trigger:hover,
+.catalogue-actions-trigger.open {
+  background: #eef1f6;
+  border-color: var(--primary);
+  color: var(--text);
+}
+.catalogue-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  z-index: 200;
+  min-width: 170px;
+  overflow: hidden;
+  animation: dropdown-in 0.12s ease-out;
+}
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.catalogue-actions-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.catalogue-actions-dropdown button:hover {
+  background: var(--bg);
+}
+.catalogue-actions-dropdown button + button {
+  border-top: 1px solid var(--border);
+}
+
+/* ── Ligne 2 : breadcrumb + bascule grille/liste ── */
+.catalogue-subnav-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+.catalogue-subnav-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.catalogue-subnav-cat-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Bascule ⊞/☰ */
+.catalogue-detail-view-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.catalogue-detail-view-toggle button {
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 15px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.catalogue-detail-view-toggle button:hover { background: #eef1f6; color: var(--text); }
+.catalogue-detail-view-toggle button.active {
+  background: var(--panel);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ── Ligne 3 : recherche + pills ── */
+.catalogue-subfilters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TUILES CATÉGORIES
+   ══════════════════════════════════════════════════════════════ */
+
+.category-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  padding: 24px;
+  align-content: start;
+}
+.category-tile {
+  display: flex;
+  align-items: stretch;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s;
+  text-align: left;
+  padding: 0;
+  min-height: 72px;
+}
+.category-tile:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  border-color: #aab4c2;
+  transform: translateY(-2px);
+}
+.category-tile-band {
+  width: 8px;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+.category-tile-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
+}
+.category-tile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.category-tile-count {
+  font-size: 11px;
+  color: var(--muted);
+}
