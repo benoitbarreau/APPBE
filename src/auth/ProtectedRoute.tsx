@@ -221,9 +221,13 @@ export function ProtectedRoute() {
     fetchUserZones()
       .then(zones => { if (zones.length > 0) mergeUserZones(zones) })
       .catch(() => { /* échec silencieux */ })
-    Promise.all([fetchBrands(), fetchCategories()])
-      .then(([brands, categories]) => setCatalogMeta(brands, categories))
-      .catch(() => { /* échec silencieux */ })
+    // Chargement indépendant : si l'un échoue l'autre continue quand même
+    Promise.allSettled([fetchBrands(), fetchCategories()])
+      .then(([brandsRes, catsRes]) => {
+        const brands     = brandsRes.status     === 'fulfilled' ? brandsRes.value     : []
+        const categories = catsRes.status === 'fulfilled' ? catsRes.value : []
+        setCatalogMeta(brands, categories)
+      })
   }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
   // Revenir à la page d'accueil si la session expire ou si l'utilisateur se déconnecte.

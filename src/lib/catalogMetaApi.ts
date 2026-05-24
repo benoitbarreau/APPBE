@@ -68,7 +68,15 @@ export async function fetchCategories(): Promise<CatalogCategory[]> {
     .from('catalog_categories')
     .select('id, name, color, logo')
     .order('name', { ascending: true })
-  if (error) throw pgErr(error)
+  // Fallback si la colonne logo n'existe pas encore (migration 027 non exécutée)
+  if (error) {
+    const { data: data2, error: error2 } = await supabase
+      .from('catalog_categories')
+      .select('id, name, color')
+      .order('name', { ascending: true })
+    if (error2) throw pgErr(error2)
+    return (data2 ?? []) as CatalogCategory[]
+  }
   return (data ?? []) as CatalogCategory[]
 }
 
