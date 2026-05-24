@@ -9,6 +9,7 @@ import type { UserProductMeta } from '../lib/userProductsApi'
 import { upsertUserProduct, validateUserProduct } from '../lib/userProductsApi'
 import { BUILTIN_CATALOG } from '../catalog'
 import { exportToCsv, importFromCsv } from '../lib/catalogueApi'
+import { updateBrandLogo } from '../lib/catalogMetaApi'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -232,6 +233,176 @@ function ProductPreviewPanel({
   )
 }
 
+// ── Éditeur de logo marque ────────────────────────────────────────────────
+
+function BrandLogoEditor({
+  brandName,
+  currentLogo,
+  onSave,
+  onClose,
+}: {
+  brandName: string
+  currentLogo?: string
+  onSave: (logo: string | null) => void
+  onClose: () => void
+}) {
+  const isUrl = (s: string) => /^https?:\/\/.+/.test(s.trim())
+  const [tab, setTab]         = useState<'upload' | 'url'>(currentLogo && isUrl(currentLogo) ? 'url' : 'upload')
+  const [urlInput, setUrlInput] = useState(currentLogo && isUrl(currentLogo) ? currentLogo : '')
+  const [preview, setPreview] = useState<string | null>(currentLogo ?? null)
+  const [imgError, setImgError] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => { setPreview(reader.result as string); setImgError(false) }
+    reader.readAsDataURL(file)
+  }
+
+  const handleUrlChange = (v: string) => {
+    setUrlInput(v)
+    setImgError(false)
+    if (isUrl(v)) setPreview(v.trim())
+    else setPreview(null)
+  }
+
+  return (
+    <div className="brand-logo-overlay" onClick={onClose}>
+      <div className="brand-logo-modal" onClick={e => e.stopPropagation()}>
+
+        <div className="brand-logo-modal-header">
+          <span>Logo — <strong>{brandName}</strong></span>
+          <button className="brand-logo-modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Onglets */}
+        <div className="brand-logo-tabs">
+          <button
+            className={tab === 'upload' ? 'active' : ''}
+            onClick={() => setTab('upload')}
+          >📁 Fichier image</button>
+          <button
+            className={tab === 'url' ? 'active' : ''}
+            onClick={() => setTab('url')}
+          >🔗 URL web</button>
+        </div>
+
+        {tab === 'upload' ? (
+          <div
+            className="brand-logo-upload-area"
+            onClick={() => fileRef.current?.click()}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFile}
+            />
+            <span className="brand-logo-upload-icon">🖼</span>
+            <span className="brand-logo-upload-text">Cliquer pour choisir une image</span>
+            <span className="brand-logo-upload-sub">PNG, SVG, JPG · max ~200 Ko recommandé</span>
+          </div>
+        ) : (
+          <input
+            className="brand-logo-url-input"
+            value={urlInput}
+            onChange={e => handleUrlChange(e.target.value)}
+            placeholder="https://exemple.com/logo-marque.png"
+            autoFocus
+          />
+        )}
+
+        {/* Prévisualisation */}
+        {preview && !imgError && (
+          <div className="brand-logo-preview">
+            <img
+              src={preview}
+              alt="Prévisualisation"
+              className="brand-logo-preview-img"
+              onError={() => setImgError(true)}
+            />
+          </div>
+        )}
+        {imgError && (
+          <div className="brand-logo-preview-err">⚠ Image impossible à charger</div>
+        )}
+
+        {/* Boutons */}
+        <div className="brand-logo-actions">
+          {currentLogo && (
+            <button className="danger" onClick={() => onSave(null)}>
+              Supprimer le logo
+            </button>
+          )}
+          <button
+            className="primary"
+            disabled={!preview || imgError}
+            onClick={() => { if (preview && !imgError) onSave(preview) }}
+          >
+            Enregistrer
+          </button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ── Tuile marque ──────────────────────────────────────────────────────────
+
+function BrandTile({
+  brandName,
+  count,
+  logo,
+  brandId,
+  isAdmin,
+  onOpen,
+  onEditLogo,
+}: {
+  brandName: string
+  count: number
+  logo?: string
+  brandId?: string
+  isAdmin: boolean
+  onOpen: () => void
+  onEditLogo: () => void
+}) {
+  return (
+    <div className="brand-tile">
+      {/* Bouton modifier logo (admin) */}
+      {isAdmin && brandId && (
+        <button
+          className="brand-tile-edit-btn"
+          onClick={e => { e.stopPropagation(); onEditLogo() }}
+          title={`Modifier le logo de ${brandName}`}
+        >
+          ✏️
+        </button>
+      )}
+
+      <button className="brand-tile-inner" onClick={onOpen}>
+        {/* Zone logo */}
+        <div className="brand-tile-logo-area">
+          {logo
+            ? <img src={logo} alt={brandName} className="brand-tile-logo-img" />
+            : <div className="brand-tile-logo-placeholder">
+                {(brandName[0] ?? '?').toUpperCase()}
+              </div>
+          }
+        </div>
+
+        <div className="brand-tile-name">{brandName}</div>
+        <div className="brand-tile-count">
+          {count} produit{count > 1 ? 's' : ''}
+        </div>
+      </button>
+    </div>
+  )
+}
+
 // ── Carte produit (vue grille) ─────────────────────────────────────────────
 
 function ProductCard({
@@ -447,11 +618,13 @@ function ProductGrid({
 
 export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onOpenAdminDashboard }: Props) {
   const { profile, signOut } = useAuth()
-  const products       = useAppStore(s => s.products)
-  const productMeta    = useAppStore(s => s.productMeta)
-  const addProduct     = useAppStore(s => s.addProduct)
-  const setProductMeta = useAppStore(s => s.setProductMeta)
+  const products          = useAppStore(s => s.products)
+  const productMeta       = useAppStore(s => s.productMeta)
+  const addProduct        = useAppStore(s => s.addProduct)
+  const setProductMeta    = useAppStore(s => s.setProductMeta)
   const catalogCategories = useCatalogMeta(s => s.catalogCategories)
+  const catalogBrands     = useCatalogMeta(s => s.catalogBrands)
+  const setCatalogMeta    = useCatalogMeta(s => s.setCatalogMeta)
   const isAdmin = profile?.role === 'admin'
 
   // ── UI state ──
@@ -467,6 +640,10 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [importError,     setImportError]     = useState<string | null>(null)
   const [importSuccess,   setImportSuccess]   = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
+
+  // ── Navigation marques ──
+  const [brandView,          setBrandView]          = useState<string | null>(null)   // null = grille marques, string = marque sélectionnée
+  const [editingLogoForBrand, setEditingLogoForBrand] = useState<string | null>(null) // nom de la marque dont on édite le logo
 
   // ── A : Aperçu rapide ──
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -490,6 +667,20 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     catalogCategories.forEach(c => { m[c.name] = c.color })
     return m
   }, [catalogCategories])
+
+  // ── Logos & IDs des marques ──
+  const brandLogoMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    catalogBrands.forEach(b => { if (b.logo) m[b.name] = b.logo })
+    return m
+  }, [catalogBrands])
+
+  const brandIdMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    catalogBrands.forEach(b => { m[b.name] = b.id })
+    return m
+  }, [catalogBrands])
+
 
   // ── Listes pour les selects ──
   const allCategories = useMemo(() =>
@@ -573,6 +764,20 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
   }, [filtered])
 
+  // ── Vue détail marque : produits de la marque groupés par catégorie ──
+  const groupedBrandDetail = useMemo(() => {
+    if (!brandView) return []
+    const groups = new Map<string, Product[]>()
+    filtered
+      .filter(p => p.manufacturer === brandView)
+      .forEach(p => {
+        const k = p.category || '(Sans catégorie)'
+        if (!groups.has(k)) groups.set(k, [])
+        groups.get(k)!.push(p)
+      })
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
+  }, [filtered, brandView])
+
   const groupedByCategory = useMemo(() => {
     const groups = new Map<string, Product[]>()
     filtered.forEach(p => {
@@ -610,6 +815,21 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const handleBulkExport = () => {
     const sel = products.filter(p => selectedIds.has(p.id))
     exportToCsv(sel, productMeta, `selection-${new Date().toISOString().slice(0, 10)}.csv`)
+  }
+
+  // ── Logo marque ──
+  const handleSaveBrandLogo = (logo: string | null) => {
+    if (!editingLogoForBrand) return
+    const brandId = brandIdMap[editingLogoForBrand]
+    if (!brandId) return
+    // Mise à jour locale du store
+    const updatedBrands = catalogBrands.map(b =>
+      b.id === brandId ? { ...b, logo: logo ?? undefined } : b,
+    )
+    setCatalogMeta(updatedBrands, catalogCategories)
+    // Persistance Supabase (silencieuse)
+    updateBrandLogo(brandId, logo).catch(() => {})
+    setEditingLogoForBrand(null)
   }
 
   // ── D : Tri colonne ──
@@ -845,6 +1065,23 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           )}
         </div>
 
+        {/* Navigation marque (fil d'Ariane quand on est dans la vue détail d'une marque) */}
+        {viewMode === 'byBrand' && brandView && (
+          <div className="catalogue-brand-nav">
+            <button className="catalogue-brand-back" onClick={() => setBrandView(null)}>
+              ← Toutes les marques
+            </button>
+            <span className="catalogue-brand-nav-sep">›</span>
+            {brandLogoMap[brandView] && (
+              <img src={brandLogoMap[brandView]} alt={brandView} className="brand-nav-logo-sm" />
+            )}
+            <span className="catalogue-brand-nav-name">{brandView}</span>
+            <span className="catalogue-brand-nav-count">
+              ({groupedBrandDetail.reduce((s, [, p]) => s + p.length, 0)} produits)
+            </span>
+          </div>
+        )}
+
         {/* B : Section filtres avancés (collapsible) */}
         {showAdvFilters && (
           <div className="catalogue-adv-filters">
@@ -979,14 +1216,22 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
             ))}
           </div>
 
-        ) : viewMode === 'byBrand' ? (
-          /* ── Vue par marque ── */
+        ) : viewMode === 'byBrand' && brandView ? (
+          /* ── Vue détail marque : produits groupés par catégorie ── */
           <>
-            {groupedByBrand.map(([brand, prods]) => (
-              <div key={brand} className="catalogue-group">
-                <div className="catalogue-group-header">
-                  <span className="catalogue-group-icon">🏷</span>
-                  <span className="catalogue-group-title">{brand}</span>
+            {groupedBrandDetail.length === 0 ? (
+              <div className="catalogue-empty">
+                <p>Aucun produit pour cette marque avec les filtres actifs.</p>
+                {hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}
+              </div>
+            ) : groupedBrandDetail.map(([cat, prods]) => (
+              <div key={cat} className="catalogue-group">
+                <div
+                  className="catalogue-group-header"
+                  style={{ borderLeftColor: catColorMap[cat] ?? '#9ca3af' }}
+                >
+                  <span className="catalogue-group-icon">📂</span>
+                  <span className="catalogue-group-title">{cat}</span>
                   <span className="catalogue-group-count">{prods.length}</span>
                 </div>
                 <ProductGrid
@@ -1000,6 +1245,23 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
               </div>
             ))}
           </>
+
+        ) : viewMode === 'byBrand' ? (
+          /* ── Grille de tuiles marques ── */
+          <div className="brand-tiles-grid">
+            {groupedByBrand.map(([brand, prods]) => (
+              <BrandTile
+                key={brand}
+                brandName={brand}
+                count={prods.length}
+                logo={brandLogoMap[brand]}
+                brandId={brandIdMap[brand]}
+                isAdmin={isAdmin}
+                onOpen={() => setBrandView(brand)}
+                onEditLogo={() => setEditingLogoForBrand(brand)}
+              />
+            ))}
+          </div>
 
         ) : viewMode === 'byCategory' ? (
           /* ── Vue par catégorie ── */
@@ -1108,6 +1370,16 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
         <AdminSettings
           initialPanel={accountInitialPanel}
           onClose={() => setAccountOpen(false)}
+        />
+      )}
+
+      {/* ── Éditeur de logo marque ── */}
+      {editingLogoForBrand && (
+        <BrandLogoEditor
+          brandName={editingLogoForBrand}
+          currentLogo={brandLogoMap[editingLogoForBrand]}
+          onSave={handleSaveBrandLogo}
+          onClose={() => setEditingLogoForBrand(null)}
         />
       )}
     </div>

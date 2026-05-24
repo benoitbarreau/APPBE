@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 export interface CatalogBrand {
   id: string
   name: string
+  logo?: string   // URL externe (https://…) OU data-URL base64
 }
 
 export interface CatalogCategory {
@@ -18,10 +19,19 @@ const pgErr = (e: { message: string }) => new Error(e.message)
 export async function fetchBrands(): Promise<CatalogBrand[]> {
   const { data, error } = await supabase
     .from('catalog_brands')
-    .select('id, name')
+    .select('id, name, logo')
     .order('name', { ascending: true })
   if (error) throw pgErr(error)
   return (data ?? []) as CatalogBrand[]
+}
+
+/** Met à jour le logo d'une marque (URL externe ou base64). Passer null pour supprimer. */
+export async function updateBrandLogo(id: string, logo: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('catalog_brands')
+    .update({ logo })
+    .eq('id', id)
+  if (error) throw pgErr(error)
 }
 
 export async function createBrand(name: string): Promise<CatalogBrand> {
