@@ -13,7 +13,7 @@ import { BUILTIN_IDS, PILL_DEFS } from './catalogue/constants'
 import { ActionsMenu } from './catalogue/ActionsMenu'
 import { BrandLogoEditor } from './catalogue/BrandLogoEditor'
 import { BrandTile, CategoryTile } from './catalogue/Tiles'
-import { ProductPreviewPanel } from './catalogue/ProductPreviewPanel'
+import { ProductQuickPreview } from './catalogue/ProductQuickPreview'
 import { ProductGrid, ProductListView } from './catalogue/ProductViews'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
@@ -588,7 +588,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
 
       {/* ── Aperçu rapide ── */}
       {previewProduct && (
-        <ProductPreviewPanel product={previewProduct} meta={productMeta[previewProduct.id]}
+        <ProductQuickPreview product={previewProduct} meta={productMeta[previewProduct.id]}
           isBuiltin={BUILTIN_IDS.has(previewProduct.id)} catColor={catColorMap[previewProduct.category] ?? '#9ca3af'}
           onClose={() => setPreviewId(null)} onEdit={() => { setPreviewId(null); setEditingProductId(previewProduct.id) }} />
       )}

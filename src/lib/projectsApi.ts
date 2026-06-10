@@ -220,6 +220,10 @@ export interface ProfileOption {
   full_name: string | null
 }
 
+/** Liste les utilisateurs approuvés via la fonction RPC `list_approved_profiles`
+ *  (SECURITY DEFINER — contourne la RLS). Utilisée par le partage de projets.
+ *  NB : referentielApi.ts expose une fonction homonyme qui interroge la table
+ *  `profiles` directement — même résultat, mécanisme SQL différent. */
 export async function listApprovedProfiles(): Promise<ProfileOption[]> {
   const { data, error } = await supabase.rpc('list_approved_profiles')
   if (error) throw pgErr(error)

@@ -1,16 +1,11 @@
 import type { Product } from '../../types'
 import type { UserProductMeta } from '../../lib/userProductsApi'
-
-// ── Utilitaire : nom de fichier depuis une URL de fiche technique ───────────
-function pdfFileName(url: string): string {
-  try {
-    const decoded = decodeURIComponent(url.split('/product-datasheets/')[1] ?? url)
-    return decoded.split('?')[0].split('/').pop() ?? url
-  } catch { return url }
-}
+import { pdfFileName } from '../../lib/pdfFileName'
 
 // ── Aperçu rapide d'un produit (panneau latéral droit) ──────────────────────
-export function ProductPreviewPanel({
+// Nommé "QuickPreview" pour le distinguer du ProductPreviewPanel de l'éditeur
+// (colonne d'aperçu statique dans components/product-editor/).
+export function ProductQuickPreview({
   product, meta, isBuiltin, catColor, onClose, onEdit,
 }: {
   product: Product; meta: UserProductMeta | undefined; isBuiltin: boolean

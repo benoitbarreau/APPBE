@@ -1,7 +1,7 @@
 import { type Product } from "../../types";
 import { ProductPreview } from "../ProductPreview";
 import { openImageTab } from "./openImageTab";
-import { pdfFileName } from "./pdfFileName";
+import { pdfFileName } from "../../lib/pdfFileName";
 
 const KG_TO_LBS = 2.20462;
 

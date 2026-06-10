@@ -1,7 +1,8 @@
 # SynoX — Guide utilisateur
 
 **SynoX** est l'outil de dessin de synoptiques audiovisuels de Vidéo Synergie.  
-Il permet de créer des schémas de câblage AV, des tableaux IP et des plans de baies rack, puis de les exporter en PDF professionnel (A3 paysage).
+Il permet de créer des schémas de câblage AV, des tableaux IP et des plans de baies rack, puis de les exporter en PDF professionnel (A3 paysage).  
+Il intègre aussi un **catalogue produits** partagé (marques, catégories, fiches techniques) et un **référentiel clients** (sites, salles, contacts, documents) reliés aux projets.
 
 🌐 **URL** : https://benoitbarreau.github.io/APPBE/
 
@@ -18,6 +19,9 @@ Il permet de créer des schémas de câblage AV, des tableaux IP et des plans de
 7. [Cartouche & métadonnées projet](#7-cartouche--métadonnées-projet)
 8. [Export & Impression](#8-export--impression)
 9. [Versioning & partage](#9-versioning--partage)
+10. [Catalogue produits](#10-catalogue-produits)
+11. [Référentiel clients](#11-référentiel-clients)
+12. [Tableau de bord admin](#12-tableau-de-bord-admin)
 
 ---
 
@@ -271,6 +275,82 @@ Vous pouvez consulter et restaurer les versions depuis la page Projets (bouton h
 1. Cliquez sur **"Historique"** depuis la carte du projet.
 2. Sélectionnez une version pour l'ouvrir en **mode lecture seule**.
 3. Vous pouvez la restaurer ou la télécharger depuis cette vue.
+
+---
+
+## 10. Catalogue produits
+
+Le **Catalogue** est la base de données partagée des produits AV (accessible depuis la barre de navigation).
+
+### Navigation
+- Deux onglets principaux : **🏷 Marques** et **📂 Catégories** — chacun affiche des tuiles cliquables (avec logo).
+- Cliquez sur une marque → ses produits groupés par **catégories repliables** (cliquez sur ▶ pour déplier), avec un **bandeau latéral** à gauche pour basculer rapidement vers une autre marque.
+- Cliquez sur une catégorie → tous les produits de cette catégorie.
+- Dans une sous-vue : barre de recherche, filtres par statut (Tous / Intégrés / Commun / Mes fiches / En attente), filtres avancés ⚙ (hauteur rack, avec image, avec PDF), bascule grille ⊞ / liste ☰.
+
+### Statuts d'une fiche produit
+| Badge | Signification |
+|-------|---------------|
+| **Intégré** | Produit du catalogue d'usine SynoX |
+| **Commun** | Fiche validée, visible par toute l'équipe |
+| **En attente** | Fiche créée par un utilisateur, en attente de validation admin |
+
+### Créer / modifier une fiche
+1. Cliquez sur **+ Nouveau** (ou cliquez sur un produit → **✏️ Modifier la fiche**).
+2. Renseignez marque, référence, catégorie (autocomplétion), rack, dimensions, poids (bascule kg/lbs), consommation, dissipation (calcul auto BTU/h), images face/dos, **fiches techniques PDF** (glisser-déposer, multi-fichiers), et la connectique (ports gauche/droite/milieu, espaces, séparateurs).
+3. **Enregistrer** : un utilisateur crée en « En attente » ; un admin crée directement en « Commun ».
+
+### Aperçu rapide
+Cliquez sur une carte produit → un panneau s'ouvre à droite avec toutes les caractéristiques, les PDF et le lien fabricant.
+
+### Sélection multiple
+Cochez plusieurs produits (case en haut à gauche des cartes) → une barre apparaît en bas : **Approuver** (admin), **Exporter CSV**, désélectionner.
+
+### Import / Export CSV
+Menu **•••** en haut à droite : exporter le catalogue (ou la vue courante) en CSV, ou importer des produits depuis un fichier CSV. En cas d'échec de sauvegarde cloud, un message liste les produits concernés.
+
+### Logos des marques et catégories (admin)
+Survolez une tuile → icône **✏️** → choisissez un fichier image ou une URL web.
+
+---
+
+## 11. Référentiel clients
+
+Le **Référentiel** (accessible depuis la barre de navigation) centralise les clients, leurs sites et leurs salles.
+
+### Hiérarchie
+**Client** → **Sites** (bâtiments/adresses) → **Salles** (avec type : réunion, auditorium, régie…)
+
+### Fiche client
+- Créez un client avec **+ Nouveau client** : nom, SIRET (formaté automatiquement, lien Infogreffe), adresse, téléphone, email, notes, **logo** (fichier ou URL).
+- **Gestionnaire de compte** : assignez un utilisateur SynoX responsable du client.
+- **Contacts** : ajoutez les interlocuteurs du client (nom, fonction, téléphone, email) — section repliable.
+- Ajoutez des **sites** puis des **salles** dans chaque site.
+
+### Panneau salle
+Cliquez sur une salle (puce 🚪) pour ouvrir son panneau :
+- **Contacts assignés** : sélectionnez des contacts parmi ceux du client.
+- **Projets SynoX** : liez un projet existant ou créez un **nouveau projet directement depuis la salle** (il sera automatiquement rattaché).
+- **Documents** : ajoutez des liens externes (SharePoint, OneDrive…), des PDF ou des images (glisser-déposer, multi-fichiers), ou des exports SynoX.
+
+### Suppression d'un client
+Le bouton **🗑 Supprimer ce client** archive le client (réversible). Un admin peut le **restaurer** ou le supprimer définitivement depuis **🗑 Clients supprimés**.
+
+---
+
+## 12. Tableau de bord admin
+
+Réservé au rôle **admin** (bouton « Tableau de bord » en haut à droite). Cinq onglets :
+
+| Onglet | Contenu |
+|--------|---------|
+| **👥 Utilisateurs** | Approbation des inscriptions en attente (section « À traiter »), filtres par statut, modification des rôles, suppression |
+| **✉️ Invitations** | Création directe d'un compte : email d'invitation ou mot de passe provisoire (avec générateur) |
+| **📦 Catalogue** | Gestion des **marques** et **catégories** (renommage, couleur via palette de 48 teintes, suppression) ; bouton « Sync depuis produits » pour importer les valeurs déjà utilisées |
+| **🗄️ Archives** | Fiches produit archivées du catalogue commun : **restaurer** ou supprimer définitivement |
+| **📋 Journal** | Historique des actions admin (approbations, refus, invitations, restaurations, suppressions) avec date et auteur |
+
+Une barre de **statistiques** (utilisateurs, en attente, projets, clients) est affichée en permanence.
 
 ---
 

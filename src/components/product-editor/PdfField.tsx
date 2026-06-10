@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { pdfFileName } from "./pdfFileName";
+import { pdfFileName } from "../../lib/pdfFileName";
 
 // ── Champ fiches techniques PDF — multi-fichiers avec drag & drop ─────────────
 export function PdfField({

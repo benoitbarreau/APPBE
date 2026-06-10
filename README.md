@@ -70,13 +70,47 @@ Les panneaux **Câbles**, **Étiquettes câbles** et **Labels produits** agrège
 
 ---
 
+### Catalogue produits
+
+- Vue par **tuiles Marques** (avec logos) et **tuiles Catégories** (avec couleurs et logos)
+- Détail d'une marque : bandeau latéral de navigation entre marques + produits groupés par catégories repliables
+- Recherche, filtres par statut (Intégrés / Commun / Mes fiches / En attente) et filtres avancés (hauteur rack, image, PDF)
+- Aperçu rapide d'un produit en panneau latéral (specs, ports, fiches techniques)
+- Sélection multiple avec actions groupées (approbation admin, export CSV)
+- **Modération** : les fiches créées par un utilisateur sont `pending` jusqu'à validation par un admin ; archivage réversible des fiches du catalogue commun
+- Import / export CSV du catalogue
+- Fiches produit : dimensions, poids (kg/lbs), consommation, dissipation BTU/h, images face/dos, fiches techniques PDF multiples (glisser-déposer)
+
+---
+
+### Référentiel clients
+
+- **Clients** → **Sites** → **Salles** : hiérarchie complète avec fiches détaillées
+- Logo client (fichier ou URL), SIRET avec lien Infogreffe, gestionnaire de compte assignable
+- **Contacts** par client, assignables aux salles
+- **Documents** par salle : PDF, images (upload multiple), liens externes (SharePoint…), exports SynoX
+- Liaison salle ↔ projets SynoX (créer un projet depuis une salle, lier un projet existant)
+- Suppression douce des clients (archivage restaurable par un admin)
+
+---
+
 ### Authentification & rôles
 
 - Inscription / connexion par email + mot de passe (Supabase Auth)
 - Réinitialisation de mot de passe par email
 - Validation des comptes par un administrateur (statuts : en attente / approuvé / refusé)
-- **Rôle `admin`** : accès au tableau de bord de gestion des utilisateurs, suppression de produits du catalogue, accès à tous les projets
-- **Rôle `user`** : accès uniquement à ses propres projets
+- **Rôle `admin`** : accès au tableau de bord, modération du catalogue, accès à tous les projets
+- **Rôle `user`** : accès uniquement à ses propres projets et aux projets partagés avec lui
+
+---
+
+### Tableau de bord admin
+
+- **Utilisateurs** : approbation des inscriptions, gestion des rôles, édition, suppression
+- **Invitations** : création directe de comptes (email d'invitation ou mot de passe provisoire)
+- **Catalogue** : gestion des marques et catégories (couleurs via palette de 48 teintes, sync depuis les produits)
+- **Archives** : restauration ou suppression définitive des fiches produit archivées
+- **Journal** : historique des actions admin (approbations, invitations, suppressions…)
 
 ---
 
@@ -105,9 +139,18 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 ### 2. Base de données Supabase
 
-Exécuter les migrations dans Supabase → SQL Editor dans l'ordre :
-1. `supabase/migrations/001_init.sql` — table `profiles`, RLS, trigger inscription
-2. `supabase/migrations/002_projects.sql` — table `projects`, RLS par utilisateur/admin
+Exécuter **toutes les migrations** de `supabase/migrations/` dans Supabase → SQL Editor, **dans l'ordre des numéros** (001 → 027). Aperçu des principales :
+
+| Migrations | Contenu |
+|---|---|
+| 001–003c | Profils, projets, partage de projets, RLS |
+| 004–006b | Catalogue produits utilisateur + référentiel marques/catégories |
+| 007–010 | Versions de projets, signaux & zones par utilisateur |
+| 011 | **Modération du catalogue** (statuts pending/approved, archivage) |
+| 012–015 | Webhook admin, profil société, correctifs RLS |
+| 016–022 | **Référentiel** : clients, sites, salles, documents, contacts, gestionnaire, suppression douce |
+| 023–025 | Zones utilisateur, journal admin, fiches techniques PDF |
+| 026–027 | Logos des marques et catégories du catalogue |
 
 ### 3. Configuration Supabase
 
@@ -162,5 +205,5 @@ Pré-requis (à faire une fois) :
 ## Roadmap
 
 - Connexion API Extron / Crestron / Viewsonic pour fiches produits automatiques
-- Partage de projet entre utilisateurs
-- Export PDF de la vue Baie
+- ~~Partage de projet entre utilisateurs~~ ✅ fait
+- ~~Export PDF de la vue Baie~~ ✅ fait

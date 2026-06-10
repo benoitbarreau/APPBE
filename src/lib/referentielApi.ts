@@ -150,7 +150,9 @@ export async function listDeletedClients(): Promise<Client[]> {
   return (data ?? []) as Client[]
 }
 
-/** Liste tous les utilisateurs approuvés (pour l'assignation d'un gestionnaire de compte). */
+/** Liste tous les utilisateurs approuvés (pour l'assignation d'un gestionnaire de compte).
+ *  NB : projectsApi.ts expose une fonction homonyme qui passe par la RPC
+ *  `list_approved_profiles` — même résultat, mécanisme SQL différent (RLS vs RPC). */
 export async function listApprovedProfiles(): Promise<Array<{ id: string; email: string; full_name: string | null }>> {
   const { data, error } = await supabase
     .from('profiles')
