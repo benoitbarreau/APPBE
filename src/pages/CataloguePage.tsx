@@ -259,10 +259,23 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       for (const p of imported) {
         addProduct(p)
         if (profile?.id) setProductMeta(p.id, { productId: p.id, status: initialStatus, creatorId: profile.id, creatorName: profile.full_name?.trim() || profile.email })
-        upsertUserProduct(p, { initialStatus }).catch(() => {})
       }
-      setImportSuccess(`${imported.length} produit${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} avec succès.`
-        + (errors.length > 0 ? ` (${errors.length} ligne${errors.length > 1 ? 's' : ''} ignorée${errors.length > 1 ? 's' : ''})` : ''))
+      // Synchronisation cloud — on attend chaque sauvegarde pour détecter les échecs
+      // (sinon les produits semblent importés mais disparaissent à la prochaine connexion)
+      const results = await Promise.allSettled(imported.map(p => upsertUserProduct(p, { initialStatus })))
+      const failedRefs = results
+        .map((r, i) => (r.status === 'rejected' ? imported[i].reference : null))
+        .filter((ref): ref is string => ref !== null)
+      const okCount = imported.length - failedRefs.length
+      if (failedRefs.length > 0) {
+        setImportError(`⚠ ${failedRefs.length} produit${failedRefs.length > 1 ? 's' : ''} non sauvegardé${failedRefs.length > 1 ? 's' : ''} dans le cloud`
+          + ` (${failedRefs.slice(0, 5).join(', ')}${failedRefs.length > 5 ? '…' : ''}).`
+          + ' Vérifiez votre connexion puis réimportez le fichier.')
+      }
+      if (okCount > 0) {
+        setImportSuccess(`${okCount} produit${okCount > 1 ? 's' : ''} importé${okCount > 1 ? 's' : ''} avec succès.`
+          + (errors.length > 0 ? ` (${errors.length} ligne${errors.length > 1 ? 's' : ''} ignorée${errors.length > 1 ? 's' : ''})` : ''))
+      }
     } catch (err) { setImportError(err instanceof Error ? err.message : 'Erreur de lecture du fichier') }
   }
 
