@@ -283,7 +283,9 @@ export async function uploadClientLogo(
 }
 
 export async function deleteClientLogo(clientId: string, storagePath: string): Promise<void> {
-  await supabase.storage.from('client-logos').remove([storagePath]).catch(() => {})
+  // Échec non bloquant (la BD est mise à jour quand même) mais tracé : un échec
+  // laisse un fichier orphelin dans le bucket client-logos.
+  await supabase.storage.from('client-logos').remove([storagePath]).catch((e) => console.error('Échec suppression logo du storage :', storagePath, e))
   const { error } = await supabase
     .from('clients')
     .update({ logo_url: null, logo_storage_path: null, updated_at: now() })

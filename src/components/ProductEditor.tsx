@@ -145,7 +145,12 @@ export function ProductEditor({
     // Synchronisation cloud — à la création, statut selon le rôle :
     //   admin → approved (directement dans le catalogue commun)
     //   user  → pending (validation requise par un admin)
-    upsertUserProduct(draft, { initialStatus }).catch(() => { /* échec silencieux */ });
+    // La modale se ferme tout de suite ; en cas d'échec cloud, on prévient
+    // l'utilisateur (sinon la fiche disparaîtrait à la prochaine connexion).
+    upsertUserProduct(draft, { initialStatus }).catch((e) => {
+      console.error("Échec sauvegarde cloud fiche produit :", e);
+      alert(`⚠ La fiche « ${draft.reference} » n'a pas pu être sauvegardée dans le cloud.\nElle reste visible localement mais disparaîtra à la prochaine connexion.\nRouvrez-la et enregistrez à nouveau.`);
+    });
     onClose();
   };
 
@@ -157,10 +162,16 @@ export function ProductEditor({
     // Suppression d'une fiche `pending` (utilisateur ou admin) → suppression définitive.
     if (isAdmin && isApproved) {
       archiveProductLocal(draft.id);
-      archiveUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+      archiveUserProduct(draft.id).catch((e) => {
+        console.error("Échec archivage cloud :", e);
+        alert(`⚠ L'archivage de « ${draft.reference} » n'a pas pu être enregistré dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`);
+      });
     } else {
       removeProduct(draft.id);
-      deleteUserProduct(draft.id).catch(() => { /* échec silencieux */ });
+      deleteUserProduct(draft.id).catch((e) => {
+        console.error("Échec suppression cloud :", e);
+        alert(`⚠ La suppression de « ${draft.reference} » n'a pas pu être enregistrée dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`);
+      });
     }
     onClose();
   };
@@ -180,7 +191,10 @@ export function ProductEditor({
         creatorName: profile.full_name?.trim() || profile.email,
       });
     }
-    upsertUserProduct(copy, { initialStatus }).catch(() => { /* échec silencieux */ });
+    upsertUserProduct(copy, { initialStatus }).catch((e) => {
+      console.error("Échec sauvegarde cloud copie :", e);
+      alert(`⚠ La copie « ${newRef} » n'a pas pu être sauvegardée dans le cloud.\nElle disparaîtra à la prochaine connexion — rouvrez-la et enregistrez à nouveau.`);
+    });
     if (onSwitchTo) onSwitchTo(newId);
     else onClose();
   };

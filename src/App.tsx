@@ -364,7 +364,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
       // Mise à jour des versions_meta sur le projet (affichage liste)
       if (isModified && isExistingProject) {
-        await updateVersionsMeta(id, versionsMeta).catch(() => {});
+        await updateVersionsMeta(id, versionsMeta).catch((e) => console.error("Échec mise à jour versions_meta :", e));
       }
 
       // Mettre à jour le store avec les tabs flushés

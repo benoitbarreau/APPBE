@@ -209,13 +209,20 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   })
 
   const handleBulkApprove = async () => {
-    for (const id of [...selectedIds].filter(id => !BUILTIN_IDS.has(id))) {
-      const existing = productMeta[id]
-      if (!existing) continue
-      setProductMeta(id, { ...existing, status: 'approved' })
-      validateUserProduct(id).catch(() => {})
+    const ids = [...selectedIds].filter(id => !BUILTIN_IDS.has(id) && productMeta[id])
+    for (const id of ids) {
+      setProductMeta(id, { ...productMeta[id], status: 'approved' })
     }
     setSelectedIds(new Set())
+    // Synchronisation cloud — on attend le résultat pour détecter les échecs
+    const results = await Promise.allSettled(ids.map(id => validateUserProduct(id)))
+    const failedRefs = results
+      .map((r, i) => (r.status === 'rejected' ? (products.find(p => p.id === ids[i])?.reference ?? ids[i]) : null))
+      .filter((ref): ref is string => ref !== null)
+    if (failedRefs.length > 0) {
+      setImportError(`⚠ ${failedRefs.length} approbation${failedRefs.length > 1 ? 's' : ''} non enregistrée${failedRefs.length > 1 ? 's' : ''} dans le cloud`
+        + ` (${failedRefs.slice(0, 5).join(', ')}${failedRefs.length > 5 ? '…' : ''}). Réessayez.`)
+    }
   }
 
   const handleBulkExport = () =>
@@ -224,20 +231,28 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   // ── Logo marque ──
   const handleSaveBrandLogo = (logo: string | null) => {
     if (!editingLogoForBrand) return
-    const brandId = brandIdMap[editingLogoForBrand]
+    const brandName = editingLogoForBrand
+    const brandId = brandIdMap[brandName]
     if (!brandId) return
     setCatalogMeta(catalogBrands.map(b => b.id === brandId ? { ...b, logo: logo ?? undefined } : b), catalogCategories)
-    updateBrandLogo(brandId, logo).catch(() => {})
+    updateBrandLogo(brandId, logo).catch(e => {
+      console.error('Échec sauvegarde logo marque :', e)
+      setImportError(`⚠ Le logo de « ${brandName} » n'a pas pu être sauvegardé dans le cloud. Réessayez.`)
+    })
     setEditingLogoForBrand(null)
   }
 
   // ── Logo catégorie ──
   const handleSaveCategoryLogo = (logo: string | null) => {
     if (!editingLogoForCategory) return
-    const catId = categoryIdMap[editingLogoForCategory]
+    const catName = editingLogoForCategory
+    const catId = categoryIdMap[catName]
     if (!catId) return
     setCatalogMeta(catalogBrands, catalogCategories.map(c => c.id === catId ? { ...c, logo: logo ?? undefined } : c))
-    updateCategoryLogo(catId, logo).catch(() => {})
+    updateCategoryLogo(catId, logo).catch(e => {
+      console.error('Échec sauvegarde logo catégorie :', e)
+      setImportError(`⚠ Le logo de « ${catName} » n'a pas pu être sauvegardé dans le cloud. Réessayez.`)
+    })
     setEditingLogoForCategory(null)
   }
 

@@ -61,7 +61,7 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
     setProjLoading(true)
     listProjectsByRoom(room.id)
       .then(setLinkedProjects)
-      .catch(() => {})
+      .catch((e) => console.error('Échec chargement projets liés :', e))
       .finally(() => setProjLoading(false))
   }, [room.id])
 
@@ -156,7 +156,7 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
   const handleDeleteDoc = async (doc: RefDocument) => {
     if (!confirm(`Supprimer « ${doc.name} » ?`)) return
     try {
-      if (doc.storage_path) await deleteStorageFile(doc.storage_path).catch(() => {})
+      if (doc.storage_path) await deleteStorageFile(doc.storage_path).catch((e) => console.error('Échec suppression fichier du storage :', doc.storage_path, e))
       await deleteDocument(doc.id)
       setDocs(prev => prev.filter(d => d.id !== doc.id))
     } catch (e) {
@@ -260,7 +260,7 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
                   onClick={() => {
                     setLinkModalOpen(true)
                     setProjSearch('')
-                    listProjects(false).then(setAllProjects).catch(() => {})
+                    listProjects(false).then(setAllProjects).catch((e) => console.error('Échec chargement liste projets :', e))
                   }}
                   title="Lier un projet existant"
                 >

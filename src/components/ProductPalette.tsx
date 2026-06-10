@@ -147,7 +147,10 @@ export function ProductPalette({
   const handleValidate = (productId: string) => {
     if (!isAdmin) return;
     validateProductLocal(productId);
-    validateUserProduct(productId).catch(() => { /* échec silencieux */ });
+    validateUserProduct(productId).catch((e) => {
+      console.error("Échec validation cloud :", e);
+      alert("⚠ L'approbation n'a pas pu être enregistrée dans le cloud.\nLa fiche repassera « En attente » à la prochaine connexion — réessayez.");
+    });
   };
 
   // ── Filtre texte ────────────────────────────────────────────────────────

@@ -90,7 +90,7 @@ export function Legend() {
     };
     upsert(def);
     // Admin : sync global (user_signals). User : per-project uniquement, pas de sync.
-    if (isAdmin) upsertUserSignal(def).catch(() => {});
+    if (isAdmin) upsertUserSignal(def).catch((e) => console.error("Échec sync globale signal :", e));
   };
 
   const handleRemove = (id: string) => {
@@ -105,7 +105,7 @@ export function Legend() {
     if (!ok) return;
     remove(id);
     // Admin : sync global. User : per-project uniquement.
-    if (isAdmin) deleteUserSignal(id).catch(() => {});
+    if (isAdmin) deleteUserSignal(id).catch((e) => console.error("Échec suppression globale signal :", e));
   };
 
   const handleUpsert = (def: SignalDef) => {
@@ -113,7 +113,7 @@ export function Legend() {
     if (!isAdmin && isDefaultSignal(def.id)) return;
     upsert(def);
     // Admin : sync global. User : per-project uniquement.
-    if (isAdmin) upsertUserSignal(def).catch(() => {});
+    if (isAdmin) upsertUserSignal(def).catch((e) => console.error("Échec sync globale signal :", e));
   };
 
   const handleChangeLabel = (def: SignalDef, label: string) => {

@@ -62,7 +62,7 @@ export function PdfField({
     const parts = url.split("/product-datasheets/");
     if (parts.length > 1) {
       const path = decodeURIComponent(parts[1].split("?")[0]);
-      supabase.storage.from("product-datasheets").remove([path]).catch(() => {});
+      supabase.storage.from("product-datasheets").remove([path]).catch((e) => console.error("Échec suppression PDF du storage :", path, e));
     }
   };
 
