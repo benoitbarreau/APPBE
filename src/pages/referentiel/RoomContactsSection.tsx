@@ -3,6 +3,7 @@ import {
   listContacts, listRoomContacts, addRoomContact, removeRoomContact,
   type Contact, type Room,
 } from '../../lib/referentielApi'
+import { confirmDialog } from '../../components/dialogs/dialogStore'
 import { Modal } from './Modal'
 
 // ── Contacts assignés à une salle (sélection depuis les contacts client) ──
@@ -50,7 +51,13 @@ export function RoomContactsSection({ room, clientId }: RoomContactsSectionProps
   }
 
   const handleRemove = async (c: Contact) => {
-    if (!confirm(`Retirer ${c.first_name} ${c.last_name} de cette salle ?`)) return
+    const ok = await confirmDialog({
+      title: `Retirer ${c.first_name} ${c.last_name} de cette salle ?`,
+      message: 'Le contact reste disponible dans la fiche client.',
+      confirmLabel: 'Retirer',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await removeRoomContact(room.id, c.id)
       setAssigned(prev => prev.filter(x => x.id !== c.id))

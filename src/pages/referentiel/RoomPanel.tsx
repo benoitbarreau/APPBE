@@ -9,6 +9,7 @@ import {
 } from '../../lib/referentielApi'
 import { listProjects } from '../../lib/projectsApi'
 import type { ProjectRow } from '../../lib/projectsApi'
+import { confirmDialog } from '../../components/dialogs/dialogStore'
 import { RoomForm } from './RoomForm'
 import { RoomContactsSection } from './RoomContactsSection'
 import { DOC_ICONS, DOC_LABELS, DOC_DESCS } from './constants'
@@ -79,7 +80,13 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
   }
 
   const handleDeleteRoom = async () => {
-    if (!confirm(`Supprimer la salle « ${room.name} » et tous ses documents ?`)) return
+    const ok = await confirmDialog({
+      title: `Supprimer la salle « ${room.name} » ?`,
+      message: 'Tous ses documents seront supprimés. Cette action est irréversible.',
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteRoom(room.id)
       onRoomDeleted()
@@ -154,7 +161,12 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
   }
 
   const handleDeleteDoc = async (doc: RefDocument) => {
-    if (!confirm(`Supprimer « ${doc.name} » ?`)) return
+    const ok = await confirmDialog({
+      title: `Supprimer « ${doc.name} » ?`,
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     try {
       if (doc.storage_path) await deleteStorageFile(doc.storage_path).catch((e) => console.error('Échec suppression fichier du storage :', doc.storage_path, e))
       await deleteDocument(doc.id)
@@ -305,7 +317,12 @@ export function RoomPanel({ room, site, client, onClose, onRoomUpdated, onRoomDe
                       style={{ padding: '2px 6px', fontSize: 11 }}
                       title="Détacher ce projet de la salle"
                       onClick={async () => {
-                        if (!confirm(`Détacher le projet « ${p.name} » de cette salle ?`)) return
+                        const ok = await confirmDialog({
+                          title: `Détacher le projet « ${p.name} » de cette salle ?`,
+                          message: 'Le projet n\'est pas supprimé — il est seulement délié de la salle.',
+                          confirmLabel: 'Détacher',
+                        })
+                        if (!ok) return
                         await linkProjectToRoom(p.id, null)
                         setLinkedProjects(prev => prev.filter(x => x.id !== p.id))
                       }}

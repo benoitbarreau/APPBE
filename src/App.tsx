@@ -3,6 +3,7 @@ import { useStore } from "zustand";
 import { createPortal } from "react-dom";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
+import { notify } from "./components/dialogs/dialogStore";
 import { ProductPalette } from "./components/ProductPalette";
 import { FormattingPanel } from "./components/FormattingPanel";
 import { ProductEditor } from "./components/ProductEditor";
@@ -380,7 +381,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       setTimeout(() => setSavedOk(false), 2500);
       return true;
     } catch (e) {
-      alert("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)));
+      notify("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)), "error");
       return false;
     } finally {
       setSaving(false);
@@ -450,7 +451,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         signals:   state.signals,
       });
     } catch (e) {
-      alert("Echec impression : " + (e instanceof Error ? e.message : String(e)));
+      notify("Échec impression : " + (e instanceof Error ? e.message : String(e)), "error");
     } finally {
       setPrinting(false);
     }
@@ -491,7 +492,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       }
       await openPrintPreview(allPageUrls, totalPages);
     } catch (e) {
-      alert("Echec impression : " + (e instanceof Error ? e.message : String(e)));
+      notify("Échec impression : " + (e instanceof Error ? e.message : String(e)), "error");
     } finally {
       await switchTabAndWait(originalTabId);
       setPrinting(false);
@@ -572,7 +573,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         signals:   state.signals,
       });
     } catch (e) {
-      alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
+      notify("Échec export : " + (e instanceof Error ? e.message : String(e)), "error");
     }
   };
 
@@ -648,7 +649,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         }
       }
     } catch (e) {
-      alert("Echec export : " + (e instanceof Error ? e.message : String(e)));
+      notify("Échec export : " + (e instanceof Error ? e.message : String(e)), "error");
     } finally {
       await switchTabAndWait(originalTabId);
     }

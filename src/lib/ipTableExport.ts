@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { IPNetworkInfo, IPTableRow } from "../types";
+import { notify } from "../components/dialogs/dialogStore";
 
 // ─────────────────────────────────────────────────────────────────────
 // Types partagés
@@ -361,7 +362,7 @@ ${networkHtml}
 
   const win = window.open("", "_blank", "width=1200,height=800");
   if (!win) {
-    alert("Impossible d'ouvrir la fenêtre d'impression. Autorisez les pop-ups pour ce site.");
+    notify("Impossible d'ouvrir la fenêtre d'impression. Autorisez les pop-ups pour ce site.", "error");
     return;
   }
   win.document.open();

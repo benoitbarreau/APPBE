@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppStore } from "../store";
+import { confirmDialog } from "./dialogs/dialogStore";
 import type { SignalDef } from "../types";
 import { DEFAULT_SIGNAL_DEFS } from "../types";
 import {
@@ -53,15 +54,20 @@ export function Legend() {
       .map((s) => s.label)
       .join(", ");
     const baseMsg =
-      `Réinitialiser la légende ?\n\n` +
       `La liste sera remplacée par les ${defaultIds.size} types par défaut :\n` +
       `${defaultsLabels}.`;
     const warnMsg = removedUsed.length
-      ? `\n\n⚠ Attention : ${removedUsed.length} type(s) utilisé(s) dans le projet vont être supprimé(s) :\n` +
+      ? `\n\nAttention : ${removedUsed.length} type(s) utilisé(s) dans le projet vont être supprimé(s) :\n` +
         `${removedUsed.join(", ")}.\n` +
         `Les câbles concernés perdront leur couleur et leur préfixe — il faudra leur réassigner un signal.`
       : "";
-    if (!confirm(baseMsg + warnMsg + "\n\nContinuer ?")) return;
+    const ok = await confirmDialog({
+      title: "Réinitialiser la légende ?",
+      message: baseMsg + warnMsg,
+      confirmLabel: "Réinitialiser",
+      danger: removedUsed.length > 0,
+    });
+    if (!ok) return;
 
     resetSignalsToDefaults();
     try {
@@ -93,15 +99,18 @@ export function Legend() {
     if (isAdmin) upsertUserSignal(def).catch((e) => console.error("Échec sync globale signal :", e));
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
     // Seul un admin peut supprimer les types par défaut
     if (!isAdmin && isDefaultSignal(id)) return;
     const used = cables.filter((c) => c.signal === id).length;
-    const ok = used
-      ? confirm(
-          `Le type "${signals[id]?.label ?? id}" est utilisé par ${used} câble(s). Supprimer quand même ? Les câbles seront orphelins.`,
-        )
-      : confirm(`Supprimer le type "${signals[id]?.label ?? id}" ?`);
+    const ok = await confirmDialog({
+      title: `Supprimer le type « ${signals[id]?.label ?? id} » ?`,
+      message: used
+        ? `Il est utilisé par ${used} câble(s) — ils deviendront orphelins (perte de couleur et de préfixe).`
+        : undefined,
+      confirmLabel: "🗑 Supprimer",
+      danger: true,
+    });
     if (!ok) return;
     remove(id);
     // Admin : sync global. User : per-project uniquement.
@@ -200,7 +209,7 @@ export function Legend() {
               {/* Bouton supprimer : admin = tout, user = uniquement ses types perso */}
               {canEdit ? (
                 <button
-                  onClick={() => handleRemove(def.id)}
+                  onClick={() => void handleRemove(def.id)}
                   className="danger"
                   title={used ? `Utilisé par ${used} câble(s)` : "Supprimer"}
                 >

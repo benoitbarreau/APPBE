@@ -14,6 +14,7 @@ import { HomePage } from '../pages/HomePage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
+import { notify } from '../components/dialogs/dialogStore'
 import { fetchProject, fetchProjectVersion, saveProject } from '../lib/projectsApi'
 import { linkProjectToRoom } from '../lib/referentielApi'
 
@@ -253,7 +254,7 @@ export function ProtectedRoute() {
       setPage('editor')
       persistView('editor', true, version)
     } catch (e) {
-      alert("Impossible de charger cette version : " + (e instanceof Error ? e.message : String(e)))
+      notify("Impossible de charger cette version : " + (e instanceof Error ? e.message : String(e)), 'error')
     }
   }
 
@@ -317,7 +318,7 @@ export function ProtectedRoute() {
       setPage('editor')
       persistView('editor', false)
     } catch (e) {
-      alert('Erreur création projet : ' + (e instanceof Error ? e.message : String(e)))
+      notify('Erreur création projet : ' + (e instanceof Error ? e.message : String(e)), 'error')
     }
   }
 
@@ -331,7 +332,7 @@ export function ProtectedRoute() {
       setPage('editor')
       persistView('editor', false)
     } catch (e) {
-      alert('Impossible d\'ouvrir le projet : ' + (e instanceof Error ? e.message : String(e)))
+      notify('Impossible d\'ouvrir le projet : ' + (e instanceof Error ? e.message : String(e)), 'error')
     }
   }
 

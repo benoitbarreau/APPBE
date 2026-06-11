@@ -9,6 +9,7 @@ import {
   type Client, type Site, type Room,
 } from '../lib/referentielApi'
 import { AdminSettings } from '../components/AdminSettings'
+import { confirmDialog } from '../components/dialogs/dialogStore'
 import { Modal } from './referentiel/Modal'
 import { ClientForm } from './referentiel/ClientForm'
 import { SiteForm } from './referentiel/SiteForm'
@@ -102,7 +103,13 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
   }
 
   const handlePermanentDeleteClient = async (client: Client) => {
-    if (!confirm(`Supprimer définitivement « ${client.name} » et toutes ses données ? Cette action est irréversible.`)) return
+    const ok = await confirmDialog({
+      title: `Supprimer définitivement « ${client.name} » ?`,
+      message: 'Toutes ses données (sites, salles, contacts, documents) seront supprimées.\nCette action est irréversible.',
+      confirmLabel: '🗑 Supprimer définitivement',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteClient(client.id)
       setDeletedClients(prev => prev.filter(c => c.id !== client.id))
@@ -239,7 +246,13 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
 
   const handleDeleteSite = async (site: Site) => {
     if (!selectedClient) return
-    if (!confirm(`Supprimer le site « ${site.name} » et toutes ses salles ?`)) return
+    const ok = await confirmDialog({
+      title: `Supprimer le site « ${site.name} » ?`,
+      message: 'Toutes ses salles et leurs documents seront supprimés.',
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteSite(site.id)
       setSitesMap(prev => ({

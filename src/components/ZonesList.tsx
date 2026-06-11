@@ -1,5 +1,6 @@
 import { useAppStore } from "../store";
 import type { Zone } from "../types";
+import { confirmDialog } from "./dialogs/dialogStore";
 
 
 export function ZonesList() {
@@ -25,13 +26,16 @@ export function ZonesList() {
     // Les zones sont désormais per-project, sauvegardées avec le projet — pas de sync user_zones
   };
 
-  const handleRemove = (z: Zone) => {
+  const handleRemove = async (z: Zone) => {
     const used = nodes.filter((n) => n.zoneId === z.id).length;
-    const ok = used
-      ? confirm(
-          `La zone "${z.label}" est utilisée par ${used} produit(s). Supprimer quand même ?`,
-        )
-      : confirm(`Supprimer la zone "${z.label}" ?`);
+    const ok = await confirmDialog({
+      title: `Supprimer la zone « ${z.label} » ?`,
+      message: used
+        ? `Elle est utilisée par ${used} produit(s) — ils ne seront plus assignés à aucune zone.`
+        : undefined,
+      confirmLabel: "🗑 Supprimer",
+      danger: true,
+    });
     if (!ok) return;
     remove(z.id);
     // Les zones sont désormais per-project, sauvegardées avec le projet — pas de sync user_zones
@@ -76,7 +80,7 @@ export function ZonesList() {
                 placeholder="Nom (Baie, Régie…)"
               />
               <button
-                onClick={() => handleRemove(z)}
+                onClick={() => void handleRemove(z)}
                 className="danger"
                 title={used ? `Utilisé par ${used} produit(s)` : "Supprimer"}
               >

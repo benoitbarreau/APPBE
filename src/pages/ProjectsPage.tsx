@@ -5,6 +5,7 @@ import { listProjects, fetchProject, deleteProject, saveProject, setProjectArchi
 import type { ProjectRow, VersionMeta } from '../lib/projectsApi'
 import { ShareModal } from '../components/ShareModal'
 import { AdminSettings } from '../components/AdminSettings'
+import { confirmDialog } from '../components/dialogs/dialogStore'
 import type { Panel } from '../components/AdminSettings'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
@@ -160,10 +161,15 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
 
   const handleDelete = async (p: ProjectRow) => {
     // Confirmation enrichie quand un admin agit sur le projet d'un autre user
-    const msg = isAdminIntervention(p)
-      ? `⚠ Action admin\n\nSupprimer DÉFINITIVEMENT le projet « ${p.name} » de ${ownerLabel(p)} ?\n\nCette action est irréversible et le propriétaire n'en sera pas averti.`
-      : `Supprimer le projet « ${p.name} » définitivement ? Cette action est irréversible.`
-    if (!confirm(msg)) return
+    const ok = await confirmDialog({
+      title: `Supprimer le projet « ${p.name} » ?`,
+      message: isAdminIntervention(p)
+        ? `Action admin : ce projet appartient à ${ownerLabel(p)}.\nCette action est irréversible et le propriétaire n'en sera pas averti.`
+        : 'Cette action est irréversible.',
+      confirmLabel: '🗑 Supprimer définitivement',
+      danger: true,
+    })
+    if (!ok) return
     setDeletingId(p.id)
     setError(null)
     try {
@@ -179,10 +185,15 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
   const handleArchive = async (p: ProjectRow) => {
     const verb = p.archived ? 'Désarchiver' : 'Archiver'
     const action = p.archived ? 'désarchiver' : 'archiver'
-    const msg = isAdminIntervention(p)
-      ? `⚠ Action admin\n\n${verb} le projet « ${p.name} » de ${ownerLabel(p)} ?`
-      : `${verb} le projet « ${p.name} » ?`
-    if (!confirm(msg)) return
+    const ok = await confirmDialog({
+      title: `${verb} le projet « ${p.name} » ?`,
+      message: isAdminIntervention(p)
+        ? `Action admin : ce projet appartient à ${ownerLabel(p)}.`
+        : (p.archived ? 'Le projet redeviendra visible dans la liste principale.' : 'Le projet sera déplacé dans les archives (réversible).'),
+      confirmLabel: verb,
+      danger: isAdminIntervention(p),
+    })
+    if (!ok) return
     setArchivingId(p.id)
     try {
       await setProjectArchived(p.id, !p.archived)

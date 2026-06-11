@@ -7,6 +7,7 @@ import {
 } from "../lib/ipTableExport";
 import type { IPNetworkInfo, IPTableColumnConfig, IPTableRow } from "../types";
 import { useAuth } from "../auth/useAuth";
+import { notify } from "./dialogs/dialogStore";
 
 type Format = "pdf" | "xlsx" | "print";
 type Scope  = "all" | "filtered";
@@ -88,7 +89,7 @@ export function IPTableExportModal({
       .filter((c) => selectedColumns.has(c.id))
       .map((c)  => ({ key: c.id, label: c.label }));
 
-    if (cols.length === 0) { alert("Sélectionnez au moins une colonne."); return; }
+    if (cols.length === 0) { notify("Sélectionnez au moins une colonne.", "error"); return; }
 
     const exportRows = scope === "all" ? rows : visibleRows;
     const payload = { title, columns: cols, rows: exportRows, network };
@@ -99,7 +100,7 @@ export function IPTableExportModal({
       else                         printIPTable(payload, logoUrl);
       onClose();
     } catch (e) {
-      alert("Échec de l'export : " + (e instanceof Error ? e.message : String(e)));
+      notify("Échec de l'export : " + (e instanceof Error ? e.message : String(e)), "error");
     }
   };
 

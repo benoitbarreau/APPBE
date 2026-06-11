@@ -1,5 +1,6 @@
 import { useRef, useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
+import { confirmDialog, notify } from "./dialogs/dialogStore";
 import {
   applySort,
   dedupeRowsById,
@@ -141,8 +142,14 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   };
 
   // ── Réinitialiser les colonnes ───────────────────────────────────────────
-  const resetColumns = () => {
-    if (!confirm("Réinitialiser les colonnes à la structure par défaut ?\nLes colonnes personnalisées et leur contenu seront perdus.")) return;
+  const resetColumns = async () => {
+    const ok = await confirmDialog({
+      title: "Réinitialiser les colonnes ?",
+      message: "La structure par défaut sera restaurée.\nLes colonnes personnalisées et leur contenu seront perdus.",
+      confirmLabel: "Réinitialiser",
+      danger: true,
+    });
+    if (!ok) return;
     setIPTableColumns([...DEFAULT_IP_TABLE_COLUMNS]);
   };
 
@@ -261,11 +268,11 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
       if (serialBlocks) filled.push(`   • N° SERIE : ${serialValue}`);
       const fieldsLabel = ipBlocks && serialBlocks ? "les champs IP et N° SERIE"
         : ipBlocks ? "le champ IP" : "le champ N° SERIE";
-      alert(
-        `Suppression bloquée.\n\nCette ligne contient des données importantes :\n` +
+      notify(
+        `Suppression bloquée — cette ligne contient des données importantes :\n` +
         filled.join("\n") +
-        `\n\nPour supprimer la ligne, videz d'abord ${fieldsLabel}.\n` +
-        `Cette protection évite la perte accidentelle de données uniques.`,
+        `\nPour supprimer la ligne, videz d'abord ${fieldsLabel}.`,
+        "error",
       );
       return;
     }
@@ -302,7 +309,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
               <div className="ip-col-mgr-panel">
                 <div className="ip-col-mgr-header">
                   <span>Colonnes du tableau</span>
-                  <button className="ip-col-mgr-reset" onClick={resetColumns} title="Remettre les colonnes par défaut">↻</button>
+                  <button className="ip-col-mgr-reset" onClick={() => void resetColumns()} title="Remettre les colonnes par défaut">↻</button>
                 </div>
                 <div className="ip-col-mgr-hint muted">
                   Glissez les en-têtes pour réorganiser. Cliquez ✕ pour masquer.
@@ -322,9 +329,14 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                     {col.custom && (
                       <button
                         className="ip-col-mgr-delete danger"
-                        onClick={() => {
-                          if (confirm(`Supprimer définitivement la colonne "${col.label}" ? Les données seront perdues.`))
-                            deleteCustomColumn(col.id);
+                        onClick={async () => {
+                          const ok = await confirmDialog({
+                            title: `Supprimer la colonne « ${col.label} » ?`,
+                            message: "Les données de cette colonne seront définitivement perdues.",
+                            confirmLabel: "🗑 Supprimer",
+                            danger: true,
+                          });
+                          if (ok) deleteCustomColumn(col.id);
                         }}
                         title="Supprimer définitivement"
                       >✕</button>

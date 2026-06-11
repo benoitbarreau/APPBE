@@ -3,6 +3,7 @@ import {
   listContacts, createContact, updateContact, deleteContact,
   type Contact, type ContactEntityType,
 } from '../../lib/referentielApi'
+import { confirmDialog } from '../../components/dialogs/dialogStore'
 import { Modal } from './Modal'
 import { ContactForm } from './ContactForm'
 
@@ -76,7 +77,12 @@ export function ContactsSection({ entityType, entityId, defaultCollapsed = false
   }
 
   const handleDelete = async (c: Contact) => {
-    if (!confirm(`Supprimer le contact ${c.first_name} ${c.last_name} ?`)) return
+    const ok = await confirmDialog({
+      title: `Supprimer le contact ${c.first_name} ${c.last_name} ?`,
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteContact(c.id)
       setContacts(prev => prev.filter(x => x.id !== c.id))
