@@ -4,6 +4,7 @@ import { useAuth } from "../auth/useAuth";
 import type { Product } from "../types";
 import { validateUserProduct } from "../lib/userProductsApi";
 import { exportProductsCsv, exportProductsXls } from "../lib/productImportExport";
+import { notify } from "./dialogs/dialogStore";
 
 type GroupBy = "brand" | "category";
 
@@ -149,7 +150,7 @@ export function ProductPalette({
     validateProductLocal(productId);
     validateUserProduct(productId).catch((e) => {
       console.error("Échec validation cloud :", e);
-      alert("⚠ L'approbation n'a pas pu être enregistrée dans le cloud.\nLa fiche repassera « En attente » à la prochaine connexion — réessayez.");
+      notify("L'approbation n'a pas pu être enregistrée dans le cloud.\nLa fiche repassera « En attente » à la prochaine connexion — réessayez.", "error");
     });
   };
 

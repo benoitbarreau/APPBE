@@ -13,6 +13,7 @@ import {
   type RackSize,
   type RackWidth,
 } from "../types";
+import { notify } from "./dialogs/dialogStore";
 import { usePortOperations } from "./product-editor/usePortOperations";
 import { PortsEditor } from "./product-editor/PortsEditor";
 import { SpeakerPortEditor } from "./product-editor/SpeakerPortEditor";
@@ -122,7 +123,7 @@ export function ProductEditor({
 
   const save = () => {
     if (!draft.reference.trim() || !draft.manufacturer.trim()) {
-      alert("Référence et marque obligatoires");
+      notify("Référence et marque obligatoires.", "error");
       return;
     }
     const initialStatus = isAdmin ? "approved" : "pending";
@@ -149,7 +150,7 @@ export function ProductEditor({
     // l'utilisateur (sinon la fiche disparaîtrait à la prochaine connexion).
     upsertUserProduct(draft, { initialStatus }).catch((e) => {
       console.error("Échec sauvegarde cloud fiche produit :", e);
-      alert(`⚠ La fiche « ${draft.reference} » n'a pas pu être sauvegardée dans le cloud.\nElle reste visible localement mais disparaîtra à la prochaine connexion.\nRouvrez-la et enregistrez à nouveau.`);
+      notify(`La fiche « ${draft.reference} » n'a pas pu être sauvegardée dans le cloud.\nElle reste visible localement mais disparaîtra à la prochaine connexion.\nRouvrez-la et enregistrez à nouveau.`, "error");
     });
     onClose();
   };
@@ -164,13 +165,13 @@ export function ProductEditor({
       archiveProductLocal(draft.id);
       archiveUserProduct(draft.id).catch((e) => {
         console.error("Échec archivage cloud :", e);
-        alert(`⚠ L'archivage de « ${draft.reference} » n'a pas pu être enregistré dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`);
+        notify(`L'archivage de « ${draft.reference} » n'a pas pu être enregistré dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`, "error");
       });
     } else {
       removeProduct(draft.id);
       deleteUserProduct(draft.id).catch((e) => {
         console.error("Échec suppression cloud :", e);
-        alert(`⚠ La suppression de « ${draft.reference} » n'a pas pu être enregistrée dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`);
+        notify(`La suppression de « ${draft.reference} » n'a pas pu être enregistrée dans le cloud.\nLa fiche réapparaîtra à la prochaine connexion — réessayez.`, "error");
       });
     }
     onClose();
@@ -193,7 +194,7 @@ export function ProductEditor({
     }
     upsertUserProduct(copy, { initialStatus }).catch((e) => {
       console.error("Échec sauvegarde cloud copie :", e);
-      alert(`⚠ La copie « ${newRef} » n'a pas pu être sauvegardée dans le cloud.\nElle disparaîtra à la prochaine connexion — rouvrez-la et enregistrez à nouveau.`);
+      notify(`La copie « ${newRef} » n'a pas pu être sauvegardée dans le cloud.\nElle disparaîtra à la prochaine connexion — rouvrez-la et enregistrez à nouveau.`, "error");
     });
     if (onSwitchTo) onSwitchTo(newId);
     else onClose();

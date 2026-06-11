@@ -17,6 +17,7 @@ import {
   restoreUserProduct,
   deleteUserProduct,
 } from '../lib/userProductsApi'
+import { confirmDialog, notify } from '../components/dialogs/dialogStore'
 import type { FilterStatus, AdminLog } from './admin/types'
 import { FILTER_LABELS, ACTION_LABELS, ACTION_ICONS } from './admin/constants'
 import { BrandRow } from './admin/BrandRow'
@@ -212,7 +213,14 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   }
 
   const handleDeleteBrand = async (id: string) => {
-    if (!confirm('Supprimer cette marque ?')) return
+    const brand = brands.find(b => b.id === id)
+    const ok = await confirmDialog({
+      title: `Supprimer la marque « ${brand?.name ?? '?'} » ?`,
+      message: 'Les produits existants ne seront pas modifiés — seule la marque disparaît du référentiel.',
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     await deleteBrand(id)
     const next = brands.filter(b => b.id !== id)
     setBrands(next)
@@ -245,7 +253,14 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   }
 
   const handleDeleteCat = async (id: string) => {
-    if (!confirm('Supprimer cette catégorie ?')) return
+    const cat = categories.find(c => c.id === id)
+    const ok = await confirmDialog({
+      title: `Supprimer la catégorie « ${cat?.name ?? '?'} » ?`,
+      message: 'Les produits existants ne seront pas modifiés — seule la catégorie (et sa couleur) disparaît du référentiel.',
+      confirmLabel: '🗑 Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     await deleteCategory(id)
     const next = categories.filter(c => c.id !== id)
     setCategories(next)
@@ -285,8 +300,9 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
       await restoreUserProduct(productId)
       restoreProductLocal(productId)
       void logAction('restore_product', productId, p?.reference ?? productId)
+      notify(`Fiche « ${p?.reference ?? productId} » restaurée dans le catalogue commun.`, 'success')
     } catch (e) {
-      alert('Erreur lors de la restauration : ' + (e instanceof Error ? e.message : String(e)))
+      notify('Erreur lors de la restauration : ' + (e instanceof Error ? e.message : String(e)), 'error')
     }
   }
 
@@ -298,7 +314,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
       setHardDeleting(null)
       void logAction('delete_product', productId, p?.reference ?? productId)
     } catch (e) {
-      alert('Erreur lors de la suppression : ' + (e instanceof Error ? e.message : String(e)))
+      notify('Erreur lors de la suppression : ' + (e instanceof Error ? e.message : String(e)), 'error')
     }
   }
 
