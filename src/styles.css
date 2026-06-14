@@ -12027,6 +12027,20 @@ select {
   color: var(--muted);
 }
 
+/* ── Indicateur d'état de sauvegarde (barre du haut) ── */
+.save-status {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: 0 6px 0 2px;
+  white-space: nowrap;
+  user-select: none;
+}
+.save-status:empty { display: none; }
+.save-status--dirty {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* ══════════════════════════════════════════════════════════════
    DIALOGUES APPLICATIFS — confirmation + notifications (toasts)
    Remplacent les confirm() / alert() natifs du navigateur.

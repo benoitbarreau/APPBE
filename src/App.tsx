@@ -46,6 +46,23 @@ import {
 } from "./lib/projectsApi";
 import { getProjectRoomInfo, type ProjectRoomInfo } from "./lib/referentielApi";
 
+/** Construit deux empreintes de l'état du projet :
+ *  - `base`  : contenu versionnable (onglets, produits, signaux, accessoires, zones)
+ *              → sert à décider de l'incrément de version (inchangé vs aujourd'hui).
+ *  - `full`  : base + colonnes Tableau IP + métadonnées cartouche (8 champs texte légers)
+ *              → sert à la détection « modifié » de l'auto-save (ne rien perdre). */
+function buildSignature(
+  flushedTabs: unknown,
+  state: {
+    products: unknown; signals: unknown; accessories: unknown; zones: unknown;
+    ipTableColumns: unknown; projectMeta: unknown;
+  },
+): { base: string; full: string } {
+  const base = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories, state.zones);
+  const full = `${base}|${JSON.stringify(state.ipTableColumns)}|${JSON.stringify(state.projectMeta)}`;
+  return { base, full };
+}
+
 interface AppProps {
   onOpenAdminDashboard?: () => void
   onBackToProjects?: () => void
@@ -157,8 +174,18 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const setProjectName = useAppStore((s) => s.setProjectName);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
 
-  // Hash de l'état au dernier enregistrement — permet de détecter les vraies modifications
+  // Empreinte COMPLÈTE au dernier enregistrement (manuel ou auto) — détecte les
+  // modifications non sauvegardées (auto-save + garde-fou de sortie).
   const lastSavedHash = useRef<string>("");
+  // Empreinte CONTENU au dernier POINT DE VERSION (clic Enregistrer) — décide de
+  // l'incrément de version indépendamment des auto-saves intermédiaires.
+  const lastVersionedHash = useRef<string>("");
+  // Garde anti-chevauchement entre enregistrement manuel et auto-save.
+  const saveInFlight = useRef(false);
+  // État pour l'indicateur de sauvegarde de la barre du haut.
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Modal "modifications non sauvegardées"
   const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
@@ -168,20 +195,18 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   // Infos client/salle liées au projet (chip en en-tête)
   const [linkedRoomInfo, setLinkedRoomInfo] = useState<ProjectRoomInfo | null>(null);
 
-  // Initialise le hash de référence avec l'état chargé depuis la DB.
-  // Toute modification ultérieure produira un hash différent.
+  // (Ré)initialise les empreintes de référence à l'ouverture d'un projet.
+  // Toute modification ultérieure produira une empreinte différente.
   useEffect(() => {
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
-    lastSavedHash.current = computeProjectHash(
-      flushedTabs,
-      state.products,
-      state.signals,
-      state.accessories,
-      state.zones,
-    );
+    const { base, full } = buildSignature(flushedTabs, state);
+    lastSavedHash.current = full;
+    lastVersionedHash.current = base;
+    setIsDirty(false);
+    setLastSavedAt(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentProjectId]);
 
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
@@ -267,25 +292,31 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     addBlankBlock({ x: 200 + offset, y: 100 + offset });
   };
 
-  /** Vérifie les modifications non sauvegardées et appelle `action` ou ouvre le modal. */
+  /** Vérifie les modifications non sauvegardées avant de quitter l'éditeur. */
   const guardedLeave = (action: () => void) => {
     if (readOnly) { action(); return; }
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
-    const currentHash = computeProjectHash(
-      flushedTabs,
-      state.products,
-      state.signals,
-      state.accessories,
-      state.zones,
-    );
-    const hasUnsavedChanges = currentHash !== lastSavedHash.current;
-    if (hasUnsavedChanges) {
-      pendingLeaveAction.current = action;
-      setUnsavedModalOpen(true);
+    const { full: sig } = buildSignature(flushedTabs, state);
+    const hasUnsavedChanges = sig !== lastSavedHash.current;
+    if (!hasUnsavedChanges) { action(); return; }
+
+    // Projet déjà enregistré → auto-save silencieuse puis on part (rien n'est perdu).
+    if (state.currentProjectId) {
+      setAutoSaving(true);
+      persistProject(false)
+        .then(() => { setIsDirty(false); setLastSavedAt(new Date()); setAutoSaving(false); action(); })
+        .catch(() => {
+          setAutoSaving(false);
+          // Échec de l'auto-save → garde-fou pour ne pas quitter sans sauvegarder.
+          pendingLeaveAction.current = action;
+          setUnsavedModalOpen(true);
+        });
       return;
     }
-    action();
+    // Projet jamais enregistré (aucun id) → garde-fou (sinon tout serait perdu).
+    pendingLeaveAction.current = action;
+    setUnsavedModalOpen(true);
   };
 
   const handleBackToProjects = () => guardedLeave(() => onBackToProjects?.());
@@ -293,90 +324,108 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const handleGoToClient = (clientId: string) =>
     guardedLeave(() => onGoToReferentiel?.(clientId));
 
+  /** Cœur de la persistance, partagé par l'enregistrement manuel et l'auto-save.
+   *  - createVersion=true  : archive la version courante + incrémente le numéro
+   *    (V1.0→V1.1), comme le bouton « Enregistrer ». Comportement inchangé.
+   *  - createVersion=false : enregistrement silencieux (auto-save) — AUCUN archivage,
+   *    AUCUN incrément de version. */
+  const persistProject = async (createVersion: boolean): Promise<void> => {
+    const state = useAppStore.getState();
+    const flushedTabs = getFlushedTabs();
+    const { base: baseHash, full: fullSig } = buildSignature(flushedTabs, state);
+    const isExistingProject = !!state.currentProjectId;
+
+    let metaToSave = state.projectMeta;
+    let versionsMeta = [...(state.currentVersionsMeta ?? [])];
+
+    // Incrément de version : uniquement sur enregistrement manuel, projet existant,
+    // et s'il y a du neuf depuis le DERNIER POINT DE VERSION (pas depuis le dernier
+    // auto-save) — sinon les auto-saves « consommeraient » le changement.
+    const shouldVersion =
+      createVersion && isExistingProject && baseHash !== lastVersionedHash.current;
+
+    if (shouldVersion) {
+      const currentVersion = state.projectMeta.version || "V1.0";
+      try {
+        // Archiver la version courante avant d'incrémenter
+        const archived = await saveProjectVersion(state.currentProjectId!, currentVersion, {
+          tabs: flushedTabs,
+          activeTabId: state.activeTabId,
+          projectMeta: state.projectMeta,
+          signals: state.signals,
+          products: state.products,
+          accessories: state.accessories,
+          ipTableColumns: state.ipTableColumns,
+          zones: state.zones,
+        });
+        // Conserver les 3 derniers snapshots archivés max
+        versionsMeta = [...versionsMeta, archived].slice(-3);
+        await pruneProjectVersions(state.currentProjectId!, 3);
+
+        // Incrémenter la version dans les meta
+        const newVersion = incrementVersion(currentVersion);
+        updateProjectMeta({ version: newVersion });
+        metaToSave = { ...state.projectMeta, version: newVersion };
+        setVersionsMeta(versionsMeta);
+      } catch {
+        // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
+      }
+    }
+
+    // ── Sauvegarde principale ─────────────────────────────────────────────
+    const id = await saveProject(
+      state.currentProjectId,
+      state.currentProjectName || "Sans titre",
+      {
+        tabs: flushedTabs,
+        activeTabId: state.activeTabId,
+        projectMeta: metaToSave,
+        signals: state.signals,
+        products: state.products,
+        accessories: state.accessories,
+        ipTableColumns: state.ipTableColumns,
+        zones: state.zones,
+      },
+    );
+
+    if (shouldVersion) {
+      await updateVersionsMeta(id, versionsMeta).catch((e) =>
+        console.error("Échec mise à jour versions_meta :", e),
+      );
+    }
+
+    // Recopie l'état flushé dans les onglets — historique annuler/refaire en pause
+    // pour ne pas y ajouter d'entrées vides à chaque sauvegarde.
+    const temporal = useAppStore.temporal.getState();
+    temporal.pause();
+    try {
+      useAppStore.setState({ tabs: flushedTabs });
+      if (!state.currentProjectId) useAppStore.setState({ currentProjectId: id });
+    } finally {
+      temporal.resume();
+    }
+
+    lastSavedHash.current = fullSig;
+    if (createVersion) lastVersionedHash.current = baseHash;
+  };
+
+  /** Enregistrement manuel (bouton « Enregistrer », Ctrl+S) — crée un point de version. */
   const handleSave = async (): Promise<boolean> => {
-    if (readOnly) return false;
+    if (readOnly || saveInFlight.current) return false;
+    saveInFlight.current = true;
     setSaving(true);
     try {
-      const state = useAppStore.getState();
-      // Flush l'état de travail dans l'onglet actif avant de sauvegarder
-      const flushedTabs = getFlushedTabs();
-
-      // ── Détection de modification réelle ──────────────────────────────
-      const currentHash = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories, state.zones);
-      const isModified = lastSavedHash.current !== "" && currentHash !== lastSavedHash.current;
-      const isExistingProject = !!state.currentProjectId;
-
-      // ── Date du jour mise à jour à chaque sauvegarde ──────────────────
+      // Date du jour affichée dans le cartouche, rafraîchie à chaque enregistrement manuel
       const todayStr = new Date().toLocaleDateString("fr-FR", {
         weekday: "long",
         day: "numeric",
         month: "long",
         year: "numeric",
       });
-      let metaToSave = { ...state.projectMeta, date: todayStr };
       updateProjectMeta({ date: todayStr });
-
-      let versionsMeta = [...(state.currentVersionsMeta ?? [])];
-
-      // ── Archivage + incrément de version si modification détectée ─────
-      if (isModified && isExistingProject) {
-        const currentVersion = state.projectMeta.version || "V1.0";
-        try {
-          // Archiver la version courante avant d'incrémenter
-          const archived = await saveProjectVersion(state.currentProjectId!, currentVersion, {
-            tabs: flushedTabs,
-            activeTabId: state.activeTabId,
-            projectMeta: state.projectMeta,
-            signals: state.signals,
-            products: state.products,
-            accessories: state.accessories,
-            ipTableColumns: state.ipTableColumns,
-            zones: state.zones,
-          });
-          // Conserver les 3 derniers snapshots archivés max
-          versionsMeta = [...versionsMeta, archived].slice(-3);
-          await pruneProjectVersions(state.currentProjectId!, 3);
-
-          // Incrémenter la version dans les meta
-          const newVersion = incrementVersion(currentVersion);
-          updateProjectMeta({ version: newVersion });
-          metaToSave = { ...metaToSave, version: newVersion };
-          setVersionsMeta(versionsMeta);
-        } catch {
-          // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
-        }
-      }
-
-      // ── Sauvegarde principale ─────────────────────────────────────────
-      const id = await saveProject(
-        state.currentProjectId,
-        state.currentProjectName || "Sans titre",
-        {
-          tabs: flushedTabs,
-          activeTabId: state.activeTabId,
-          projectMeta: metaToSave,
-          signals: state.signals,
-          products: state.products,
-          accessories: state.accessories,
-          ipTableColumns: state.ipTableColumns,
-          zones: state.zones,
-        },
-      );
-
-      // Mise à jour des versions_meta sur le projet (affichage liste)
-      if (isModified && isExistingProject) {
-        await updateVersionsMeta(id, versionsMeta).catch((e) => console.error("Échec mise à jour versions_meta :", e));
-      }
-
-      // Mettre à jour le store avec les tabs flushés
-      useAppStore.setState({ tabs: flushedTabs });
-      if (!state.currentProjectId) {
-        useAppStore.setState({ currentProjectId: id });
-      }
-
-      // Mémoriser le hash de cet enregistrement
-      lastSavedHash.current = currentHash;
-
+      await persistProject(true);
+      setLastSavedAt(new Date());
+      setIsDirty(false);
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
       return true;
@@ -385,8 +434,74 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       return false;
     } finally {
       setSaving(false);
+      saveInFlight.current = false;
     }
   };
+
+  /** Auto-save silencieux — n'incrémente PAS la version, ne dérange pas l'utilisateur. */
+  const autoSave = async (): Promise<void> => {
+    if (readOnly || saveInFlight.current) return;
+    if (!useAppStore.getState().currentProjectId) return; // projet pas encore enregistré
+    saveInFlight.current = true;
+    setAutoSaving(true);
+    try {
+      await persistProject(false);
+      setLastSavedAt(new Date());
+      setIsDirty(false);
+    } catch (e) {
+      console.error("Échec auto-save :", e);
+      // Pas de toast intrusif : l'indicateur reste « non enregistré » et la prochaine
+      // vérification réessaiera automatiquement.
+    } finally {
+      setAutoSaving(false);
+      saveInFlight.current = false;
+    }
+  };
+
+  // Référence toujours à jour vers autoSave (évite les closures périmées du setInterval).
+  const autoSaveRef = useRef(autoSave);
+  autoSaveRef.current = autoSave;
+
+  // ── Déclencheur de l'auto-save ──────────────────────────────────────────────
+  // Vérifie l'état toutes les 2 s. Enregistre ~4 s après la dernière modification
+  // (pause), ou au moins toutes les 60 s en cas d'activité continue (filet).
+  useEffect(() => {
+    if (readOnly) return;
+    const POLL_MS = 2000, DEBOUNCE_MS = 4000, MAX_WAIT_MS = 60000;
+    let lastPolledSig = lastSavedHash.current;
+    let lastChangeAt = 0;
+    let dirtySince = 0;
+    let prevDirty = false;
+
+    const timer = setInterval(() => {
+      if (saveInFlight.current) return;
+      const state = useAppStore.getState();
+      if (!state.currentProjectId) return; // pas d'auto-save tant que le projet n'est pas enregistré
+
+      const flushedTabs = getFlushedTabs();
+      const { full: sig } = buildSignature(flushedTabs, state);
+      const dirty = sig !== lastSavedHash.current;
+
+      if (dirty !== prevDirty) { setIsDirty(dirty); prevDirty = dirty; }
+      if (!dirty) { lastChangeAt = 0; dirtySince = 0; lastPolledSig = sig; return; }
+
+      const now = Date.now();
+      if (sig !== lastPolledSig) {
+        lastChangeAt = now;
+        if (dirtySince === 0) dirtySince = now;
+        lastPolledSig = sig;
+      }
+      const settled = now - lastChangeAt >= DEBOUNCE_MS;
+      const maxWaited = now - dirtySince >= MAX_WAIT_MS;
+      if (settled || maxWaited) {
+        lastChangeAt = now;
+        dirtySince = now;
+        void autoSaveRef.current();
+      }
+    }, POLL_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly]);
 
   const exportProject = () => {
     const state = useAppStore.getState();
@@ -806,11 +921,23 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                 >
                   ↪
                 </button>
+                <span
+                  className={`save-status${isDirty && !saving && !autoSaving ? " save-status--dirty" : ""}`}
+                  aria-live="polite"
+                >
+                  {saving || autoSaving
+                    ? "Enregistrement…"
+                    : isDirty
+                      ? "● Modifications non enregistrées"
+                      : lastSavedAt
+                        ? `✓ Enregistré à ${lastSavedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                        : ""}
+                </span>
                 <button
                   onClick={() => void handleSave()}
                   disabled={saving}
                   className={`btn-save${savedOk ? " btn-saved" : ""}`}
-                  title="Sauvegarder dans le cloud"
+                  title="Sauvegarder dans le cloud (crée un point de version)"
                 >
                   {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
                 </button>
