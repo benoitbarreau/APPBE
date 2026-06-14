@@ -11599,88 +11599,95 @@ select {
 .brand-tile:hover .brand-tile-edit-btn { opacity: 1; }
 .brand-tile-edit-btn:hover { background: #fff; border-color: #aab4c2; }
 
-/* ── Catégories en lignes (Option B) ── */
+/* ── Catégories en lignes / accordéon (Option B) ── */
 .category-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 0;
 }
 .category-row {
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--panel);
-  border: 1.5px solid var(--border);
-  border-left: 5px solid #9ca3af; /* couleur de la catégorie (surchargée en inline) */
+  border: 1px solid var(--border);
+  border-left: 4px solid #9ca3af; /* couleur de la catégorie (surchargée en inline) */
   overflow: hidden;
-  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
-.category-row:hover {
-  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-  transform: translateX(2px);
-}
-/* Ligne entière cliquable */
+.category-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+.category-row.open { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+/* En-tête cliquable (ligne fine) */
 .category-row-inner {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 7px 14px;
   background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
 }
 .category-row-inner:hover { background: rgba(0,0,0,0.02); }
+.category-row.open .category-row-inner { background: rgba(0,0,0,0.03); }
+/* Flèche d'accordéon */
+.category-row-arrow {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
 /* Zone logo */
 .category-row-logo-area {
-  width: 56px;
-  height: 40px;
+  width: 44px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .category-row-logo-img {
-  max-width: 56px;
-  max-height: 40px;
+  max-width: 44px;
+  max-height: 30px;
   object-fit: contain;
   display: block;
 }
 .category-row-logo-placeholder {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
 }
 /* Nom (prend la place restante) */
 .category-row-name {
   flex: 1;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text);
   word-break: break-word;
 }
 /* Compteur */
 .category-row-count {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 500;
   flex-shrink: 0;
 }
 /* Crayon admin */
 .category-row-edit-btn {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 7px;
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.9);
-  font-size: 13px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11689,14 +11696,13 @@ select {
   opacity: 0;
   transition: opacity 0.15s, background 0.12s;
 }
-.category-row:hover .category-row-edit-btn { opacity: 1; }
+.category-row:hover .category-row-edit-btn,
+.category-row.open .category-row-edit-btn { opacity: 1; }
 .category-row-edit-btn:hover { background: #fff; border-color: #aab4c2; }
-/* Chevron */
-.category-row-chevron {
-  font-size: 22px;
-  line-height: 1;
-  color: var(--muted);
-  flex-shrink: 0;
+/* Contenu déroulé (produits de la catégorie) */
+.category-row-content {
+  padding: 6px 14px 14px;
+  border-top: 1px solid var(--border);
 }
 
 /* ── Fil d'Ariane navigation marque ── */

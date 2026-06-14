@@ -1,4 +1,5 @@
 // ── Tuiles d'accueil : Marque et Catégorie ──────────────────────────────────
+import type { ReactNode } from 'react'
 
 // ── Tuile marque ───────────────────────────────────────────────────────────
 export function BrandTile({
@@ -30,16 +31,18 @@ export function BrandTile({
   )
 }
 
-// ── Ligne catégorie (affichage « en ligne ») ────────────────────────────────
+// ── Ligne catégorie (accordéon « en ligne ») ────────────────────────────────
 export function CategoryRow({
-  catName, count, color, logo, catId, isAdmin, onOpen, onEditLogo,
+  catName, count, color, logo, catId, isAdmin, isOpen, onToggle, onEditLogo, children,
 }: {
   catName: string; count: number; color: string; logo?: string; catId?: string
-  isAdmin: boolean; onOpen: () => void; onEditLogo: () => void
+  isAdmin: boolean; isOpen: boolean; onToggle: () => void; onEditLogo: () => void
+  children?: ReactNode
 }) {
   return (
-    <div className="category-row" style={{ borderLeftColor: color }}>
-      <button className="category-row-inner" onClick={onOpen}>
+    <div className={`category-row${isOpen ? ' open' : ''}`} style={{ borderLeftColor: color }}>
+      <button className="category-row-inner" onClick={onToggle} aria-expanded={isOpen}>
+        <span className="category-row-arrow" aria-hidden>{isOpen ? '▾' : '▸'}</span>
         <span className="category-row-logo-area" style={!logo ? { background: color + '22' } : undefined}>
           {logo
             ? <img src={logo} alt={catName} className="category-row-logo-img" />
@@ -60,8 +63,8 @@ export function CategoryRow({
             title={`Modifier le logo de ${catName}`}
           >✏️</span>
         )}
-        <span className="category-row-chevron" aria-hidden>›</span>
       </button>
+      {isOpen && <div className="category-row-content">{children}</div>}
     </div>
   )
 }

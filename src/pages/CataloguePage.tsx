@@ -43,7 +43,6 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   // ── Navigation principale ──
   const [viewMode,   setViewMode]   = useState<ViewMode>('byBrand')
   const [brandView,  setBrandView]  = useState<string | null>(null)
-  const [catView,    setCatView]    = useState<string | null>(null)
   const [detailView, setDetailView] = useState<DetailView>('grid')
 
   // ── Marques : logo editor ──
@@ -80,23 +79,18 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [importSuccess,       setImportSuccess]       = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
 
-  // ── On est dans une sous-vue quand brandView ou catView est défini ──
-  const inSubView = !!(brandView || catView)
+  // ── On est dans une sous-vue quand une marque est ouverte ──
+  const inSubView = !!brandView
 
   // ── Helpers navigation ──
   const openBrand = (brand: string) => {
-    setBrandView(brand); setCatView(null)
+    setBrandView(brand)
     setOpenCategories(new Set()); setSearch(''); setFilterMode('all')
     setAdvRackUs([]); setAdvWithImage(false); setAdvWithPdf(false)
   }
-  const openCategory = (cat: string) => {
-    setCatView(cat); setBrandView(null)
-    setSearch(''); setFilterMode('all')
-    setAdvRackUs([]); setAdvWithImage(false); setAdvWithPdf(false)
-  }
   const switchTab = (mode: ViewMode) => {
-    setViewMode(mode); setBrandView(null); setCatView(null)
-    setSearch(''); setFilterMode('all')
+    setViewMode(mode); setBrandView(null)
+    setOpenCategories(new Set()); setSearch(''); setFilterMode('all')
     setAdvRackUs([]); setAdvWithImage(false); setAdvWithPdf(false)
     setSelectedIds(new Set())
   }
@@ -195,11 +189,6 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
   }, [filtered, brandView])
 
-  const catDetailProducts = useMemo(() =>
-    catView ? filtered.filter(p => p.category === catView) : [],
-    [filtered, catView],
-  )
-
   // ── Aperçu rapide ──
   const previewProduct = previewId ? (products.find(p => p.id === previewId) ?? null) : null
 
@@ -295,8 +284,8 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   }
 
   const handleExport = () => {
-    const base = inSubView
-      ? (brandView ? filtered.filter(p => p.manufacturer === brandView) : catDetailProducts)
+    const base = brandView
+      ? filtered.filter(p => p.manufacturer === brandView)
       : products
     exportToCsv(base, productMeta, `catalogue-synox-${new Date().toISOString().slice(0, 10)}.csv`)
   }
@@ -379,9 +368,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
             <div className="catalogue-subnav-breadcrumb">
               <button
                 className="catalogue-brand-back"
-                onClick={() => { setBrandView(null); setCatView(null) }}
+                onClick={() => setBrandView(null)}
               >
-                ← {viewMode === 'byBrand' ? 'Marques' : 'Catégories'}
+                ← Marques
               </button>
               <span className="catalogue-brand-nav-sep">›</span>
               {brandView && (
@@ -389,12 +378,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                   ? <img src={brandLogoMap[brandView]} alt={brandView} className="brand-nav-logo-lg" />
                   : <div className="brand-nav-initial">{(brandView[0] ?? '?').toUpperCase()}</div>
               )}
-              {catView && (
-                <div className="catalogue-subnav-cat-dot" style={{ background: catColorMap[catView] ?? '#9ca3af' }} />
-              )}
-              <span className="catalogue-brand-nav-name">{brandView ?? catView}</span>
+              <span className="catalogue-brand-nav-name">{brandView}</span>
               <span className="catalogue-brand-nav-count">
-                ({(brandView ? brandDetailGroups.reduce((s, [, p]) => s + p.length, 0) : catDetailProducts.length)} produits)
+                ({brandDetailGroups.reduce((s, [, p]) => s + p.length, 0)} produits)
               </span>
             </div>
 
@@ -558,8 +544,8 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           </div>
         )}
 
-        {/* ── Vue Catégories : lignes ── */}
-        {viewMode === 'byCategory' && !catView && (
+        {/* ── Vue Catégories : accordéon ── */}
+        {viewMode === 'byCategory' && (
           <div className="category-rows">
             {groupedByCategory.map(([cat, prods]) => (
               <CategoryRow key={cat} catName={cat} count={prods.length}
@@ -567,22 +553,14 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
                 logo={categoryLogoMap[cat]}
                 catId={categoryIdMap[cat]}
                 isAdmin={isAdmin}
-                onOpen={() => openCategory(cat)}
-                onEditLogo={() => setEditingLogoForCategory(cat)} />
+                isOpen={openCategories.has(cat)}
+                onToggle={() => toggleCategory(cat)}
+                onEditLogo={() => setEditingLogoForCategory(cat)}>
+                <ProductGrid products={prods} productMeta={productMeta} catColorMap={catColorMap}
+                  selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)} />
+              </CategoryRow>
             ))}
           </div>
-        )}
-
-        {/* ── Détail catégorie ── */}
-        {viewMode === 'byCategory' && catView && (
-          catDetailProducts.length === 0
-            ? <div className="catalogue-empty"><p>Aucun résultat.</p>{hasActiveFilter && <button onClick={clearFilters}>Effacer les filtres</button>}</div>
-            : detailView === 'grid'
-              ? <ProductGrid products={catDetailProducts} productMeta={productMeta} catColorMap={catColorMap}
-                  selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)} />
-              : <ProductListView products={catDetailProducts} productMeta={productMeta} catColorMap={catColorMap}
-                  selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)}
-                  listSortKey={listSortKey} listSortDir={listSortDir} onSort={toggleListSort} />
         )}
       </div>
 
