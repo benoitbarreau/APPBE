@@ -20,6 +20,8 @@ import { SpeakerPortEditor } from "./product-editor/SpeakerPortEditor";
 import { PdfField } from "./product-editor/PdfField";
 import { ImageField } from "./product-editor/ImageField";
 import { ProductPreviewPanel } from "./product-editor/ProductPreviewPanel";
+import { AiCompleteDialog } from "./product-editor/AiCompleteDialog";
+import { completeProductFromPdf, type ProductAiSpecs } from "../lib/aiCompleteApi";
 
 const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
 
@@ -49,10 +51,15 @@ export function ProductEditor({
   const removeProduct = useAppStore((s) => s.removeProduct);
   const archiveProductLocal = useAppStore((s) => s.archiveProductLocal);
   const setProductMeta = useAppStore((s) => s.setProductMeta);
+  const signals = useAppStore((s) => s.signals);
   const catalogBrands = useCatalogMeta((s) => s.catalogBrands);
   const catalogCategories = useCatalogMeta((s) => s.catalogCategories);
 
   const [draft, setDraft] = useState<Product>(emptyProduct());
+
+  // ── Complétion IA (depuis la fiche technique PDF) ────────────────────────
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSpecs, setAiSpecs] = useState<ProductAiSpecs | null>(null);
 
   useEffect(() => {
     if (productId === "new" || productId === null) {
@@ -99,6 +106,60 @@ export function ProductEditor({
 
   const toggleWeightUnit = () =>
     setWeightUnit((u) => (u === "kg" ? "lbs" : "kg"));
+
+  // ── Complétion IA : appel + application des caractéristiques proposées ───
+  const handleAiComplete = async () => {
+    const url = draft.datasheetUrls?.[0];
+    if (!url) return;
+    setAiLoading(true);
+    try {
+      const specs = await completeProductFromPdf({
+        pdfUrl: url,
+        manufacturer: draft.manufacturer || undefined,
+        reference: draft.reference || undefined,
+        category: draft.category || undefined,
+        signalTypes: Object.values(signals).map((s) => s.id),
+      });
+      setAiSpecs(specs);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Échec de la complétion IA", "error");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAiSpecs = (specs: ProductAiSpecs) => {
+    const toPorts = (
+      arr: ProductAiSpecs["inputs"],
+      side: "inputs" | "outputs",
+    ): Port[] =>
+      (arr ?? []).map((p, i) => ({
+        id: `${side}-ai-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        label: p.label || `${side === "inputs" ? "IN" : "OUT"} ${i + 1}`,
+        signal: p.signal || "HDMI",
+        direction:
+          p.direction === "in" || p.direction === "out" || p.direction === "bi"
+            ? p.direction
+            : side === "inputs"
+              ? "in"
+              : "out",
+      }));
+
+    setDraft((d) => ({
+      ...d,
+      inputs: specs.inputs?.length ? toPorts(specs.inputs, "inputs") : d.inputs,
+      outputs: specs.outputs?.length ? toPorts(specs.outputs, "outputs") : d.outputs,
+      powerOperatingW: specs.powerOperatingW ?? d.powerOperatingW,
+      powerStandbyW: specs.powerStandbyW ?? d.powerStandbyW,
+      thermalBtuH: specs.thermalBtuH ?? d.thermalBtuH,
+      rackHeightU: specs.rackHeightU ?? d.rackHeightU,
+      rackSize: specs.rackSize ?? d.rackSize,
+      widthCm: specs.widthCm ?? d.widthCm,
+      depthCm: specs.depthCm ?? d.depthCm,
+      heightCm: specs.heightCm ?? d.heightCm,
+      weightKg: specs.weightKg ?? d.weightKg,
+    }));
+  };
 
   // ── Calcul BTU/h depuis la puissance de fonctionnement ──────────────────
   const calcBtu = () => {
@@ -477,6 +538,29 @@ export function ProductEditor({
             onChange={(v) => setDraft({ ...draft, datasheetUrls: v })}
           />
 
+          {canEdit && (
+            <div className="pe-ai-complete">
+              <button
+                type="button"
+                className="pe-ai-complete-btn"
+                disabled={aiLoading || (draft.datasheetUrls?.length ?? 0) === 0}
+                onClick={handleAiComplete}
+                title={
+                  (draft.datasheetUrls?.length ?? 0) === 0
+                    ? "Ajoutez d'abord une fiche technique PDF"
+                    : "Compléter la fiche avec l'IA à partir du PDF"
+                }
+              >
+                {aiLoading ? "⏳ Analyse du PDF…" : "✨ Compléter depuis le PDF"}
+              </button>
+              {(draft.datasheetUrls?.length ?? 0) === 0 && (
+                <span className="pe-ai-complete-hint">
+                  Ajoutez une fiche technique PDF pour activer la complétion IA.
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="pe-section-title">Connectique</div>
           {SPEAKER_CATEGORIES.has(draft.category) ? (
             <SpeakerPortEditor
@@ -581,6 +665,21 @@ export function ProductEditor({
           )}
         </div>
       </div>
+
+      {aiSpecs && (
+        <AiCompleteDialog
+          specs={aiSpecs}
+          onCancel={() => setAiSpecs(null)}
+          onApply={() => {
+            applyAiSpecs(aiSpecs);
+            setAiSpecs(null);
+            notify(
+              "Caractéristiques appliquées — vérifiez puis enregistrez.",
+              "success",
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

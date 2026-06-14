@@ -63,5 +63,6 @@ jobs:
           supabase functions deploy admin-update-user  --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
           supabase functions deploy invite-user        --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
           supabase functions deploy notify-admin-new-user --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
+          supabase functions deploy complete-product   --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

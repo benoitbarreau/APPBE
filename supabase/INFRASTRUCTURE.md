@@ -34,6 +34,7 @@ Aller sur : **Supabase Dashboard → Edge Functions → Manage secrets**
 | `RESEND_API_KEY` | Clé API [Resend](https://resend.com) pour l'envoi d'e-mails | ✅ |
 | `ADMIN_EMAIL` | Adresse e-mail de destination des notifications d'inscription | ✅ |
 | `FROM_EMAIL` | Adresse expéditrice vérifiée dans Resend (ex. `SynoX-AV <notifications@videosynergie.com>`) | ✅ |
+| `GEMINI_API_KEY` | Clé API [Google AI Studio](https://aistudio.google.com/apikey) pour la complétion IA des fiches produit (fonction `complete-product`) | ✅ (pour l'IA) |
 | `SUPABASE_URL` | **Injecté automatiquement** par Supabase — ne pas ajouter manuellement | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Injecté automatiquement** par Supabase — ne pas ajouter manuellement | — |
 
@@ -49,6 +50,7 @@ via GitHub Actions (`deploy.yml`) à chaque push sur la branche principale.
 | `admin-update-user` | Modifier email / mot de passe / rôle / statut d'un utilisateur (nécessite SERVICE_ROLE) |
 | `invite-user` | Créer un compte par invitation ou mot de passe provisoire, envoie un e-mail via Resend |
 | `notify-admin-new-user` | Envoyer un e-mail à l'admin à chaque nouvelle inscription (déclenchée par webhook) |
+| `complete-product` | Complète une fiche produit (connectique, alimentation, dimensions…) à partir de sa fiche technique PDF via Google Gemini (nécessite `GEMINI_API_KEY`) |
 
 ---
 
