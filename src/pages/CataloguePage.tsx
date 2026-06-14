@@ -12,7 +12,7 @@ import type { FilterMode, ViewMode, DetailView, ListSortKey } from './catalogue/
 import { BUILTIN_IDS, PILL_DEFS } from './catalogue/constants'
 import { ActionsMenu } from './catalogue/ActionsMenu'
 import { BrandLogoEditor } from './catalogue/BrandLogoEditor'
-import { BrandTile, CategoryTile } from './catalogue/Tiles'
+import { BrandTile, CategoryRow } from './catalogue/Tiles'
 import { ProductQuickPreview } from './catalogue/ProductQuickPreview'
 import { ProductGrid, ProductListView } from './catalogue/ProductViews'
 
@@ -558,11 +558,11 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           </div>
         )}
 
-        {/* ── Vue Catégories : tuiles ── */}
+        {/* ── Vue Catégories : lignes ── */}
         {viewMode === 'byCategory' && !catView && (
-          <div className="brand-tiles-grid">
+          <div className="category-rows">
             {groupedByCategory.map(([cat, prods]) => (
-              <CategoryTile key={cat} catName={cat} count={prods.length}
+              <CategoryRow key={cat} catName={cat} count={prods.length}
                 color={catColorMap[cat] ?? '#9ca3af'}
                 logo={categoryLogoMap[cat]}
                 catId={categoryIdMap[cat]}

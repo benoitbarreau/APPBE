@@ -11599,6 +11599,106 @@ select {
 .brand-tile:hover .brand-tile-edit-btn { opacity: 1; }
 .brand-tile-edit-btn:hover { background: #fff; border-color: #aab4c2; }
 
+/* ── Catégories en lignes (Option B) ── */
+.category-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.category-row {
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-left: 5px solid #9ca3af; /* couleur de la catégorie (surchargée en inline) */
+  overflow: hidden;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+}
+.category-row:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  transform: translateX(2px);
+}
+/* Ligne entière cliquable */
+.category-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.category-row-inner:hover { background: rgba(0,0,0,0.02); }
+/* Zone logo */
+.category-row-logo-area {
+  width: 56px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.category-row-logo-img {
+  max-width: 56px;
+  max-height: 40px;
+  object-fit: contain;
+  display: block;
+}
+.category-row-logo-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+/* Nom (prend la place restante) */
+.category-row-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+/* Compteur */
+.category-row-count {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+/* Crayon admin */
+.category-row-edit-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.9);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.12s;
+}
+.category-row:hover .category-row-edit-btn { opacity: 1; }
+.category-row-edit-btn:hover { background: #fff; border-color: #aab4c2; }
+/* Chevron */
+.category-row-chevron {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 /* ── Fil d'Ariane navigation marque ── */
 .catalogue-brand-nav {
   display: flex;
