@@ -160,19 +160,41 @@ serve(async (req: Request) => {
       },
     }
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
-      {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`
+
+    // Appel avec une nouvelle tentative en cas de 429 (limite de débit passagère).
+    let geminiRes: Response | null = null
+    let lastErrText = ''
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(geminiBody),
-      },
-    )
+      })
+      if (res.ok) { geminiRes = res; break }
+      lastErrText = await res.text()
+      console.error(`[complete-product] Gemini HTTP ${res.status} (tentative ${attempt + 1}):`, lastErrText)
+      if (res.status === 429 && attempt === 0) {
+        // Pause courte puis nouvel essai
+        await new Promise((r) => setTimeout(r, 4000))
+        continue
+      }
+      // Extraire le message lisible renvoyé par Google
+      let detail = lastErrText
+      try {
+        const parsed = JSON.parse(lastErrText) as { error?: { message?: string } }
+        if (parsed?.error?.message) detail = parsed.error.message
+      } catch { /* garder le texte brut */ }
+      detail = detail.slice(0, 400)
+      const prefix = res.status === 429
+        ? 'Quota IA Gemini dépassé (limite du palier gratuit atteinte).'
+        : `Erreur de l'IA (HTTP ${res.status}).`
+      return json({ error: `${prefix} Détail Google : ${detail}` }, 502)
+    }
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text()
-      console.error('[complete-product] Gemini error:', errText)
-      return json({ error: `Erreur de l'IA (HTTP ${geminiRes.status}). Réessayez plus tard.` }, 502)
+    if (!geminiRes) {
+      const detail = (lastErrText || '').slice(0, 400)
+      return json({ error: `Quota IA Gemini dépassé (limite du palier gratuit). Détail Google : ${detail}` }, 502)
     }
 
     const geminiData = await geminiRes.json()
