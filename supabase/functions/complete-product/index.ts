@@ -36,8 +36,10 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// Modèle Gemini : rapide, gratuit, sait lire les PDF et produire du JSON.
-const GEMINI_MODEL = 'gemini-2.0-flash'
+// Modèle Gemini : rapide, sait lire les PDF et produire du JSON.
+// NB : la disponibilité du palier gratuit dépend du modèle ET du projet Google.
+// Si un modèle renvoie « free_tier_requests limit: 0 », en essayer un autre.
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 // Taille max du PDF traité (le base64 gonfle d'environ +33 % ; on reste prudent).
 const MAX_PDF_BYTES = 15 * 1024 * 1024 // 15 Mo
