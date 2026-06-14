@@ -39,10 +39,12 @@ import { useAuth } from "./auth/useAuth";
 import {
   saveProject,
   saveProjectVersion,
-  updateVersionsMeta,
   pruneProjectVersions,
   incrementVersion,
   computeProjectHash,
+  fetchProject,
+  getProjectUpdatedAt,
+  ProjectConflictError,
 } from "./lib/projectsApi";
 import { getProjectRoomInfo, type ProjectRoomInfo } from "./lib/referentielApi";
 
@@ -173,6 +175,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const currentProjectName = useAppStore((s) => s.currentProjectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
+  const loadProjectData = useAppStore((s) => s.loadProjectData);
 
   // Empreinte COMPLÈTE au dernier enregistrement (manuel ou auto) — détecte les
   // modifications non sauvegardées (auto-save + garde-fou de sortie).
@@ -186,6 +189,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  // Concurrence optimiste : date serveur de référence + état de conflit détecté.
+  const loadedUpdatedAt = useRef<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const conflictRef = useRef(false);
+  conflictRef.current = conflict;
 
   // Modal "modifications non sauvegardées"
   const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
@@ -205,6 +213,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     lastVersionedHash.current = base;
     setIsDirty(false);
     setLastSavedAt(null);
+    setConflict(false);
+    // Récupère la date serveur de référence (concurrence optimiste).
+    loadedUpdatedAt.current = null;
+    if (state.currentProjectId && !readOnly) {
+      getProjectUpdatedAt(state.currentProjectId)
+        .then((ts) => { loadedUpdatedAt.current = ts; })
+        .catch(() => { /* non bloquant : on le saura au premier enregistrement */ });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProjectId]);
 
@@ -328,15 +344,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
    *  - createVersion=true  : archive la version courante + incrémente le numéro
    *    (V1.0→V1.1), comme le bouton « Enregistrer ». Comportement inchangé.
    *  - createVersion=false : enregistrement silencieux (auto-save) — AUCUN archivage,
-   *    AUCUN incrément de version. */
-  const persistProject = async (createVersion: boolean): Promise<void> => {
+   *    AUCUN incrément de version.
+   *  - force=true : ignore la vérification de concurrence (écrasement assumé).
+   *  Lève ProjectConflictError si le projet a été modifié ailleurs entre-temps. */
+  const persistProject = async (createVersion: boolean, force = false): Promise<void> => {
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
     const { base: baseHash, full: fullSig } = buildSignature(flushedTabs, state);
     const isExistingProject = !!state.currentProjectId;
 
     let metaToSave = state.projectMeta;
-    let versionsMeta = [...(state.currentVersionsMeta ?? [])];
+    let versionsMeta: import("./lib/projectsApi").VersionMeta[] | undefined;
 
     // Incrément de version : uniquement sur enregistrement manuel, projet existant,
     // et s'il y a du neuf depuis le DERNIER POINT DE VERSION (pas depuis le dernier
@@ -359,7 +377,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           zones: state.zones,
         });
         // Conserver les 3 derniers snapshots archivés max
-        versionsMeta = [...versionsMeta, archived].slice(-3);
+        versionsMeta = [...(state.currentVersionsMeta ?? []), archived].slice(-3);
         await pruneProjectVersions(state.currentProjectId!, 3);
 
         // Incrémenter la version dans les meta
@@ -369,11 +387,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         setVersionsMeta(versionsMeta);
       } catch {
         // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
+        versionsMeta = undefined;
       }
     }
 
-    // ── Sauvegarde principale ─────────────────────────────────────────────
-    const id = await saveProject(
+    // ── Sauvegarde principale (avec vérification de concurrence) ──────────
+    // versions_meta est écrit dans la même requête → une seule mise à jour de updated_at.
+    const { id, updatedAt } = await saveProject(
       state.currentProjectId,
       state.currentProjectName || "Sans titre",
       {
@@ -386,13 +406,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         ipTableColumns: state.ipTableColumns,
         zones: state.zones,
       },
+      { expectedUpdatedAt: force ? null : loadedUpdatedAt.current, versionsMeta },
     );
 
-    if (shouldVersion) {
-      await updateVersionsMeta(id, versionsMeta).catch((e) =>
-        console.error("Échec mise à jour versions_meta :", e),
-      );
-    }
+    // La sauvegarde a réussi → cette date devient la nouvelle référence.
+    loadedUpdatedAt.current = updatedAt;
 
     // Recopie l'état flushé dans les onglets — historique annuler/refaire en pause
     // pour ne pas y ajouter d'entrées vides à chaque sauvegarde.
@@ -430,6 +448,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       setTimeout(() => setSavedOk(false), 2500);
       return true;
     } catch (e) {
+      if (e instanceof ProjectConflictError) { setConflict(true); return false; }
       notify("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)), "error");
       return false;
     } finally {
@@ -449,11 +468,57 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       setLastSavedAt(new Date());
       setIsDirty(false);
     } catch (e) {
+      if (e instanceof ProjectConflictError) {
+        // Modifié ailleurs → on arrête l'auto-save et on demande à l'utilisateur.
+        setConflict(true);
+        return;
+      }
       console.error("Échec auto-save :", e);
       // Pas de toast intrusif : l'indicateur reste « non enregistré » et la prochaine
       // vérification réessaiera automatiquement.
     } finally {
       setAutoSaving(false);
+      saveInFlight.current = false;
+    }
+  };
+
+  /** Résolution de conflit — recharge la version distante (abandonne mes modifs locales). */
+  const reloadRemoteVersion = async () => {
+    const id = useAppStore.getState().currentProjectId;
+    if (!id) { setConflict(false); return; }
+    try {
+      const { name, data, updatedAt, versionsMeta } = await fetchProject(id);
+      loadProjectData(id, name, data, versionsMeta);
+      loadedUpdatedAt.current = updatedAt;
+      // Réinitialise les empreintes sur l'état rechargé.
+      const st = useAppStore.getState();
+      const { base, full } = buildSignature(getFlushedTabs(), st);
+      lastSavedHash.current = full;
+      lastVersionedHash.current = base;
+      setIsDirty(false);
+      setLastSavedAt(new Date());
+      setConflict(false);
+      notify("Projet rechargé depuis la version la plus récente.", "info");
+    } catch (e) {
+      notify("Impossible de recharger : " + (e instanceof Error ? e.message : String(e)), "error");
+    }
+  };
+
+  /** Résolution de conflit — écrase la version distante avec la mienne. */
+  const overwriteWithMyVersion = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSaving(true);
+    try {
+      await persistProject(false, true); // force = écrasement assumé
+      setConflict(false);
+      setIsDirty(false);
+      setLastSavedAt(new Date());
+      notify("Votre version a été enregistrée (l'autre version a été écrasée).", "success");
+    } catch (e) {
+      notify("Échec de l'enregistrement : " + (e instanceof Error ? e.message : String(e)), "error");
+    } finally {
+      setSaving(false);
       saveInFlight.current = false;
     }
   };
@@ -474,7 +539,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     let prevDirty = false;
 
     const timer = setInterval(() => {
-      if (saveInFlight.current) return;
+      if (saveInFlight.current || conflictRef.current) return; // en conflit : auto-save en pause
       const state = useAppStore.getState();
       if (!state.currentProjectId) return; // pas d'auto-save tant que le projet n'est pas enregistré
 
@@ -921,26 +986,51 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                 >
                   ↪
                 </button>
-                <span
-                  className={`save-status${isDirty && !saving && !autoSaving ? " save-status--dirty" : ""}`}
-                  aria-live="polite"
-                >
-                  {saving || autoSaving
-                    ? "Enregistrement…"
-                    : isDirty
-                      ? "● Modifications non enregistrées"
-                      : lastSavedAt
-                        ? `✓ Enregistré à ${lastSavedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                        : ""}
-                </span>
-                <button
-                  onClick={() => void handleSave()}
-                  disabled={saving}
-                  className={`btn-save${savedOk ? " btn-saved" : ""}`}
-                  title="Sauvegarder dans le cloud (crée un point de version)"
-                >
-                  {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
-                </button>
+                {conflict ? (
+                  <>
+                    <span className="save-status save-status--dirty" aria-live="assertive">
+                      ⚠ Modifié ailleurs
+                    </span>
+                    <button
+                      onClick={() => void reloadRemoteVersion()}
+                      disabled={saving}
+                      title="Abandonner mes modifications et recharger la version la plus récente"
+                    >
+                      ↻ Recharger
+                    </button>
+                    <button
+                      className="danger"
+                      onClick={() => void overwriteWithMyVersion()}
+                      disabled={saving}
+                      title="Écraser la version distante avec la mienne"
+                    >
+                      Écraser
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className={`save-status${isDirty && !saving && !autoSaving ? " save-status--dirty" : ""}`}
+                      aria-live="polite"
+                    >
+                      {saving || autoSaving
+                        ? "Enregistrement…"
+                        : isDirty
+                          ? "● Modifications non enregistrées"
+                          : lastSavedAt
+                            ? `✓ Enregistré à ${lastSavedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                            : ""}
+                    </span>
+                    <button
+                      onClick={() => void handleSave()}
+                      disabled={saving}
+                      className={`btn-save${savedOk ? " btn-saved" : ""}`}
+                      title="Sauvegarder dans le cloud (crée un point de version)"
+                    >
+                      {saving ? "Sauvegarde…" : savedOk ? "Sauvegardé ✓" : "Sauvegarder"}
+                    </button>
+                  </>
+                )}
               </>
             )}
             <div className="export-menu" ref={exportMenuRef}>

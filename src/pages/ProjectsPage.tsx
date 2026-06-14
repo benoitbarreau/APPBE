@@ -139,7 +139,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     setError(null)
     try {
       const state = storeState.getState()
-      const id = await saveProject(null, name, {
+      const { id } = await saveProject(null, name, {
         nodes: [],
         cables: [],
         projectMeta: state.projectMeta,

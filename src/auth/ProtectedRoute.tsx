@@ -305,7 +305,7 @@ export function ProtectedRoute() {
   const handleNewProjectFromRoom = async (roomId: string, projectName: string, siteName: string, clientName: string) => {
     const state = useAppStore.getState()
     try {
-      const id = await saveProject(null, projectName, {
+      const { id } = await saveProject(null, projectName, {
         projectMeta: { ...state.projectMeta, client: clientName, lieu: siteName },
         signals: state.signals,
         zones: state.zones,

@@ -148,42 +148,80 @@ export async function pruneProjectVersions(
   }
 }
 
-export async function fetchProject(id: string): Promise<{ name: string; data: ProjectData }> {
+export async function fetchProject(
+  id: string,
+): Promise<{ name: string; data: ProjectData; updatedAt: string; versionsMeta: VersionMeta[] }> {
   const { data, error } = await supabase
     .from('projects')
-    .select('name, data')
+    .select('name, data, updated_at, versions_meta')
     .eq('id', id)
     .single()
   if (error) throw pgErr(error)
-  return data as { name: string; data: ProjectData }
+  const r = data as { name: string; data: ProjectData; updated_at: string; versions_meta: VersionMeta[] | null }
+  return { name: r.name, data: r.data, updatedAt: r.updated_at, versionsMeta: r.versions_meta ?? [] }
+}
+
+/** Lève cette erreur quand le projet a été modifié ailleurs depuis le chargement
+ *  (concurrence optimiste) — permet d'éviter un écrasement silencieux. */
+export class ProjectConflictError extends Error {
+  constructor() {
+    super('Le projet a été modifié ailleurs depuis votre ouverture.')
+    this.name = 'ProjectConflictError'
+  }
+}
+
+/** Récupère la date de dernière modification serveur d'un projet (référence de concurrence). */
+export async function getProjectUpdatedAt(id: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('updated_at')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw pgErr(error)
+  return data ? (data as { updated_at: string }).updated_at : null
 }
 
 export async function saveProject(
   id: string | null,
   name: string,
   projectData: ProjectData,
-): Promise<string> {
+  opts: { expectedUpdatedAt?: string | null; versionsMeta?: VersionMeta[] } = {},
+): Promise<{ id: string; updatedAt: string }> {
   const client_name = projectData.projectMeta?.client ?? ''
   const lieu = projectData.projectMeta?.lieu ?? ''
 
   if (id) {
-    const { error } = await supabase
-      .from('projects')
-      .update({ name, data: projectData, client_name, lieu })
-      .eq('id', id)
+    const patch: Record<string, unknown> = { name, data: projectData, client_name, lieu }
+    // versions_meta écrit dans la MÊME requête → une seule mise à jour de updated_at.
+    if (opts.versionsMeta) patch.versions_meta = opts.versionsMeta
+
+    let query = supabase.from('projects').update(patch).eq('id', id)
+    // Concurrence optimiste : on n'écrase que si la date serveur est restée celle chargée.
+    if (opts.expectedUpdatedAt) query = query.eq('updated_at', opts.expectedUpdatedAt)
+
+    const { data, error } = await query.select('updated_at').maybeSingle()
     if (error) throw pgErr(error)
-    return id
+    if (!data) {
+      // 0 ligne mise à jour : le projet a été modifié ailleurs (ou supprimé) → conflit.
+      if (opts.expectedUpdatedAt) throw new ProjectConflictError()
+      throw new Error('Projet introuvable')
+    }
+    return { id, updatedAt: (data as { updated_at: string }).updated_at }
   }
+
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError) throw pgErr(authError)
   if (!user) throw new Error('Non authentifié')
+  const insertPatch: Record<string, unknown> = { name, data: projectData, user_id: user.id, client_name, lieu }
+  if (opts.versionsMeta) insertPatch.versions_meta = opts.versionsMeta
   const { data, error } = await supabase
     .from('projects')
-    .insert({ name, data: projectData, user_id: user.id, client_name, lieu })
-    .select('id')
+    .insert(insertPatch)
+    .select('id, updated_at')
     .single()
   if (error) throw pgErr(error)
-  return (data as { id: string }).id
+  const r = data as { id: string; updated_at: string }
+  return { id: r.id, updatedAt: r.updated_at }
 }
 
 export async function deleteProject(id: string): Promise<void> {
