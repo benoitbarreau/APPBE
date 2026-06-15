@@ -17,6 +17,8 @@ import { ProductQuickPreview } from './catalogue/ProductQuickPreview'
 import { ProductGrid, ProductListView } from './catalogue/ProductViews'
 import { PreImportDialog, type PreImportRow } from './catalogue/PreImportDialog'
 import { notify } from '../components/dialogs/dialogStore'
+import { completeProductFromPdf } from '../lib/aiCompleteApi'
+import { mergeAiSpecsIntoProduct } from '../lib/applyAiSpecs'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -36,7 +38,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const products          = useAppStore(s => s.products)
   const productMeta       = useAppStore(s => s.productMeta)
   const addProduct        = useAppStore(s => s.addProduct)
+  const updateProduct     = useAppStore(s => s.updateProduct)
   const setProductMeta    = useAppStore(s => s.setProductMeta)
+  const signals           = useAppStore(s => s.signals)
   const catalogCategories = useCatalogMeta(s => s.catalogCategories)
   const catalogBrands     = useCatalogMeta(s => s.catalogBrands)
   const setCatalogMeta    = useCatalogMeta(s => s.setCatalogMeta)
@@ -328,6 +332,49 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     notify(`${rows.length} fiche${rows.length > 1 ? 's' : ''} créée${rows.length > 1 ? 's' : ''} dans « À traiter ».`, 'success')
   }
 
+  // ── Complétion IA en lot : toutes les fiches « À traiter » ayant un PDF ──
+  const [batchAi, setBatchAi] = useState<{ done: number; total: number } | null>(null)
+
+  const handleBatchAiComplete = async () => {
+    const targets = todoProducts.filter(p => (p.datasheetUrls?.length ?? 0) > 0)
+    if (targets.length === 0) {
+      notify('Aucune fiche « À traiter » avec un PDF à compléter.', 'info')
+      return
+    }
+    setBatchAi({ done: 0, total: targets.length })
+    const signalTypes = Object.values(signals).map(s => s.id)
+    let ok = 0
+    const failed: string[] = []
+    for (let i = 0; i < targets.length; i++) {
+      const p = targets[i]
+      try {
+        const specs = await completeProductFromPdf({
+          pdfUrl: p.datasheetUrls![0],
+          manufacturer: p.manufacturer || undefined,
+          reference: p.reference || undefined,
+          category: p.category || undefined,
+          signalTypes,
+        })
+        const merged = mergeAiSpecsIntoProduct(p, specs)
+        updateProduct(p.id, merged)
+        upsertUserProduct(merged, { initialStatus: 'pending' }).catch(e =>
+          console.error('Échec cloud (complétion lot) :', e),
+        )
+        ok++
+      } catch (e) {
+        console.error('Échec complétion IA pour', p.reference, e)
+        failed.push(p.reference || p.id)
+      }
+      setBatchAi({ done: i + 1, total: targets.length })
+    }
+    setBatchAi(null)
+    if (failed.length === 0) {
+      notify(`Complétion IA terminée : ${ok} fiche${ok > 1 ? 's' : ''} complétée${ok > 1 ? 's' : ''}. Vérifie chacune puis « Marquer comme traité ».`, 'success')
+    } else {
+      notify(`Complétion IA : ${ok} réussie(s), ${failed.length} échec(s) (${failed.slice(0, 4).join(', ')}${failed.length > 4 ? '…' : ''}). Relance pour réessayer les échecs.`, 'error')
+    }
+  }
+
   // ── Filtres avancés ──
   const hasAdvFilter = advRackUs.length > 0 || advWithImage || advWithPdf
   const advFilterCount = advRackUs.length + (advWithImage ? 1 : 0) + (advWithPdf ? 1 : 0)
@@ -527,7 +574,24 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           <div className="catalogue-todo-view">
             <div className="catalogue-todo-head">
               <h2>📝 À traiter <span className="catalogue-todo-head-count">({todoProducts.length})</span></h2>
-              <button className="catalogue-brand-back" onClick={() => setShowTodo(false)}>← Retour au catalogue</button>
+              <div className="catalogue-todo-head-actions">
+                {(() => {
+                  const withPdf = todoProducts.filter(p => (p.datasheetUrls?.length ?? 0) > 0).length
+                  return (
+                    <button
+                      className="catalogue-todo-ai-btn"
+                      onClick={handleBatchAiComplete}
+                      disabled={!!batchAi || withPdf === 0}
+                      title={withPdf === 0 ? 'Aucune fiche avec un PDF' : `Compléter par l'IA les ${withPdf} fiche(s) avec PDF`}
+                    >
+                      {batchAi
+                        ? `⏳ Complétion ${batchAi.done}/${batchAi.total}…`
+                        : `✨ Compléter tout (${withPdf})`}
+                    </button>
+                  )
+                })()}
+                <button className="catalogue-brand-back" onClick={() => setShowTodo(false)}>← Retour au catalogue</button>
+              </div>
             </div>
             {todoProducts.length === 0
               ? <div className="catalogue-empty"><p>Aucune fiche à traiter. Utilise « 📥 Pré-importer » pour en créer.</p></div>

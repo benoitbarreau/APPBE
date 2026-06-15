@@ -22,6 +22,7 @@ import { ImageField } from "./product-editor/ImageField";
 import { ProductPreviewPanel } from "./product-editor/ProductPreviewPanel";
 import { AiCompleteDialog } from "./product-editor/AiCompleteDialog";
 import { completeProductFromPdf, type ProductAiSpecs } from "../lib/aiCompleteApi";
+import { mergeAiSpecsIntoProduct } from "../lib/applyAiSpecs";
 
 const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
 
@@ -129,36 +130,7 @@ export function ProductEditor({
   };
 
   const applyAiSpecs = (specs: ProductAiSpecs) => {
-    const toPorts = (
-      arr: ProductAiSpecs["inputs"],
-      side: "inputs" | "outputs",
-    ): Port[] =>
-      (arr ?? []).map((p, i) => ({
-        id: `${side}-ai-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-        label: p.label || `${side === "inputs" ? "IN" : "OUT"} ${i + 1}`,
-        signal: p.signal || "HDMI",
-        direction:
-          p.direction === "in" || p.direction === "out" || p.direction === "bi"
-            ? p.direction
-            : side === "inputs"
-              ? "in"
-              : "out",
-      }));
-
-    setDraft((d) => ({
-      ...d,
-      inputs: specs.inputs?.length ? toPorts(specs.inputs, "inputs") : d.inputs,
-      outputs: specs.outputs?.length ? toPorts(specs.outputs, "outputs") : d.outputs,
-      powerOperatingW: specs.powerOperatingW ?? d.powerOperatingW,
-      powerStandbyW: specs.powerStandbyW ?? d.powerStandbyW,
-      thermalBtuH: specs.thermalBtuH ?? d.thermalBtuH,
-      rackHeightU: specs.rackHeightU ?? d.rackHeightU,
-      rackSize: specs.rackSize ?? d.rackSize,
-      widthCm: specs.widthCm ?? d.widthCm,
-      depthCm: specs.depthCm ?? d.depthCm,
-      heightCm: specs.heightCm ?? d.heightCm,
-      weightKg: specs.weightKg ?? d.weightKg,
-    }));
+    setDraft((d) => mergeAiSpecsIntoProduct(d, specs));
   };
 
   // ── Calcul BTU/h depuis la puissance de fonctionnement ──────────────────

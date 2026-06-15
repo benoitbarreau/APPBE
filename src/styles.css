@@ -12458,6 +12458,27 @@ select {
 }
 .catalogue-todo-head h2 { margin: 0; font-size: 18px; color: var(--text); }
 .catalogue-todo-head-count { color: var(--muted); font-weight: 500; }
+.catalogue-todo-head-actions { display: flex; align-items: center; gap: 10px; }
+.catalogue-todo-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #c7b3f0;
+  background: linear-gradient(135deg, #f3eefe 0%, #e9e0fb 100%);
+  color: #5b3fa3;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.12s, box-shadow 0.12s;
+}
+.catalogue-todo-ai-btn:hover:not(:disabled) {
+  filter: brightness(1.03);
+  box-shadow: 0 2px 10px rgba(91, 63, 163, 0.18);
+}
+.catalogue-todo-ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Modale de pré-importation */
 .preimport-dialog {
