@@ -54,6 +54,9 @@ export interface Product {
   thermalBtuH?: number;     // BTU/h
   // ── Fiches techniques PDF (URLs publiques Supabase Storage) ─────────────
   datasheetUrls?: string[];
+  /** Fiche pré-importée à compléter. Tant que true, elle apparaît uniquement
+   *  dans l'onglet « À traiter » et reste masquée du catalogue Marques/Catégories. */
+  toComplete?: boolean;
 }
 
 export type PortPlacement = "left" | "right" | "middle";

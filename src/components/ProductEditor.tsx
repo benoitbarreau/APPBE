@@ -216,6 +216,22 @@ export function ProductEditor({
     onClose();
   };
 
+  // ── « Marquer comme traité » : enlève le drapeau toComplete (À traiter → En attente) ──
+  const markAsDone = () => {
+    if (!draft.reference.trim() || !draft.manufacturer.trim()) {
+      notify("Référence et marque obligatoires.", "error");
+      return;
+    }
+    const done: Product = { ...draft, toComplete: false };
+    updateProduct(done.id, done);
+    upsertUserProduct(done, { initialStatus: "pending" }).catch((e) => {
+      console.error("Échec sauvegarde cloud (marquer comme traité) :", e);
+      notify(`La fiche « ${done.reference} » n'a pas pu être enregistrée dans le cloud. Rouvrez-la et réessayez.`, "error");
+    });
+    notify("Fiche traitée — elle passe en « En attente ».", "success");
+    onClose();
+  };
+
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const startDelete = () => setConfirmingDelete(true);
   const cancelDelete = () => setConfirmingDelete(false);
@@ -289,6 +305,13 @@ export function ProductEditor({
         </div>
         <div className="modal-body modal-body-split">
           <div className="modal-form">
+          {draft.toComplete && canEdit && (
+            <div className="pe-todo-banner">
+              🗂 <strong>Fiche à compléter</strong> (pré-importée). Renseigne les caractéristiques
+              {(draft.datasheetUrls?.length ?? 0) > 0 ? " — le bouton ✨ Compléter depuis le PDF est disponible" : ""},
+              puis clique sur « ✓ Marquer comme traité ».
+            </div>
+          )}
           {/* Datalists pour l'autocomplete marque/catégorie */}
           <datalist id="pe-brands-list">
             {catalogBrands.map(b => <option key={b.id} value={b.name} />)}
@@ -658,6 +681,11 @@ export function ProductEditor({
             </button>
           )}
           <button onClick={onClose}>{canEdit ? "Annuler" : "Fermer"}</button>
+          {canEdit && draft.toComplete && (
+            <button className="pe-mark-done" onClick={markAsDone} title="Sortir la fiche de « À traiter » → En attente">
+              ✓ Marquer comme traité
+            </button>
+          )}
           {canEdit && (
             <button className="primary" onClick={save}>
               Enregistrer

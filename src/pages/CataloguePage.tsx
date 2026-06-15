@@ -15,6 +15,8 @@ import { BrandLogoEditor } from './catalogue/BrandLogoEditor'
 import { BrandTile, CategoryRow } from './catalogue/Tiles'
 import { ProductQuickPreview } from './catalogue/ProductQuickPreview'
 import { ProductGrid, ProductListView } from './catalogue/ProductViews'
+import { PreImportDialog, type PreImportRow } from './catalogue/PreImportDialog'
+import { notify } from '../components/dialogs/dialogStore'
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -78,6 +80,9 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const [importError,         setImportError]         = useState<string | null>(null)
   const [importSuccess,       setImportSuccess]       = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
+  // ── Pré-importation / fiches « À traiter » ──
+  const [preImportOpen, setPreImportOpen] = useState(false)
+  const [showTodo,      setShowTodo]      = useState(false)
 
   // ── On est dans une sous-vue quand une marque est ouverte ──
   const inSubView = !!brandView
@@ -89,7 +94,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     setAdvRackUs([]); setAdvWithImage(false); setAdvWithPdf(false)
   }
   const switchTab = (mode: ViewMode) => {
-    setViewMode(mode); setBrandView(null)
+    setViewMode(mode); setBrandView(null); setShowTodo(false)
     setOpenCategories(new Set()); setSearch(''); setFilterMode('all')
     setAdvRackUs([]); setAdvWithImage(false); setAdvWithPdf(false)
     setSelectedIds(new Set())
@@ -126,18 +131,22 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     return m
   }, [catalogCategories])
 
+  // ── Séparation : fiches « À traiter » (pré-importées) vs catalogue normal ──
+  const todoProducts    = useMemo(() => products.filter(p => p.toComplete), [products])
+  const catalogProducts = useMemo(() => products.filter(p => !p.toComplete), [products])
+
   // ── Statistiques ──
   const stats = useMemo(() => ({
-    all:      products.length,
-    builtin:  products.filter(p => BUILTIN_IDS.has(p.id)).length,
-    approved: products.filter(p => productMeta[p.id]?.status === 'approved').length,
-    mine:     products.filter(p => productMeta[p.id]?.creatorId === profile?.id).length,
-    pending:  products.filter(p => productMeta[p.id]?.status === 'pending').length,
-  }), [products, productMeta, profile?.id])
+    all:      catalogProducts.length,
+    builtin:  catalogProducts.filter(p => BUILTIN_IDS.has(p.id)).length,
+    approved: catalogProducts.filter(p => productMeta[p.id]?.status === 'approved').length,
+    mine:     catalogProducts.filter(p => productMeta[p.id]?.creatorId === profile?.id).length,
+    pending:  catalogProducts.filter(p => productMeta[p.id]?.status === 'pending').length,
+  }), [catalogProducts, productMeta, profile?.id])
 
   // ── Filtrage (appliqué dans les sous-vues) ──
   const filtered = useMemo(() => {
-    let list = [...products]
+    let list = [...catalogProducts]
     if (filterMode === 'builtin')       list = list.filter(p => BUILTIN_IDS.has(p.id))
     else if (filterMode === 'approved') list = list.filter(p => productMeta[p.id]?.status === 'approved')
     else if (filterMode === 'mine')     list = list.filter(p => productMeta[p.id]?.creatorId === profile?.id)
@@ -154,28 +163,28 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
     if (advWithImage) list = list.filter(p => !!p.imageFront)
     if (advWithPdf)   list = list.filter(p => (p.datasheetUrls?.length ?? 0) > 0)
     return list
-  }, [products, productMeta, filterMode, search, profile?.id, advRackUs, advWithImage, advWithPdf])
+  }, [catalogProducts, productMeta, filterMode, search, profile?.id, advRackUs, advWithImage, advWithPdf])
 
-  // ── Groupements (toujours calculés sur tous les produits, pas filtrés — pour les tuiles) ──
+  // ── Groupements (sur le catalogue normal, hors fiches « À traiter » — pour les tuiles) ──
   const groupedByBrand = useMemo(() => {
     const groups = new Map<string, Product[]>()
-    products.forEach(p => {
+    catalogProducts.forEach(p => {
       const k = p.manufacturer || '(Sans marque)'
       if (!groups.has(k)) groups.set(k, [])
       groups.get(k)!.push(p)
     })
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
-  }, [products])
+  }, [catalogProducts])
 
   const groupedByCategory = useMemo(() => {
     const groups = new Map<string, Product[]>()
-    products.forEach(p => {
+    catalogProducts.forEach(p => {
       const k = p.category || '(Sans catégorie)'
       if (!groups.has(k)) groups.set(k, [])
       groups.get(k)!.push(p)
     })
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'))
-  }, [products])
+  }, [catalogProducts])
 
   // ── Produits de la sous-vue active ──
   const brandDetailGroups = useMemo(() => {
@@ -286,8 +295,37 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
   const handleExport = () => {
     const base = brandView
       ? filtered.filter(p => p.manufacturer === brandView)
-      : products
+      : catalogProducts
     exportToCsv(base, productMeta, `catalogue-synox-${new Date().toISOString().slice(0, 10)}.csv`)
+  }
+
+  // ── Création des fiches pré-importées (→ « À traiter ») ──
+  const handleCreateDrafts = (rows: PreImportRow[]) => {
+    rows.forEach(r => {
+      const product: Product = {
+        id: r.id,
+        reference: r.reference.trim(),
+        manufacturer: r.manufacturer.trim(),
+        category: r.category.trim(),
+        inputs: [], outputs: [], middle: [],
+        datasheetUrls: r.datasheetUrls.length ? r.datasheetUrls : undefined,
+        toComplete: true,
+      }
+      addProduct(product)
+      if (profile?.id) {
+        setProductMeta(product.id, {
+          productId: product.id, status: 'pending',
+          creatorId: profile.id, creatorName: profile.full_name?.trim() || profile.email,
+        })
+      }
+      upsertUserProduct(product, { initialStatus: 'pending' }).catch(e => {
+        console.error('Échec sauvegarde cloud fiche pré-importée :', e)
+        notify(`La fiche « ${product.reference} » n'a pas pu être enregistrée dans le cloud. Rouvrez-la et enregistrez à nouveau.`, 'error')
+      })
+    })
+    setPreImportOpen(false)
+    setShowTodo(true)
+    notify(`${rows.length} fiche${rows.length > 1 ? 's' : ''} créée${rows.length > 1 ? 's' : ''} dans « À traiter ».`, 'success')
   }
 
   // ── Filtres avancés ──
@@ -356,6 +394,21 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
           <button className="catalogue-new-btn" onClick={() => setEditingProductId('new')}>
             + Nouveau
           </button>
+
+          {/* Pré-importation par tableau */}
+          <button className="catalogue-preimport-btn" onClick={() => setPreImportOpen(true)}>
+            📥 Pré-importer
+          </button>
+
+          {/* Accès à la liste « À traiter » (visible s'il y a des fiches) */}
+          {todoProducts.length > 0 && (
+            <button
+              className={`catalogue-todo-btn${showTodo ? ' active' : ''}`}
+              onClick={() => { setShowTodo(v => !v); setBrandView(null) }}
+            >
+              📝 À traiter <span className="catalogue-todo-badge">{todoProducts.length}</span>
+            </button>
+          )}
 
           <ActionsMenu onExport={handleExport} onImportClick={() => importRef.current?.click()} />
           <input ref={importRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleImportFile} />
@@ -469,8 +522,23 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       {/* ── Contenu ── */}
       <div className={`catalogue-content${viewMode === 'byBrand' && !!brandView ? ' catalogue-content--brand-detail' : ''}`}>
 
+        {/* ── Vue « À traiter » (fiches pré-importées à compléter) ── */}
+        {showTodo && (
+          <div className="catalogue-todo-view">
+            <div className="catalogue-todo-head">
+              <h2>📝 À traiter <span className="catalogue-todo-head-count">({todoProducts.length})</span></h2>
+              <button className="catalogue-brand-back" onClick={() => setShowTodo(false)}>← Retour au catalogue</button>
+            </div>
+            {todoProducts.length === 0
+              ? <div className="catalogue-empty"><p>Aucune fiche à traiter. Utilise « 📥 Pré-importer » pour en créer.</p></div>
+              : <ProductGrid products={todoProducts} productMeta={productMeta} catColorMap={catColorMap}
+                  selectedIds={selectedIds} onToggleSelect={toggleSelect} onPreview={id => setPreviewId(id)} />
+            }
+          </div>
+        )}
+
         {/* ── Vue Marques : tuiles ── */}
-        {viewMode === 'byBrand' && !brandView && (
+        {!showTodo && viewMode === 'byBrand' && !brandView && (
           <div className="brand-tiles-grid">
             {groupedByBrand.map(([brand, prods]) => (
               <BrandTile key={brand} brandName={brand} count={prods.length}
@@ -482,7 +550,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
         )}
 
         {/* ── Détail marque : sidebar + catégories repliables ── */}
-        {viewMode === 'byBrand' && brandView && (
+        {!showTodo && viewMode === 'byBrand' && brandView && (
           <div className="brand-detail-layout">
 
             {/* Bandeau gauche — toutes les marques */}
@@ -545,7 +613,7 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
         )}
 
         {/* ── Vue Catégories : accordéon ── */}
-        {viewMode === 'byCategory' && (
+        {!showTodo && viewMode === 'byCategory' && (
           <div className="category-rows">
             {groupedByCategory.map(([cat, prods]) => (
               <CategoryRow key={cat} catName={cat} count={prods.length}
@@ -604,6 +672,16 @@ export function CataloguePage({ onGoHome, onOpenProjects, onOpenReferentiel, onO
       {editingLogoForCategory && (
         <BrandLogoEditor brandName={editingLogoForCategory} currentLogo={categoryLogoMap[editingLogoForCategory]}
           onSave={handleSaveCategoryLogo} onClose={() => setEditingLogoForCategory(null)} />
+      )}
+
+      {/* ── Pré-importation de fiches ── */}
+      {preImportOpen && (
+        <PreImportDialog
+          brandNames={catalogBrands.map(b => b.name)}
+          categoryNames={catalogCategories.map(c => c.name)}
+          onClose={() => setPreImportOpen(false)}
+          onCreate={handleCreateDrafts}
+        />
       )}
     </div>
   )
