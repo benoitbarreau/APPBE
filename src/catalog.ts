@@ -9,34 +9,6 @@ const port = (
 
 export const BUILTIN_CATALOG: Product[] = [
   {
-    id: "extron-dtp-crosspoint-84",
-    reference: "DTP CrossPoint 84 4K IPCP MA",
-    manufacturer: "Extron",
-    category: "Matrice vidéo",
-    inputs: [
-      port("hdmi1", "HDMI 1", "HDMI", "in"),
-      port("hdmi2", "HDMI 2", "HDMI", "in"),
-      port("hdmi3", "HDMI 3", "HDMI", "in"),
-      port("hdmi4", "HDMI 4", "HDMI", "in"),
-      port("dtp7", "DTP 7", "DTP", "in"),
-      port("dtp8", "DTP 8", "DTP", "in"),
-      port("com1", "COM 1", "RS232", "in"),
-      port("com2", "COM 2", "RS232", "in"),
-      port("ebus", "eBUS", "EBUS", "in"),
-      port("avlan1", "AVLAN1 LAN", "RJ45", "in"),
-    ],
-    outputs: [
-      port("ohdmi1", "HDMI 1", "HDMI", "out"),
-      port("ohdmi2", "HDMI 2", "HDMI", "out"),
-      port("ohdmi3", "HDMI 3A", "HDMI", "out"),
-      port("ohdmi4", "HDMI 4A", "HDMI", "out"),
-      port("odtp3b", "DTP 3B", "DTP", "out"),
-      port("odtp4b", "DTP 4B", "DTP", "out"),
-      port("oio1", "I/O 1", "RS232", "out"),
-      port("oavlan2", "AVLAN 2", "RJ45", "out"),
-    ],
-  },
-  {
     id: "extron-dmp64-c-at",
     reference: "DMP 64+ C AT",
     manufacturer: "Extron",
