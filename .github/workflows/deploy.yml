@@ -60,9 +60,27 @@ jobs:
           version: latest
       - name: Deploy Edge Functions
         run: |
-          supabase functions deploy admin-update-user  --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
-          supabase functions deploy invite-user        --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
-          supabase functions deploy notify-admin-new-user --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
-          supabase functions deploy complete-product   --project-ref ${{ vars.SUPABASE_PROJECT_ID }} --no-verify-jwt
+          # Déploie une fonction avec jusqu'à 3 tentatives (résiste aux hoquets
+          # réseau / API Supabase qui faisaient échouer le job sans raison de fond).
+          deploy() {
+            fn="$1"
+            attempt=1
+            max=3
+            until supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt; do
+              if [ "$attempt" -ge "$max" ]; then
+                echo "::error::Échec du déploiement de $fn après $max tentatives"
+                return 1
+              fi
+              echo "Tentative $attempt/$max pour $fn échouée — nouvel essai dans 10 s…"
+              attempt=$((attempt + 1))
+              sleep 10
+            done
+            echo "✓ $fn déployée"
+          }
+          deploy admin-update-user
+          deploy invite-user
+          deploy notify-admin-new-user
+          deploy complete-product
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
