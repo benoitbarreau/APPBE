@@ -400,7 +400,7 @@
   <div class="cover-divider"></div>
   <p class="cover-tag">Conception et schématisation de solutions audiovisuelles</p>
   <p class="cover-sub">par Benoit Barreau</p>
-  <p class="cover-meta">Guide utilisateur — Mai 2026</p>
+  <p class="cover-meta">Guide utilisateur — Juin 2026</p>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -423,12 +423,12 @@
     <li><span>Plusieurs synoptiques et baies dans un projet</span><span>p. 20</span></li>
     <li><span>Le module Baie (rack) <span class="pill green">nouveau</span></span><span>p. 21</span></li>
     <li><span>Le Tableau IP</span><span>p. 24</span></li>
-    <li><span>Le catalogue produits et sa modération <span class="pill green">nouveau</span></span><span>p. 28</span></li>
+    <li><span>Le catalogue : modération, pré-import &amp; complétion IA <span class="pill green">nouveau</span></span><span>p. 28</span></li>
     <li><span>Les espaces et séparateurs dans une fiche produit <span class="pill green">nouveau</span></span><span>p. 31</span></li>
     <li><span>La légende des types de câbles</span><span>p. 32</span></li>
     <li><span>Importer / exporter le catalogue produits</span><span>p. 33</span></li>
     <li><span>Le cartouche du document</span><span>p. 34</span></li>
-    <li><span>Sauvegarder son travail</span><span>p. 35</span></li>
+    <li><span>Sauvegarder : auto-save &amp; édition à plusieurs <span class="pill green">nouveau</span></span><span>p. 35</span></li>
     <li><span>Partager un projet avec un collègue</span><span>p. 36</span></li>
     <li><span>Exporter et imprimer en A3</span><span>p. 37</span></li>
     <li><span>Mode lecture seule (versions archivées)</span><span>p. 38</span></li>
@@ -1402,6 +1402,63 @@
   <tr><td>Valider</td><td>—</td><td>—</td><td>✓</td></tr>
 </table>
 
+<h3>La page Catalogue dédiée <span class="pill green">nouveau</span></h3>
+<p>En plus de la palette à gauche du projet, un menu <span class="btn-mock">Catalogue</span> (en haut de l'application) ouvre une <strong>page complète</strong> de gestion des fiches. On y navigue de deux façons, via les onglets en haut :</p>
+<ul>
+  <li><strong>🏷 Marques</strong> — des tuiles par marque (avec logo). Cliquez une marque pour voir ses produits, regroupés par catégorie repliable.</li>
+  <li><strong>📂 Catégories</strong> — la liste des catégories <strong>en accordéon</strong> : cliquez une ligne pour dérouler les produits de cette catégorie juste en dessous.</li>
+</ul>
+<p>Une <strong>barre de recherche</strong> et des <strong>pastilles de filtre</strong> permettent d'afficher un sous-ensemble selon l'origine de la fiche :</p>
+<table>
+  <tr><th>Pastille</th><th>Signification</th></tr>
+  <tr><td><span class="pill">Tous</span></td><td>Toutes les fiches, quelle que soit l'origine.</td></tr>
+  <tr><td><span class="pill">Intégrés</span></td><td>Catalogue d'usine livré avec l'application (non modifiable).</td></tr>
+  <tr><td><span class="pill green">Commun</span></td><td>Fiches créées par un utilisateur puis <strong>validées</strong> — partagées à tous.</td></tr>
+  <tr><td><span class="pill">Mes fiches</span></td><td>Les fiches que <strong>vous</strong> avez créées.</td></tr>
+  <tr><td><span class="pill orange">En attente</span></td><td>Fiches soumises mais <strong>pas encore validées</strong> par un admin.</td></tr>
+</table>
+<p>Le cycle de vie d'une fiche que vous créez est donc : <strong>Mes fiches → En attente → Commun</strong> (une fois approuvée). Les <em>Intégrés</em> sont présents dès le départ.</p>
+
+<h3>Pré-importer plusieurs fiches d'un coup <span class="pill green">nouveau</span></h3>
+<p>Pour créer rapidement beaucoup de fiches, le bouton <span class="btn-mock">📥 Pré-importer</span> (page Catalogue) ouvre un <strong>tableau</strong> où vous saisissez l'essentiel de chaque produit. Les fiches créées atterrissent dans un onglet <span class="btn-mock" style="background:#fff7e6;border-color:#f0c887;color:#92600a">📝 À traiter</span> pour être complétées ensuite.</p>
+<ol class="steps">
+  <li>Cliquez <span class="btn-mock">📥 Pré-importer</span>.</li>
+  <li>Remplissez une ligne par produit : <strong>Marque</strong>, <strong>Référence</strong>, <strong>Catégorie</strong> (les 3 sont obligatoires).</li>
+  <li><em>Astuce rapide</em> : copiez 3 colonnes depuis Excel (Marque, Référence, Catégorie) et faites <kbd>Ctrl</kbd>+<kbd>V</kbd> n'importe où dans le tableau — les lignes se créent toutes seules.</li>
+  <li>Déposez si vous le souhaitez la <strong>fiche technique PDF</strong> sur la ligne (bouton 📎 PDF, optionnel mais recommandé pour l'IA).</li>
+  <li>Cliquez <span class="btn-mock primary">Créer</span> — vous basculez sur l'onglet <strong>📝 À traiter</strong>.</li>
+</ol>
+
+<div class="box">
+  <p class="box-title">ℹ️ Les fiches « À traiter » sont à part</p>
+  <p>Tant qu'une fiche est « À traiter », elle reste <strong>masquée</strong> des vues Marques / Catégories (pas de coquilles vides dans le catalogue). Elle n'apparaît que dans son onglet dédié, jusqu'à ce que vous la marquiez comme traitée.</p>
+</div>
+
+<h3>Compléter une fiche par l'IA <span class="pill green">nouveau</span></h3>
+<p>SynoX peut <strong>remplir automatiquement</strong> une fiche à partir de sa fiche technique PDF, grâce à l'IA. Elle propose la <strong>connectique</strong> (entrées/sorties), l'<strong>alimentation</strong>, la <strong>dissipation thermique</strong>, le <strong>format rack</strong>, les <strong>dimensions</strong> et le <strong>poids</strong>.</p>
+
+<p><strong>Sur une fiche (dans l'éditeur)</strong> :</p>
+<ol class="steps">
+  <li>Ouvrez la fiche et vérifiez qu'une <strong>fiche technique PDF</strong> est attachée.</li>
+  <li>Cliquez <span class="btn-mock" style="background:#f3eefe;border-color:#c7b3f0;color:#5b3fa3">✨ Compléter depuis le PDF</span>.</li>
+  <li>Une fenêtre affiche la <strong>proposition de l'IA</strong> → cliquez <span class="btn-mock primary">Appliquer à la fiche</span> (ou Annuler).</li>
+  <li><strong>Vérifiez et corrigez</strong> les champs, puis <span class="btn-mock primary">Enregistrer</span>.</li>
+</ol>
+
+<p><strong>En lot (depuis l'onglet « À traiter »)</strong> : le bouton <span class="btn-mock" style="background:#f3eefe;border-color:#c7b3f0;color:#5b3fa3">✨ Compléter tout (N)</span> lance l'IA sur <strong>toutes</strong> les fiches « À traiter » qui ont un PDF, l'une après l'autre (une progression s'affiche). Les fiches restent ensuite dans « À traiter » pour que vous les vérifiiez.</p>
+
+<p>Quand une fiche est complète, ouvrez-la et cliquez <span class="btn-mock" style="background:#16a34a;border-color:#16a34a;color:#fff">✓ Marquer comme traité</span> : elle quitte « À traiter » et part en <em>En attente</em> de validation.</p>
+
+<div class="box warn">
+  <p class="box-title">⚠️ L'IA propose, vous validez</p>
+  <p>L'IA peut se tromper — vérifiez toujours le <strong>nombre de ports</strong> et les <strong>watts</strong>. Une « note de l'IA » signale ce dont elle n'était pas sûre. Rien n'est publié sans votre relecture, puis la validation d'un administrateur.</p>
+</div>
+
+<div class="box tip">
+  <p class="box-title">💡 Le bon réflexe</p>
+  <p>Pré-importez vos produits avec leurs PDF → « ✨ Compléter tout » → relisez chaque fiche → « ✓ Marquer comme traité ». Vous créez ainsi un lot de fiches complètes en quelques minutes.</p>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════
      15. ESPACES ET SÉPARATEURS DANS UNE FICHE PRODUIT
      ═══════════════════════════════════════════════════════════ -->
@@ -1580,7 +1637,23 @@
 <div class="page-break"></div>
 <h1>19. Sauvegarder son travail</h1>
 
-<p>Tout passe par le bouton <span class="btn-mock primary">Sauvegarder</span> en haut à gauche.</p>
+<p>SynoX enregistre votre travail de <strong>deux façons complémentaires</strong> : une <strong>sauvegarde automatique</strong> en continu, et le bouton <span class="btn-mock primary">Sauvegarder</span> (en haut à gauche) pour figer une version.</p>
+
+<h3>La sauvegarde automatique <span class="pill green">nouveau</span></h3>
+<p>Pendant que vous travaillez (synoptiques, Tableau IP, baies), SynoX enregistre vos modifications <strong>tout seul</strong>, quelques secondes après chaque changement, sans rien faire de votre part.</p>
+<ul>
+  <li>Un petit indicateur en haut affiche l'état : <em>« Modifié… »</em>, puis <em>« Enregistré à hh:mm »</em>.</li>
+  <li>L'auto-save est <strong>silencieuse</strong> : elle <strong>ne crée pas</strong> de nouvelle version et <strong>ne change pas</strong> le numéro de version ni la date du cartouche.</li>
+  <li>Elle ne s'applique qu'aux projets déjà enregistrés au moins une fois (donnez un nom au projet via une première sauvegarde manuelle).</li>
+</ul>
+
+<div class="box tip">
+  <p class="box-title">💡 Auto-save ≠ version</p>
+  <p>L'auto-save protège votre travail en continu, mais c'est le bouton <span class="btn-mock primary">Sauvegarder</span> qui crée une <strong>vraie version numérotée</strong> (V1.4 → V1.5) et met à jour la date. Pensez à « Sauvegarder » aux étapes clés (fin de lot, avant un envoi).</p>
+</div>
+
+<h3>La sauvegarde manuelle (versions)</h3>
+<p>Le bouton <span class="btn-mock primary">Sauvegarder</span> fige une version de référence.</p>
 
 <h3>Ce qui se passe à chaque sauvegarde</h3>
 <ol>
@@ -1596,8 +1669,22 @@
 </ol>
 
 <div class="box tip">
-  <p class="box-title">💡 Sauvegardez régulièrement</p>
-  <p>Il n'y a pas de sauvegarde automatique. Un raccourci pratique : <kbd>Ctrl</kbd>+<kbd>S</kbd> dans le navigateur déclenche le bouton Sauvegarder (sur la plupart des navigateurs).</p>
+  <p class="box-title">💡 Raccourci</p>
+  <p><kbd>Ctrl</kbd>+<kbd>S</kbd> dans le navigateur déclenche le bouton Sauvegarder (sur la plupart des navigateurs) — pratique pour créer une version sans lâcher le clavier.</p>
+</div>
+
+<h3>Édition à plusieurs : protection anti-écrasement <span class="pill green">nouveau</span></h3>
+<p>Si <strong>deux personnes</strong> (ou vos deux ordinateurs) modifient le <strong>même projet partagé</strong> en même temps, SynoX évite que le dernier qui enregistre n'écrase silencieusement le travail de l'autre.</p>
+<p>Dès qu'une sauvegarde (auto ou manuelle) détecte que le projet a été modifié ailleurs depuis votre ouverture, la barre du haut affiche un avertissement <span class="btn-mock" style="background:#fff7e0;border-color:#f59e0b;color:#b06800">⚠ Modifié ailleurs</span> avec deux choix :</p>
+<ul>
+  <li><span class="btn-mock">↻ Recharger</span> — abandonne vos modifications locales et récupère la version la plus récente du serveur.</li>
+  <li><span class="btn-mock">Écraser</span> — impose votre version (celle de l'autre personne sera remplacée — choix assumé).</li>
+</ul>
+<p>Tant que l'avertissement est affiché, l'auto-save se met en pause pour ne rien écraser sans votre décision.</p>
+
+<div class="box warn">
+  <p class="box-title">⚠️ Travailler à plusieurs sur un projet partagé</p>
+  <p>Pour éviter les conflits, évitez d'éditer le même projet à deux au même moment. Si vous voyez « ⚠ Modifié ailleurs », lisez bien avant de choisir : <strong>Écraser</strong> est irréversible pour le travail de l'autre.</p>
 </div>
 
 <div class="box tip">
