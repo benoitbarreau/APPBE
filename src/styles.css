@@ -12360,6 +12360,55 @@ select {
 .ai-specs-ports ul { margin: 4px 0 0; padding-left: 18px; }
 .ai-specs-ports li { font-size: 13px; color: var(--text); line-height: 1.6; }
 .ai-specs-dir { color: var(--muted); font-size: 11.5px; }
+
+/* Sélection des champs à appliquer (cases à cocher) */
+.ai-specs-selectbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.ai-specs-selectlinks { display: inline-flex; align-items: center; gap: 6px; }
+.ai-specs-selectlinks button {
+  background: none;
+  border: none;
+  color: #5b3fa3;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.ai-specs-selectlinks button:hover { text-decoration: underline; }
+.ai-specs-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.ai-specs-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #5b3fa3;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ai-specs-check-cell { width: 60%; }
+.ai-specs-filled-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.ai-specs-row-off { opacity: 0.45; }
+.ai-specs-row-off .ai-specs-val { text-decoration: line-through; }
 .ai-specs-table { width: 100%; border-collapse: collapse; }
 .ai-specs-table td { padding: 5px 4px; font-size: 13px; border-bottom: 1px solid var(--border); }
 .ai-specs-key { color: var(--muted); width: 45%; }

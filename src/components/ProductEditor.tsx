@@ -22,7 +22,7 @@ import { ImageField } from "./product-editor/ImageField";
 import { ProductPreviewPanel } from "./product-editor/ProductPreviewPanel";
 import { AiCompleteDialog } from "./product-editor/AiCompleteDialog";
 import { completeProductFromPdf, type ProductAiSpecs } from "../lib/aiCompleteApi";
-import { mergeAiSpecsIntoProduct } from "../lib/applyAiSpecs";
+import { mergeAiSpecsIntoProduct, type AiSelection } from "../lib/applyAiSpecs";
 
 const SPEAKER_CATEGORIES = new Set(["Enceintes", "Caisson de basse"]);
 
@@ -129,8 +129,8 @@ export function ProductEditor({
     }
   };
 
-  const applyAiSpecs = (specs: ProductAiSpecs) => {
-    setDraft((d) => mergeAiSpecsIntoProduct(d, specs));
+  const applyAiSpecs = (specs: ProductAiSpecs, selection: AiSelection) => {
+    setDraft((d) => mergeAiSpecsIntoProduct(d, specs, selection));
   };
 
   // ── Calcul BTU/h depuis la puissance de fonctionnement ──────────────────
@@ -669,9 +669,10 @@ export function ProductEditor({
       {aiSpecs && (
         <AiCompleteDialog
           specs={aiSpecs}
+          product={draft}
           onCancel={() => setAiSpecs(null)}
-          onApply={() => {
-            applyAiSpecs(aiSpecs);
+          onApply={(selection) => {
+            applyAiSpecs(aiSpecs, selection);
             setAiSpecs(null);
             notify(
               "Caractéristiques appliquées — vérifiez puis enregistrez.",
