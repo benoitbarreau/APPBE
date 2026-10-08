@@ -41,29 +41,12 @@ import {
   saveProjectVersion,
   pruneProjectVersions,
   incrementVersion,
-  computeProjectHash,
   fetchProject,
   getProjectUpdatedAt,
   ProjectConflictError,
 } from "./lib/projectsApi";
+import { buildSignature, createProjectExport } from "./lib/projectSerialization";
 import { getProjectRoomInfo, type ProjectRoomInfo } from "./lib/referentielApi";
-
-/** Construit deux empreintes de l'état du projet :
- *  - `base`  : contenu versionnable (onglets, produits, signaux, accessoires, zones)
- *              → sert à décider de l'incrément de version (inchangé vs aujourd'hui).
- *  - `full`  : base + colonnes Tableau IP + métadonnées cartouche (8 champs texte légers)
- *              → sert à la détection « modifié » de l'auto-save (ne rien perdre). */
-function buildSignature(
-  flushedTabs: unknown,
-  state: {
-    products: unknown; signals: unknown; accessories: unknown; zones: unknown;
-    ipTableColumns: unknown; projectMeta: unknown;
-  },
-): { base: string; full: string } {
-  const base = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories, state.zones);
-  const full = `${base}|${JSON.stringify(state.ipTableColumns)}|${JSON.stringify(state.projectMeta)}`;
-  return { base, full };
-}
 
 interface AppProps {
   onOpenAdminDashboard?: () => void
@@ -572,7 +555,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
     const blob = new Blob(
-      [JSON.stringify({ products: state.products, tabs: flushedTabs }, null, 2)],
+      [JSON.stringify(createProjectExport(state, flushedTabs), null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);

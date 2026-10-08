@@ -74,21 +74,7 @@ export function incrementVersion(v: string): string {
   return `V${next.toFixed(1)}`
 }
 
-/** Calcule un hash léger de l'état (pour détecter les vraies modifications) */
-export function computeProjectHash(
-  tabs: unknown,
-  products: unknown,
-  signals: unknown,
-  accessories?: unknown,
-  zones?: unknown,
-): string {
-  const str = JSON.stringify({ tabs, products, signals, accessories, zones })
-  let h = 0
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(31, h) + str.charCodeAt(i) | 0
-  }
-  return `${str.length}:${h}`
-}
+export { computeProjectHash } from './projectSerialization'
 
 /** Archive une version du projet dans project_versions */
 export async function saveProjectVersion(

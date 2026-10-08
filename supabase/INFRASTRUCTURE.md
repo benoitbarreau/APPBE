@@ -68,7 +68,7 @@ Ce webhook déclenche automatiquement la Edge Function `notify-admin-new-user`
 | **Events** | `INSERT` uniquement |
 | **Type** | Supabase Edge Functions |
 | **Edge Function** | `notify-admin-new-user` |
-| **HTTP Headers** | _(laisser vide — Supabase injecte automatiquement l'Authorization)_ |
+| **HTTP Headers** | `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` — secret configuré côté serveur uniquement |
 
 ---
 
@@ -119,3 +119,12 @@ dans **Supabase Dashboard → SQL Editor** si le projet est recréé from scratc
 | `021_account_manager.sql` | Colonne `account_manager_id` sur `clients`, policies gestionnaire |
 | `022_client_soft_delete.sql` | Colonne `deleted_at` sur `clients` (archivage réversible) |
 | `023_add_user_zones.sql` | Table `user_zones` (idempotent — peut être réexécuté) |
+
+
+## Correctifs de sécurité — octobre 2026
+
+Appliquer `20261008071041_harden_project_and_datasheet_access.sql` après les migrations existantes. La migration protège les transferts de propriété des projets et limite les écritures PDF aux comptes approuvés : auteur de l’upload ou administrateur. Elle utilise `storage.objects.owner_id` ; vérifier cette colonne sur une ancienne installation Storage. Les fichiers sans propriétaire restent modifiables par les administrateurs. La lecture publique des fiches techniques est conservée.
+
+Redéployer `notify-admin-new-user` : la fonction exige désormais exactement le jeton `SUPABASE_SERVICE_ROLE_KEY` dans Authorization et refuse les autres appels avant tout envoi. Le trigger de la migration 012 envoie déjà ce jeton via `app.service_role_key`. Si un webhook Dashboard est utilisé, configurer explicitement le même en-tête. Ne jamais placer cette clé dans le frontend. Vérifier aussi que trigger et webhook ne sont pas simultanément actifs, pour éviter les doublons.
+
+Ces correctifs ne sont actifs en production qu’après application de la migration et déploiement de la fonction.

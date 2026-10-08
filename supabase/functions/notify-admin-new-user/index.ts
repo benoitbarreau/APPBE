@@ -18,6 +18,15 @@ const ADMIN_EMAIL    = Deno.env.get('ADMIN_EMAIL')    ?? 'admin@videosynergie.co
 const FROM_EMAIL     = Deno.env.get('FROM_EMAIL')     ?? 'SynoX-AV <notifications@videosynergie.com>'
 
 serve(async (req: Request) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+
+  // Le trigger SQL 012 envoie cette clé. Refuser avant toute lecture/envoi.
+  const expectedToken = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  if (!expectedToken) return new Response('Notification authentication unavailable', { status: 503 })
+  if (req.headers.get('Authorization') !== `Bearer ${expectedToken}`) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
   try {
     // Payload envoyé par le Database Webhook Supabase
     const payload = await req.json()

@@ -128,15 +128,16 @@ export function syncIPRowsFromSynoptics(
     let existingRow: IPTableRow | undefined
     for (const iid of instanceIds) {
       const candidate = existingByInstanceId.get(iid)
-      if (candidate && !candidate.manual) {
+      if (candidate && !candidate.manual && !consumedRowIds.has(candidate.id)) {
         existingRow = candidate
         break
       }
     }
-    // Fallback par label seul (compatibilité lignes pre-correctif)
+    // Fallback legacy uniquement pour les lignes sans lien d’instance.
+    // Une ligne déjà liée ne doit pas être récupérée par un autre produit.
     if (!existingRow) {
       const byLbl = existingByProductLabel.get(label.toLowerCase())
-      if (byLbl && !byLbl.manual) existingRow = byLbl
+      if (byLbl && !byLbl.manual && !consumedRowIds.has(byLbl.id) && byLbl.productInstanceIds.length === 0) existingRow = byLbl
     }
 
     // Décrire le produit (premier du groupe — tous identiques en pratique)
