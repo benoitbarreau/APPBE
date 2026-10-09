@@ -103,8 +103,8 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     setLoadingId(row.id)
     setError(null)
     try {
-      const { name, data } = await fetchProject(row.id)
-      loadProjectData(row.id, name, data, row.versions_meta ?? [])
+      const { name, data, updatedAt, versionsMeta } = await fetchProject(row.id)
+      loadProjectData(row.id, name, data, versionsMeta, updatedAt)
 
       // Projet partagé (non propriétaire et non admin) → vérifier le rôle
       if (!isOwned(row) && !isAdmin) {
@@ -138,17 +138,15 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     setCreatingNew(true)
     setError(null)
     try {
-      const state = storeState.getState()
-      const { id } = await saveProject(null, name, {
-        nodes: [],
-        cables: [],
-        projectMeta: state.projectMeta,
-        signals: state.signals,
-        zones: state.zones,
-        products: state.products,
-      })
       resetProject()
-      useAppStore.setState({ currentProjectId: id, currentProjectName: name })
+      const state = storeState.getState()
+      const projectData = {
+        tabs: state.tabs, activeTabId: state.activeTabId,
+        projectMeta: state.projectMeta, signals: state.signals, zones: state.zones,
+        products: state.products, accessories: state.accessories, ipTableColumns: state.ipTableColumns,
+      }
+      const { id, updatedAt } = await saveProject(null, name, projectData)
+      loadProjectData(id, name, projectData, [], updatedAt)
       onOpenEditor()
     } catch {
       resetProject()

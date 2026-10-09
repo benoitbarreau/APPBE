@@ -132,3 +132,7 @@ Pour une installation sur un autre projet, adapter l’URL de configuration dans
 L’ancien webhook serveur avec Authorization service_role reste compatible. Le déclencheur Vault suffit : éviter un webhook Dashboard supplémentaire, qui provoquerait des doublons. Un appel authentifié avec `{ "dryRun": true }` vérifie l’authentification et la présence de la clé Resend sans envoyer d’email.
 
 Ces correctifs ne sont actifs en production qu’après application de la migration et déploiement de la fonction.
+
+## Sauvegarde atomique
+
+Migration `20261009034950_atomic_project_save.sql` appliquée le 9 octobre 2026. `save_project_atomic` s’exécute avec les droits de l’appelant (RLS), verrouille la ligne, refuse une date obsolète et archive la version distante précédente dans la même transaction. Les trois derniers instantanés sont conservés. Exécution réservée aux utilisateurs authentifiés ; compte approuvé et droit d’édition contrôlés dans la fonction.

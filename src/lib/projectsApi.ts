@@ -210,6 +210,24 @@ export async function saveProject(
   return { id: r.id, updatedAt: r.updated_at }
 }
 
+/** Sauvegarde existante + versions dans une seule transaction PostgreSQL. */
+export async function saveProjectAtomic(
+  id: string,
+  name: string,
+  projectData: ProjectData,
+  opts: { expectedUpdatedAt: string | null; createVersion: boolean; force?: boolean },
+): Promise<{ id: string; updatedAt: string; versionsMeta: VersionMeta[]; version: string }> {
+  const { data, error } = await supabase.rpc('save_project_atomic', {
+    p_id: id, p_name: name, p_data: projectData,
+    p_expected_updated_at: opts.expectedUpdatedAt,
+    p_create_version: opts.createVersion, p_force: opts.force ?? false,
+  }).single()
+  if (error?.code === 'PT409') throw new ProjectConflictError()
+  if (error) throw pgErr(error)
+  const row = data as { id: string; updated_at: string; versions_meta: VersionMeta[]; version: string }
+  return { id: row.id, updatedAt: row.updated_at, versionsMeta: row.versions_meta, version: row.version }
+}
+
 export async function deleteProject(id: string): Promise<void> {
   const { error } = await supabase.from('projects').delete().eq('id', id)
   if (error) throw pgErr(error)

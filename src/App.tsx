@@ -38,11 +38,8 @@ import { ExportScopeModal } from "./components/ExportScopeModal";
 import { useAuth } from "./auth/useAuth";
 import {
   saveProject,
-  saveProjectVersion,
-  pruneProjectVersions,
-  incrementVersion,
+  saveProjectAtomic,
   fetchProject,
-  getProjectUpdatedAt,
   ProjectConflictError,
 } from "./lib/projectsApi";
 import { buildSignature, createProjectExport } from "./lib/projectSerialization";
@@ -154,7 +151,6 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const addShapeNode = useAppStore((s) => s.addShapeNode);
   const addImageNode = useAppStore((s) => s.addImageNode);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
-  const setVersionsMeta = useAppStore((s) => s.setVersionsMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -192,18 +188,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
     const { base, full } = buildSignature(flushedTabs, state);
-    lastSavedHash.current = full;
-    lastVersionedHash.current = base;
-    setIsDirty(false);
+    lastSavedHash.current = state.currentProjectSavedSignature ?? full;
+    lastVersionedHash.current = state.currentProjectVersionedHash ?? base;
+    setIsDirty(full !== lastSavedHash.current);
     setLastSavedAt(null);
     setConflict(false);
-    // Récupère la date serveur de référence (concurrence optimiste).
-    loadedUpdatedAt.current = null;
-    if (state.currentProjectId && !readOnly) {
-      getProjectUpdatedAt(state.currentProjectId)
-        .then((ts) => { loadedUpdatedAt.current = ts; })
-        .catch(() => { /* non bloquant : on le saura au premier enregistrement */ });
-    }
+    // Keep the timestamp belonging to the data actually loaded, including F5.
+    // A fresh timestamp fetched separately could silently bless stale local data.
+    loadedUpdatedAt.current = state.currentProjectUpdatedAt ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProjectId]);
 
@@ -301,16 +293,25 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     if (!hasUnsavedChanges) { action(); return; }
 
     // Projet déjà enregistré → auto-save silencieuse puis on part (rien n'est perdu).
-    if (state.currentProjectId) {
+    if (state.currentProjectId && !saveInFlight.current) {
+      saveInFlight.current = true;
       setAutoSaving(true);
       persistProject(false)
-        .then(() => { setIsDirty(false); setLastSavedAt(new Date()); setAutoSaving(false); action(); })
+        .then(() => {
+          const pending = buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current;
+          setIsDirty(pending); setLastSavedAt(new Date()); setAutoSaving(false);
+          if (pending) {
+            pendingLeaveAction.current = action;
+            setUnsavedModalOpen(true);
+          } else action();
+        })
         .catch(() => {
           setAutoSaving(false);
           // Échec de l'auto-save → garde-fou pour ne pas quitter sans sauvegarder.
           pendingLeaveAction.current = action;
           setUnsavedModalOpen(true);
-        });
+        })
+        .finally(() => { saveInFlight.current = false; });
       return;
     }
     // Projet jamais enregistré (aucun id) → garde-fou (sinon tout serait perdu).
@@ -324,7 +325,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     guardedLeave(() => onGoToReferentiel?.(clientId));
 
   /** Cœur de la persistance, partagé par l'enregistrement manuel et l'auto-save.
-   *  - createVersion=true  : archive la version courante + incrémente le numéro
+   *  - createVersion=true  : archive la version distante précédente + incrémente le numéro
    *    (V1.0→V1.1), comme le bouton « Enregistrer ». Comportement inchangé.
    *  - createVersion=false : enregistrement silencieux (auto-save) — AUCUN archivage,
    *    AUCUN incrément de version.
@@ -333,80 +334,47 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const persistProject = async (createVersion: boolean, force = false): Promise<void> => {
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
-    const { base: baseHash, full: fullSig } = buildSignature(flushedTabs, state);
+    const { base: baseHash } = buildSignature(flushedTabs, state);
     const isExistingProject = !!state.currentProjectId;
 
-    let metaToSave = state.projectMeta;
-    let versionsMeta: import("./lib/projectsApi").VersionMeta[] | undefined;
-
-    // Incrément de version : uniquement sur enregistrement manuel, projet existant,
-    // et s'il y a du neuf depuis le DERNIER POINT DE VERSION (pas depuis le dernier
-    // auto-save) — sinon les auto-saves « consommeraient » le changement.
-    const shouldVersion =
-      createVersion && isExistingProject && baseHash !== lastVersionedHash.current;
-
-    if (shouldVersion) {
-      const currentVersion = state.projectMeta.version || "V1.0";
-      try {
-        // Archiver la version courante avant d'incrémenter
-        const archived = await saveProjectVersion(state.currentProjectId!, currentVersion, {
-          tabs: flushedTabs,
-          activeTabId: state.activeTabId,
-          projectMeta: state.projectMeta,
-          signals: state.signals,
-          products: state.products,
-          accessories: state.accessories,
-          ipTableColumns: state.ipTableColumns,
-          zones: state.zones,
-        });
-        // Conserver les 3 derniers snapshots archivés max
-        versionsMeta = [...(state.currentVersionsMeta ?? []), archived].slice(-3);
-        await pruneProjectVersions(state.currentProjectId!, 3);
-
-        // Incrémenter la version dans les meta
-        const newVersion = incrementVersion(currentVersion);
-        updateProjectMeta({ version: newVersion });
-        metaToSave = { ...state.projectMeta, version: newVersion };
-        setVersionsMeta(versionsMeta);
-      } catch {
-        // Si l'archivage échoue, on sauvegarde quand même sans incrémenter
-        versionsMeta = undefined;
-      }
-    }
-
-    // ── Sauvegarde principale (avec vérification de concurrence) ──────────
-    // versions_meta est écrit dans la même requête → une seule mise à jour de updated_at.
-    const { id, updatedAt } = await saveProject(
-      state.currentProjectId,
-      state.currentProjectName || "Sans titre",
-      {
-        tabs: flushedTabs,
-        activeTabId: state.activeTabId,
-        projectMeta: metaToSave,
-        signals: state.signals,
-        products: state.products,
-        accessories: state.accessories,
-        ipTableColumns: state.ipTableColumns,
-        zones: state.zones,
-      },
-      { expectedUpdatedAt: force ? null : loadedUpdatedAt.current, versionsMeta },
-    );
+    const shouldVersion = createVersion && isExistingProject && baseHash !== lastVersionedHash.current;
+    const projectData = {
+      tabs: flushedTabs, activeTabId: state.activeTabId,
+      projectMeta: state.projectMeta, signals: state.signals, products: state.products,
+      accessories: state.accessories, ipTableColumns: state.ipTableColumns, zones: state.zones,
+    };
+    const saved = state.currentProjectId
+      ? await saveProjectAtomic(state.currentProjectId, state.currentProjectName || "Sans titre", projectData, {
+          expectedUpdatedAt: loadedUpdatedAt.current, createVersion: shouldVersion, force,
+        })
+      : { ...await saveProject(null, state.currentProjectName || "Sans titre", projectData),
+          versionsMeta: [], version: state.projectMeta.version };
+    const { id, updatedAt } = saved;
+    const metaToSave = { ...state.projectMeta, version: saved.version };
 
     // La sauvegarde a réussi → cette date devient la nouvelle référence.
     loadedUpdatedAt.current = updatedAt;
 
-    // Recopie l'état flushé dans les onglets — historique annuler/refaire en pause
-    // pour ne pas y ajouter d'entrées vides à chaque sauvegarde.
+    const savedSignature = buildSignature(flushedTabs, { ...state, projectMeta: metaToSave }).full;
+    // Commit only server acknowledgements; preserve edits made during the request.
     const temporal = useAppStore.temporal.getState();
     temporal.pause();
     try {
-      useAppStore.setState({ tabs: flushedTabs });
-      if (!state.currentProjectId) useAppStore.setState({ currentProjectId: id });
+      // Do not restore captured tabs: edits made during the request must survive.
+      useAppStore.setState({
+        currentProjectId: id, currentProjectUpdatedAt: updatedAt,
+        currentProjectSavedSignature: savedSignature,
+        currentProjectVersionedHash: createVersion ? baseHash : lastVersionedHash.current,
+      });
+      useAppStore.setState({ currentVersionsMeta: saved.versionsMeta });
+      if (metaToSave.version !== state.projectMeta.version && useAppStore.getState().projectMeta.version === state.projectMeta.version) {
+        updateProjectMeta({ version: metaToSave.version });
+      }
     } finally {
       temporal.resume();
     }
 
-    lastSavedHash.current = fullSig;
+    lastSavedHash.current = savedSignature;
     if (createVersion) lastVersionedHash.current = baseHash;
   };
 
@@ -426,7 +394,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       updateProjectMeta({ date: todayStr });
       await persistProject(true);
       setLastSavedAt(new Date());
-      setIsDirty(false);
+      setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
       setSavedOk(true);
       setTimeout(() => setSavedOk(false), 2500);
       return true;
@@ -449,7 +417,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     try {
       await persistProject(false);
       setLastSavedAt(new Date());
-      setIsDirty(false);
+      setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
     } catch (e) {
       if (e instanceof ProjectConflictError) {
         // Modifié ailleurs → on arrête l'auto-save et on demande à l'utilisateur.
@@ -471,7 +439,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     if (!id) { setConflict(false); return; }
     try {
       const { name, data, updatedAt, versionsMeta } = await fetchProject(id);
-      loadProjectData(id, name, data, versionsMeta);
+      loadProjectData(id, name, data, versionsMeta, updatedAt);
       loadedUpdatedAt.current = updatedAt;
       // Réinitialise les empreintes sur l'état rechargé.
       const st = useAppStore.getState();
@@ -495,7 +463,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     try {
       await persistProject(false, true); // force = écrasement assumé
       setConflict(false);
-      setIsDirty(false);
+      setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
       setLastSavedAt(new Date());
       notify("Votre version a été enregistrée (l'autre version a été écrasée).", "success");
     } catch (e) {
@@ -1335,7 +1303,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           saving={saving}
           onSaveAndLeave={() => {
             void handleSave().then((success) => {
-              if (success) {
+              if (success && buildSignature(getFlushedTabs(), useAppStore.getState()).full === lastSavedHash.current) {
                 setUnsavedModalOpen(false);
                 pendingLeaveAction.current?.();
                 pendingLeaveAction.current = null;

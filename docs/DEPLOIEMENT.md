@@ -42,3 +42,9 @@ La configuration manquante ci-dessus est résolue par la migration `configure_no
 Validation distante : utilisateur/anon interdits d’exécuter la RPC, utilisateur interdit de lire Vault, appel pg_net authentifié en dry-run → HTTP 200 avec authenticated=true et emailConfigured=true. Aucun email de test envoyé ; la réception d’un email réel reste à constater lors d’une prochaine inscription.
 
 Les 12 tests locaux passent et la vérification TypeScript réussit.
+
+## Sauvegarde atomique — 9 octobre 2026
+
+La migration `20261009034950_atomic_project_save.sql` a été appliquée en production avant le déploiement frontend. La RPC `save_project_atomic` verrouille le projet, contrôle la date réellement chargée, archive la version distante précédente et met à jour projet/historique dans une transaction. Trois versions sont conservées ; l’autosauvegarde ne crée pas de version. Les comptes approuvés propriétaires, éditeurs partagés et administrateurs peuvent enregistrer ; les lecteurs peuvent consulter l’historique.
+
+Le navigateur conserve la date et l’empreinte de la dernière sauvegarde, y compris après rechargement. Les modifications faites pendant une requête restent en attente. Une ancienne session locale sans date de référence nécessite un rechargement distant via la résolution de conflit. Validation : 15 tests Node, TypeScript, build et assertions SQL dans PostgreSQL jetable.

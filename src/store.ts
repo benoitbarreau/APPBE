@@ -23,6 +23,7 @@ import type {
   TextNodeData,
   Zone,
 } from "./types";
+import { buildSignature } from "./lib/projectSerialization";
 import type { ProjectData } from "./lib/projectsApi";
 import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
 import { BLANK_BLOCK_PRODUCT_ID, DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
@@ -88,6 +89,9 @@ interface State {
   selectedCableId: string | null;
   // Cloud project tracking
   currentProjectId: string | null;
+  currentProjectUpdatedAt: string | null;
+  currentProjectSavedSignature: string | null;
+  currentProjectVersionedHash: string | null;
   currentProjectName: string;
   currentVersionsMeta: import('./lib/projectsApi').VersionMeta[];
   lastUserId: string | null;
@@ -229,7 +233,7 @@ interface State {
 
   setProjectName: (name: string) => void;
   setVersionsMeta: (versionsMeta: import('./lib/projectsApi').VersionMeta[]) => void;
-  loadProjectData: (id: string, name: string, data: ProjectData, versionsMeta?: import('./lib/projectsApi').VersionMeta[]) => void;
+  loadProjectData: (id: string, name: string, data: ProjectData, versionsMeta?: import('./lib/projectsApi').VersionMeta[], updatedAt?: string) => void;
   resetProject: () => void;
   clearForUser: (userId: string) => void;
   /**
@@ -426,6 +430,9 @@ export const useAppStore = create<State>()(
         selectedNodeId: null,
         selectedCableId: null,
         currentProjectId: null,
+        currentProjectUpdatedAt: null,
+        currentProjectSavedSignature: null,
+        currentProjectVersionedHash: null,
         currentProjectName: "Sans titre",
         currentVersionsMeta: [],
         lastUserId: null,
@@ -1557,7 +1564,7 @@ export const useAppStore = create<State>()(
         setProjectName: (name) => set({ currentProjectName: name }),
         setVersionsMeta: (currentVersionsMeta) => set({ currentVersionsMeta }),
 
-        loadProjectData: (id, name, data, versionsMeta) => {
+        loadProjectData: (id, name, data, versionsMeta, updatedAt) => {
           let tabs: Tab[];
           let activeTabId: string;
 
@@ -1642,6 +1649,7 @@ export const useAppStore = create<State>()(
 
           set({
             currentProjectId: id,
+            currentProjectUpdatedAt: updatedAt ?? null,
             currentProjectName: name,
             currentVersionsMeta: versionsMeta ?? [],
             tabs,
@@ -1667,6 +1675,8 @@ export const useAppStore = create<State>()(
             selectedNodeId: null,
             selectedCableId: null,
           });
+          const signature = buildSignature(flushActive(get()), get());
+          set({ currentProjectSavedSignature: signature.full, currentProjectVersionedHash: signature.base });
           // Réinitialiser l'état éditeur volatile : étiquettes câbles masquées par défaut
           useEditorState.setState({ cableLabelsHidden: true });
         },
@@ -1684,6 +1694,9 @@ export const useAppStore = create<State>()(
             zones: [...DEFAULT_ZONES],
             ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
+            currentProjectUpdatedAt: null,
+            currentProjectSavedSignature: null,
+            currentProjectVersionedHash: null,
             currentProjectName: "Sans titre",
             currentVersionsMeta: [],
             projectMeta: { ...DEFAULT_PROJECT_META },
@@ -1829,6 +1842,9 @@ export const useAppStore = create<State>()(
               tabs: [tab],
               activeTabId: tab.id,
               currentProjectId: null,
+              currentProjectUpdatedAt: null,
+              currentProjectSavedSignature: null,
+              currentProjectVersionedHash: null,
               currentProjectName: "Sans titre",
               currentVersionsMeta: [],
               nodes: [],

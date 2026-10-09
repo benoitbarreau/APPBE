@@ -303,6 +303,7 @@ export function ProtectedRoute() {
   }
 
   const handleNewProjectFromRoom = async (roomId: string, projectName: string, siteName: string, clientName: string) => {
+    useAppStore.getState().resetProject()
     const state = useAppStore.getState()
     try {
       const { id } = await saveProject(null, projectName, {
@@ -312,7 +313,8 @@ export function ProtectedRoute() {
         products: state.products,
       })
       await linkProjectToRoom(id, roomId)
-      useAppStore.setState({ currentProjectId: id, currentProjectName: projectName })
+      const saved = await fetchProject(id)
+      loadProjectData(id, projectName, saved.data, saved.versionsMeta, saved.updatedAt)
       setReadOnly(false)
       setReadOnlyVersion(undefined)
       setPage('editor')
@@ -325,8 +327,8 @@ export function ProtectedRoute() {
   /** Ouvre un projet existant depuis le Référentiel */
   const handleOpenProjectFromRef = async (projectId: string, projectName: string) => {
     try {
-      const { data } = await fetchProject(projectId)
-      loadProjectData(projectId, projectName, data, [])
+      const { data, updatedAt, versionsMeta } = await fetchProject(projectId)
+      loadProjectData(projectId, projectName, data, versionsMeta, updatedAt)
       setReadOnly(false)
       setReadOnlyVersion(undefined)
       setPage('editor')
