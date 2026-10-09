@@ -125,6 +125,10 @@ dans **Supabase Dashboard → SQL Editor** si le projet est recréé from scratc
 
 Appliquer `20261008071041_harden_project_and_datasheet_access.sql` après les migrations existantes. La migration protège les transferts de propriété des projets et limite les écritures PDF aux comptes approuvés : auteur de l’upload ou administrateur. Elle utilise `storage.objects.owner_id` ; vérifier cette colonne sur une ancienne installation Storage. Les fichiers sans propriétaire restent modifiables par les administrateurs. La lecture publique des fiches techniques est conservée.
 
-Redéployer `notify-admin-new-user` : la fonction exige désormais exactement le jeton `SUPABASE_SERVICE_ROLE_KEY` dans Authorization et refuse les autres appels avant tout envoi. Le trigger de la migration 012 envoie déjà ce jeton via `app.service_role_key`. Si un webhook Dashboard est utilisé, configurer explicitement le même en-tête. Ne jamais placer cette clé dans le frontend. Vérifier aussi que trigger et webhook ne sont pas simultanément actifs, pour éviter les doublons.
+Appliquer ensuite `20261009034436_configure_notification_webhook_vault.sql` et redéployer `notify-admin-new-user`. Le déclencheur lit dans Vault un secret dédié et l’URL de la fonction, puis utilise l’en-tête `x-synox-webhook-secret`. Le secret est généré dans PostgreSQL ; il n’est jamais enregistré dans Git ou dans le frontend. La RPC de vérification ne retourne qu’un booléen et seul `service_role` peut l’appeler.
+
+Pour une installation sur un autre projet, adapter l’URL de configuration dans la migration avant application, ou modifier `synox_notification_webhook_url` dans Vault. Le secret `synox_notification_webhook_token` peut être renouvelé dans Vault ; la fonction le vérifie à chaque appel sans redéploiement.
+
+L’ancien webhook serveur avec Authorization service_role reste compatible. Le déclencheur Vault suffit : éviter un webhook Dashboard supplémentaire, qui provoquerait des doublons. Un appel authentifié avec `{ "dryRun": true }` vérifie l’authentification et la présence de la clé Resend sans envoyer d’email.
 
 Ces correctifs ne sont actifs en production qu’après application de la migration et déploiement de la fonction.

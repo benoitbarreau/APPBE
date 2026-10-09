@@ -20,16 +20,43 @@ const FROM_EMAIL     = Deno.env.get('FROM_EMAIL')     ?? 'SynoX-AV <notification
 serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
-  // Le trigger SQL 012 envoie cette clé. Refuser avant toute lecture/envoi.
-  const expectedToken = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  if (!expectedToken) return new Response('Notification authentication unavailable', { status: 503 })
-  if (req.headers.get('Authorization') !== `Bearer ${expectedToken}`) {
-    return new Response('Unauthorized', { status: 401 })
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+  if (!serviceKey || !supabaseUrl) return new Response('Notification authentication unavailable', { status: 503 })
+
+  // Keep compatibility with existing server-only webhooks. The database
+  // trigger now uses a dedicated Vault token, verified by a service-only RPC.
+  let authorized = req.headers.get('Authorization') === `Bearer ${serviceKey}`
+  if (!authorized) {
+    const token = req.headers.get('x-synox-webhook-secret') ?? ''
+    if (!/^[a-f0-9]{64}$/.test(token)) return new Response('Unauthorized', { status: 401 })
+    try {
+      const check = await fetch(`${supabaseUrl}/rest/v1/rpc/verify_notification_webhook_token`, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ p_token: token }),
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!check.ok) return new Response('Notification authentication unavailable', { status: 503 })
+      authorized = await check.json() === true
+    } catch {
+      return new Response('Notification authentication unavailable', { status: 503 })
+    }
   }
+  if (!authorized) return new Response('Unauthorized', { status: 401 })
 
   try {
     // Payload envoyé par le Database Webhook Supabase
     const payload = await req.json()
+
+    // Authenticated operational check: never sends email.
+    if (payload.dryRun === true) {
+      return Response.json({ authenticated: true, emailConfigured: Boolean(RESEND_API_KEY) })
+    }
 
     // Le record est dans payload.record (webhook Supabase v2)
     // ou directement dans payload (webhook personnalisé)
