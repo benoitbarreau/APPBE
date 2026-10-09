@@ -48,6 +48,7 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
 
   const loadProjectData = useAppStore(s => s.loadProjectData)
   const resetProject = useAppStore(s => s.resetProject)
+  const isCurrentAccount = () => Boolean(profile && useAppStore.getState().lastUserId === profile.id)
   const storeState = useAppStore
 
   const loadProjects = (archived: boolean) => {
@@ -104,11 +105,13 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
     setError(null)
     try {
       const { name, data, updatedAt, versionsMeta } = await fetchProject(row.id)
+      if (!isCurrentAccount()) return
       loadProjectData(row.id, name, data, versionsMeta, updatedAt)
 
       // Projet partagé (non propriétaire et non admin) → vérifier le rôle
       if (!isOwned(row) && !isAdmin) {
         const shareRole = await getMyShareRole(row.id)
+        if (!isCurrentAccount()) return
         onOpenEditor(shareRole === 'viewer', shareRole === 'viewer' ? 'Mode Lecteur' : undefined)
       } else {
         onOpenEditor()
@@ -146,9 +149,11 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
         products: state.products, accessories: state.accessories, ipTableColumns: state.ipTableColumns,
       }
       const { id, updatedAt } = await saveProject(null, name, projectData)
+      if (!isCurrentAccount()) return
       loadProjectData(id, name, projectData, [], updatedAt)
       onOpenEditor()
     } catch {
+      if (!isCurrentAccount()) return
       resetProject()
       useAppStore.setState({ currentProjectName: name })
       onOpenEditor()

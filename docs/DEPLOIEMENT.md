@@ -54,3 +54,9 @@ Le navigateur conserve la date et l’empreinte de la dernière sauvegarde, y co
 Les vues accueil, projets, éditeur, catalogue, référentiel et administration sont chargées à leur ouverture avec React.lazy et un écran d’attente Suspense. La bibliothèque jsPDF est chargée uniquement lors des exports PDF (synoptique, câbles, tableau IP, baie).
 
 Build mesuré : entrée JS 431,33 Ko (122,06 Ko gzip), contre 1471,97 Ko (443,73 Ko gzip) avant séparation ; module éditeur 455,24 Ko ; module PDF 390,24 Ko. Ces chiffres mesurent les fichiers compilés, pas le temps de chargement réel. Aucun chunk ne dépasse désormais 500 Ko. Les 15 tests et le build TypeScript passent. Vérification navigateur avec Chromium local : écran de connexion affiché, aucune erreur JavaScript, seule l’entrée JS téléchargée (éditeur et PDF absents). Les parcours connectés ne sont pas validés ici.
+
+## Isolation entre comptes — 9 octobre 2026
+
+Le changement de compte et la déconnexion purgent les données projet, images, groupes, colonnes IP, métadonnées et archives produits, accessoires, buffers de zones/signaux, métadonnées catalogue et historique d’annulation. Le même compte conserve son travail lors d’un F5. La purge attend la fin du bootstrap Auth pour préserver cette restauration.
+
+Les chargements initiaux sont ignorés après nettoyage de leur effet ou changement de compte. Les ouvertures et créations de projet ainsi que les réponses de sauvegarde vérifient le compte avant de modifier le store. Aucun changement de base ou de politique Supabase. Validation : 17 tests et compilation TypeScript/Vite ; les scénarios avec deux comptes réels ne sont pas exécutés en production.

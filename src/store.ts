@@ -235,7 +235,7 @@ interface State {
   setVersionsMeta: (versionsMeta: import('./lib/projectsApi').VersionMeta[]) => void;
   loadProjectData: (id: string, name: string, data: ProjectData, versionsMeta?: import('./lib/projectsApi').VersionMeta[], updatedAt?: string) => void;
   resetProject: () => void;
-  clearForUser: (userId: string) => void;
+  clearForUser: (userId: string | null) => void;
   /**
    * Fusionne les produits custom chargés depuis Supabase avec le catalogue
    * local. Les produits cloud (avec leur meta) ont la priorité sur ceux du
@@ -1833,9 +1833,14 @@ export const useAppStore = create<State>()(
           _loginZonesForMigration = cloudZones;
         },
 
-        clearForUser: (userId) =>
-          set((s) => {
-            if (s.lastUserId === userId) return {};
+        clearForUser: (userId) => {
+          if (userId !== null && get().lastUserId === userId) return;
+          _loginZonesForMigration = null;
+          _adminGlobalSignals = null;
+          const history = useAppStore.temporal.getState();
+          const wasTracking = history.isTracking;
+          history.pause();
+          set(() => {
             const tab = makeDefaultTab();
             return {
               lastUserId: userId,
@@ -1851,6 +1856,13 @@ export const useAppStore = create<State>()(
               cables: [],
               textNodes: [],
               shapeNodes: [],
+              imageNodes: [],
+              groups: [],
+              ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
+              productMeta: {},
+              archivedProducts: [],
+              archivedProductsMeta: {},
+              accessories: [...BAY_ACCESSORIES],
               zones: [...DEFAULT_ZONES],
               projectMeta: { ...DEFAULT_PROJECT_META },
               signals: { ...DEFAULT_SIGNAL_DEFS },
@@ -1858,7 +1870,12 @@ export const useAppStore = create<State>()(
               selectedCableId: null,
               products: BUILTIN_CATALOG,
             };
-          }),
+          });
+          history.clear();
+          if (wasTracking) history.resume();
+          useCatalogMeta.getState().setCatalogMeta([], []);
+          useEditorState.setState({ readOnly: false, cableView: "detailed", cableLabelsHidden: true });
+        },
       };
     },
     {

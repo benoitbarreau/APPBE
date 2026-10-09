@@ -155,8 +155,8 @@ function ProtectedRouteContent() {
 
   // Sécurité : isoler les données du store par utilisateur.
   useEffect(() => {
-    if (user) clearForUser(user.id)
-  }, [user, clearForUser])
+    if (!loading) clearForUser(user?.id ?? null)
+  }, [loading, user?.id, clearForUser])
 
   // ── Restauration de la vue après F5 / réouverture navigateur ─────────
   // Si l'utilisateur était dans l'éditeur d'un projet et qu'il rafraîchit,
@@ -222,22 +222,26 @@ function ProtectedRouteContent() {
   // Se re-déclenche si user.id ou profile.status changent (ex: approbation).
   useEffect(() => {
     if (!user || profile?.status !== 'approved') return
+    let active = true
+    const isCurrent = () => active && useAppStore.getState().lastUserId === user.id
     fetchUserProducts()
-      .then(rows => { if (rows.length > 0) mergeUserProducts(rows) })
+      .then(rows => { if (isCurrent() && rows.length > 0) mergeUserProducts(rows) })
       .catch(() => { /* échec silencieux — le localStorage fait office de fallback */ })
     fetchUserSignals()
-      .then(sigs => { if (Object.keys(sigs).length > 0) mergeUserSignals(sigs) })
+      .then(sigs => { if (isCurrent() && Object.keys(sigs).length > 0) mergeUserSignals(sigs) })
       .catch(() => { /* échec silencieux */ })
     fetchUserZones()
-      .then(zones => { if (zones.length > 0) mergeUserZones(zones) })
+      .then(zones => { if (isCurrent() && zones.length > 0) mergeUserZones(zones) })
       .catch(() => { /* échec silencieux */ })
     // Chargement indépendant : si l'un échoue l'autre continue quand même
     Promise.allSettled([fetchBrands(), fetchCategories()])
       .then(([brandsRes, catsRes]) => {
+        if (!isCurrent()) return
         const brands     = brandsRes.status     === 'fulfilled' ? brandsRes.value     : []
         const categories = catsRes.status === 'fulfilled' ? catsRes.value : []
         setCatalogMeta(brands, categories)
       })
+    return () => { active = false }
   }, [user?.id, profile?.status, mergeUserProducts, mergeUserSignals, mergeUserZones, setCatalogMeta])
 
   // Revenir à la page d'accueil si la session expire ou si l'utilisateur se déconnecte.
@@ -253,10 +257,13 @@ function ProtectedRouteContent() {
     }
   }, [user])
 
+  const isCurrentAccount = () => Boolean(user && useAppStore.getState().lastUserId === user.id)
+
   /** Ouvre une version archivée en lecture seule */
   const handleOpenVersion = async (versionId: string, projectId: string, projectName: string) => {
     try {
       const { version, data } = await fetchProjectVersion(versionId)
+      if (!isCurrentAccount()) return
       loadProjectData(projectId, projectName, data, [])
       setReadOnly(true)
       setReadOnlyVersion(version)
@@ -269,6 +276,7 @@ function ProtectedRouteContent() {
 
   /** Ouvre la version courante — éditeur complet ou mode lecteur selon le rôle partagé */
   const handleOpenEditor = (readOnly = false, label?: string) => {
+    if (!isCurrentAccount()) return
     setReadOnly(readOnly)
     setReadOnlyVersion(label)
     setPage('editor')
@@ -321,8 +329,10 @@ function ProtectedRouteContent() {
         zones: state.zones,
         products: state.products,
       })
+      if (!isCurrentAccount()) return
       await linkProjectToRoom(id, roomId)
       const saved = await fetchProject(id)
+      if (!isCurrentAccount()) return
       loadProjectData(id, projectName, saved.data, saved.versionsMeta, saved.updatedAt)
       setReadOnly(false)
       setReadOnlyVersion(undefined)
@@ -337,6 +347,7 @@ function ProtectedRouteContent() {
   const handleOpenProjectFromRef = async (projectId: string, projectName: string) => {
     try {
       const { data, updatedAt, versionsMeta } = await fetchProject(projectId)
+      if (!isCurrentAccount()) return
       loadProjectData(projectId, projectName, data, versionsMeta, updatedAt)
       setReadOnly(false)
       setReadOnlyVersion(undefined)

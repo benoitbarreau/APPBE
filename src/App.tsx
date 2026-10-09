@@ -349,6 +349,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         })
       : { ...await saveProject(null, state.currentProjectName || "Sans titre", projectData),
           versionsMeta: [], version: state.projectMeta.version };
+    if (useAppStore.getState().lastUserId !== state.lastUserId) {
+      throw new Error("La session a changé pendant l’enregistrement.");
+    }
     const { id, updatedAt } = saved;
     const metaToSave = { ...state.projectMeta, version: saved.version };
 
@@ -435,10 +438,12 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
   /** Résolution de conflit — recharge la version distante (abandonne mes modifs locales). */
   const reloadRemoteVersion = async () => {
+    const accountId = useAppStore.getState().lastUserId;
     const id = useAppStore.getState().currentProjectId;
     if (!id) { setConflict(false); return; }
     try {
       const { name, data, updatedAt, versionsMeta } = await fetchProject(id);
+      if (useAppStore.getState().lastUserId !== accountId) return;
       loadProjectData(id, name, data, versionsMeta, updatedAt);
       loadedUpdatedAt.current = updatedAt;
       // Réinitialise les empreintes sur l'état rechargé.

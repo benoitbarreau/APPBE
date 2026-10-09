@@ -377,3 +377,7 @@ Les constats ci-dessus décrivent l’état initial. Une première série de cor
 La fonction de notification contrôle désormais le jeton serveur avant l’envoi. Une nouvelle migration protège le propriétaire projet et les écritures de fiches PDF. Voir `supabase/INFRASTRUCTURE.md` pour son application et la configuration webhook. Ces modifications serveur ne sont pas déployées par cette intervention.
 
 Des tests Node ciblés sont disponibles via `npm test`. Les fichiers SQL de `tests/` servent exclusivement à une base isolée et vérifient les autorisations de la nouvelle migration sur un schéma minimal compatible. Ils ne doivent pas être exécutés sur la base de production.
+
+## Suivi des corrections — 9 octobre 2026
+
+Les constats initiaux 1 à 6 et 8 ont été traités par les correctifs déployés (notification protégée, droits PDF/propriétaire, synchronisation IP, export JSON, renommage et sauvegarde atomique). Le chargement différé réduit l’entrée JavaScript à environ 122 Ko gzip. Le constat 10 est traité pour la remise à zéro du store et les réponses de chargement tardives, avec tests automatisés ; le parcours de deux comptes réels reste à vérifier. Voir DEPLOIEMENT.md pour les validations et limites actualisées.
