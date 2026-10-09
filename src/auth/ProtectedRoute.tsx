@@ -1,22 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useAuth } from './useAuth'
 import { useAppStore, useCatalogMeta, useEditorState } from '../store'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { PendingPage } from '../pages/PendingPage'
 import { RejectedPage } from '../pages/RejectedPage'
-import { ProjectsPage } from '../pages/ProjectsPage'
-import App from '../App'
-import { AdminDashboard } from '../pages/AdminDashboard'
-import { ReferentielPage } from '../pages/ReferentielPage'
-import { CataloguePage } from '../pages/CataloguePage'
-import { HomePage } from '../pages/HomePage'
 import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
 import { notify } from '../components/dialogs/dialogStore'
 import { fetchProject, fetchProjectVersion, saveProject } from '../lib/projectsApi'
 import { linkProjectToRoom } from '../lib/referentielApi'
+
+const ProjectsPage = lazy(() => import('../pages/ProjectsPage').then(module => ({ default: module.ProjectsPage })))
+const App = lazy(() => import('../App'))
+const AdminDashboard = lazy(() => import('../pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })))
+const ReferentielPage = lazy(() => import('../pages/ReferentielPage').then(module => ({ default: module.ReferentielPage })))
+const CataloguePage = lazy(() => import('../pages/CataloguePage').then(module => ({ default: module.CataloguePage })))
+const HomePage = lazy(() => import('../pages/HomePage').then(module => ({ default: module.HomePage })))
 
 const logoUrl = `${import.meta.env.BASE_URL}synoX.png`
 
@@ -111,6 +112,14 @@ function clearPersistedView() {
 }
 
 export function ProtectedRoute() {
+  return (
+    <Suspense fallback={<LoadingScreen message="Chargement…" />}>
+      <ProtectedRouteContent />
+    </Suspense>
+  )
+}
+
+function ProtectedRouteContent() {
   const { user, profile, loading, signOut, initError, retry } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
   const [showAdminDashboard, setShowAdminDashboard] = useState(false)

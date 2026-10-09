@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { jsPDF } from "jspdf";
+import { notify } from "./dialogs/dialogStore";
 import { useAppStore } from "../store";
 import { isSynopticTab, type Cable } from "../types";
 
@@ -134,7 +134,8 @@ export function CableList() {
     URL.revokeObjectURL(url);
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const { jsPDF } = await import("jspdf");
     const COLS  = ["N°", "Syno", "Type", "Signal", "De", "Vers", "Long.", "Libellé"];
     const HINTS = [8, 18, 16, 12, 40, 40, 10, 30];
     const total = HINTS.reduce((s, v) => s + v, 0);
@@ -190,7 +191,11 @@ export function CableList() {
     pdf.save("liste-cables.pdf");
   };
 
-  const handleExport = (fn: () => void) => { setExportMenuOpen(false); fn(); };
+  const handleExport = async (fn: () => void | Promise<void>) => {
+    setExportMenuOpen(false);
+    try { await fn(); }
+    catch { notify("Impossible de générer l’export. Réessayez.", "error"); }
+  };
 
   /** Clic sur une ligne câble → sélectionne + centre le canvas (onglet actif uniquement). */
   const handleRowClick = useCallback((cable: Cable, isActive: boolean) => {

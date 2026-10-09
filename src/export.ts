@@ -1,5 +1,4 @@
 import { toPng, toJpeg, toSvg } from "html-to-image";
-import jsPDF from "jspdf";
 import { getViewportForBounds } from "@xyflow/react";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "./page";
 import type { Cable, SignalDef } from "./types";
@@ -848,6 +847,7 @@ export async function captureAndComposePage(
  * Construit et enregistre un PDF à partir de pages déjà rendues (data URLs PNG).
  */
 export async function buildAndSavePDF(pages: string[], filename: string): Promise<void> {
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3", compress: true });
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage("a3", "landscape");
@@ -898,6 +898,7 @@ export async function exportDiagram(
   };
 
   if (format === "pdf") {
+    const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3", compress: true });
     let first = true;
     for (let i = 0; i < pages.length; i++) {

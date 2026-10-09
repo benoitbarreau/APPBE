@@ -9,7 +9,6 @@
  */
 
 import { toPng } from "html-to-image";
-import jsPDF from "jspdf";
 import type { Rack } from "../types";
 import {
   type CartoucheData,
@@ -137,6 +136,7 @@ export async function exportBayToPDF(
   tabName: string,
 ): Promise<void> {
   const dataUrl = await composeBayPage(cartouche);
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3", compress: true });
   pdf.addImage(dataUrl, "PNG", 0, 0, A3_W_MM, A3_H_MM, undefined, "FAST");
   pdf.save(`${safeFilename(tabName)}_baie.pdf`);

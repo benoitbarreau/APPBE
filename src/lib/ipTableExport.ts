@@ -1,4 +1,3 @@
-import { jsPDF } from "jspdf";
 import type { IPNetworkInfo, IPTableRow } from "../types";
 import { notify } from "../components/dialogs/dialogStore";
 
@@ -160,6 +159,7 @@ export async function exportIPTablePdf(
 
   // Choix du format : A4 paysage si peu de colonnes, A3 paysage sinon
   const format: "a3" | "a4" = columns.length <= 6 ? "a4" : "a3";
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format });
 
   // Dimensions en mm (paysage)

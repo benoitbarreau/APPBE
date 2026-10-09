@@ -48,3 +48,9 @@ Les 12 tests locaux passent et la vérification TypeScript réussit.
 La migration `20261009034950_atomic_project_save.sql` a été appliquée en production avant le déploiement frontend. La RPC `save_project_atomic` verrouille le projet, contrôle la date réellement chargée, archive la version distante précédente et met à jour projet/historique dans une transaction. Trois versions sont conservées ; l’autosauvegarde ne crée pas de version. Les comptes approuvés propriétaires, éditeurs partagés et administrateurs peuvent enregistrer ; les lecteurs peuvent consulter l’historique.
 
 Le navigateur conserve la date et l’empreinte de la dernière sauvegarde, y compris après rechargement. Les modifications faites pendant une requête restent en attente. Une ancienne session locale sans date de référence nécessite un rechargement distant via la résolution de conflit. Validation : 15 tests Node, TypeScript, build et assertions SQL dans PostgreSQL jetable.
+
+## Chargement différé — 9 octobre 2026
+
+Les vues accueil, projets, éditeur, catalogue, référentiel et administration sont chargées à leur ouverture avec React.lazy et un écran d’attente Suspense. La bibliothèque jsPDF est chargée uniquement lors des exports PDF (synoptique, câbles, tableau IP, baie).
+
+Build mesuré : entrée JS 431,33 Ko (122,06 Ko gzip), contre 1471,97 Ko (443,73 Ko gzip) avant séparation ; module éditeur 455,24 Ko ; module PDF 390,24 Ko. Ces chiffres mesurent les fichiers compilés, pas le temps de chargement réel. Aucun chunk ne dépasse désormais 500 Ko. Les 15 tests et le build TypeScript passent. Le navigateur Playwright est absent de l’environnement : les parcours visuels ne sont pas validés ici.
