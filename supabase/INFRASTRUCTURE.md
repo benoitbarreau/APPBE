@@ -148,3 +148,7 @@ La fonction complete-product contrôle Auth et profiles.status=approved. Elle n�
 ## Installations neuves et migrations
 
 Les 35 fichiers s’appliquent par ordre de nom, comme décrit dans README.md. 017 est désormais compatible avec 016 et ne change pas ses politiques. Sur un nouveau projet, la migration Vault ne crée plus automatiquement une URL pointant vers la production SynoX. Configurer synox_notification_webhook_url pour le projet concerné ; les valeurs Vault existantes sont conservées. Aucun rejeu des migrations historiques n’est nécessaire en production. `npm run test:migrations` vérifie cette chaîne dans une base jetable.
+
+## Accès gestionnaire au référentiel
+
+Un gestionnaire approuvé hérite des droits du client sur sa hiérarchie et ses documents privés. Les chemins Storage structurés sont contrôlés par entité ; l’accès cesse après retrait d’assignation. Les helpers utilisent les droits de l’appelant. La réassignation passe par assign_client_manager, RPC contrôlée réservée aux comptes authentifiés approuvés propriétaires/gestionnaires/administrateurs. Aucun transfert de propriété n’est permis aux gestionnaires. La migration appliquée est `20261010102548_account_manager_referentiel_access.sql`.

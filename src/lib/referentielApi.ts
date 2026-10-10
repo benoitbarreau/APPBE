@@ -165,10 +165,9 @@ export async function listApprovedProfiles(): Promise<Array<{ id: string; email:
 
 /** Assigne (ou retire si null) un gestionnaire de compte sur un client. */
 export async function assignClientManager(clientId: string, managerId: string | null): Promise<void> {
-  const { error } = await supabase
-    .from('clients')
-    .update({ account_manager_id: managerId, updated_at: now() })
-    .eq('id', clientId)
+  const { error } = await supabase.rpc('assign_client_manager', {
+    p_client_id: clientId, p_manager_id: managerId,
+  })
   if (error) throw pgErr(error)
 }
 

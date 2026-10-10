@@ -9,7 +9,7 @@ import {
   type Client, type Site, type Room,
 } from '../lib/referentielApi'
 import { AdminSettings } from '../components/AdminSettings'
-import { confirmDialog } from '../components/dialogs/dialogStore'
+import { confirmDialog, notify } from '../components/dialogs/dialogStore'
 import { Modal } from './referentiel/Modal'
 import { ClientForm } from './referentiel/ClientForm'
 import { SiteForm } from './referentiel/SiteForm'
@@ -320,8 +320,19 @@ export function ReferentielPage({ onOpenProjects, onOpenAdminDashboard, onNewPro
         account_manager_id: profileId,
         account_manager: newManager,
       }
-      setSelectedClient(updated)
-      setClients(prev => prev.map(c => c.id === updated.id ? updated : c))
+      const lostAccess = profile?.role !== 'admin' && user?.id !== selectedClient.user_id && user?.id !== profileId
+      if (lostAccess) {
+        setClients(prev => prev.filter(c => c.id !== updated.id))
+        setSitesMap({})
+        setRoomsMap({})
+        setSelectedRoom(null)
+        setSelectedRoomSite(null)
+        backToClients()
+        notify('Gestionnaire modifié. Ce client ne vous est plus assigné.', 'info')
+      } else {
+        setSelectedClient(updated)
+        setClients(prev => prev.map(c => c.id === updated.id ? updated : c))
+      }
       setManagerModalOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur assignation gestionnaire')

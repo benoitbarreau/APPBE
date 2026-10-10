@@ -383,3 +383,5 @@ Des tests Node ciblés sont disponibles via `npm test`. Les fichiers SQL de `tes
 Les constats initiaux 1 à 6 et 8 ont été traités par les correctifs déployés (notification protégée, droits PDF/propriétaire, synchronisation IP, export JSON, renommage et sauvegarde atomique). Le chargement différé réduit l’entrée JavaScript à environ 122 Ko gzip. Le constat 10 est traité pour la remise à zéro du store et les réponses de chargement tardives, avec tests automatisés ; le parcours de deux comptes réels reste à vérifier. Voir DEPLOIEMENT.md pour les validations et limites actualisées.
 
 Le constat 7 (doublon des politiques 016/017) est corrigé. Les 35 migrations passent sur une base jetable, avec un contrôle ajouté au workflow. La documentation d’installation inclut les fichiers horodatés et la configuration du webhook propre au projet.
+
+Le constat 9 est traité par la migration d’accès gestionnaire et la RPC de réassignation : hiérarchie, contacts et fichiers privés accessibles selon le client assigné ; protection du propriétaire et vérifications RLS ajoutées. Les validations sont détaillées dans DEPLOIEMENT.md.
