@@ -28,6 +28,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { downloadPdf, validatePdfUrl, PdfDownloadError } from './pdfDownload.ts'
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts'
 
 const CORS_HEADERS = {
@@ -41,8 +42,6 @@ const CORS_HEADERS = {
 // Si un modèle renvoie « free_tier_requests limit: 0 », en essayer un autre.
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
-// Taille max du PDF traité (le base64 gonfle d'environ +33 % ; on reste prudent).
-const MAX_PDF_BYTES = 15 * 1024 * 1024 // 15 Mo
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -109,16 +108,6 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
 
   try {
-    const { pdfUrl, manufacturer, reference, category, signalTypes } = await req.json() as {
-      pdfUrl?: string
-      manufacturer?: string
-      reference?: string
-      category?: string
-      signalTypes?: string[]
-    }
-
-    if (!pdfUrl) return json({ error: 'Paramètre manquant : pdfUrl est requis' }, 400)
-
     // ── Vérifier que l'appelant est authentifié ────────────────────────
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -130,6 +119,24 @@ serve(async (req: Request) => {
     const { data: { user: caller }, error: callerErr } = await supabaseAdmin.auth.getUser(token)
     if (callerErr || !caller) return json({ error: 'Non authentifié' }, 401)
 
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles').select('status').eq('id', caller.id).single()
+    if (profileError || profile?.status !== 'approved') {
+      return json({ error: 'Compte approuvé requis pour la complétion IA.' }, 403)
+    }
+
+    const { pdfUrl, manufacturer, reference, category, signalTypes } = await req.json() as {
+      pdfUrl?: string
+      manufacturer?: string
+      reference?: string
+      category?: string
+      signalTypes?: string[]
+    }
+
+    if (!pdfUrl) return json({ error: 'Paramètre manquant : pdfUrl est requis' }, 400)
+
+    const safePdfUrl = validatePdfUrl(pdfUrl, Deno.env.get('SUPABASE_URL') ?? '')
+
     // ── Clé Gemini ─────────────────────────────────────────────────────
     const geminiKey = Deno.env.get('GEMINI_API_KEY') ?? ''
     if (!geminiKey) {
@@ -137,14 +144,7 @@ serve(async (req: Request) => {
     }
 
     // ── Télécharger le PDF ─────────────────────────────────────────────
-    const pdfRes = await fetch(pdfUrl)
-    if (!pdfRes.ok) {
-      return json({ error: `Impossible de télécharger le PDF (HTTP ${pdfRes.status}).` }, 400)
-    }
-    const pdfBuf = new Uint8Array(await pdfRes.arrayBuffer())
-    if (pdfBuf.byteLength > MAX_PDF_BYTES) {
-      return json({ error: `PDF trop volumineux (${Math.round(pdfBuf.byteLength / 1024 / 1024)} Mo, max ${MAX_PDF_BYTES / 1024 / 1024} Mo).` }, 400)
-    }
+    const pdfBuf = await downloadPdf(safePdfUrl)
     const pdfBase64 = encodeBase64(pdfBuf)
 
     // ── Appel Gemini ───────────────────────────────────────────────────
@@ -170,6 +170,7 @@ serve(async (req: Request) => {
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch(geminiUrl, {
         method: 'POST',
+        signal: AbortSignal.timeout(60_000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(geminiBody),
       })
@@ -215,7 +216,8 @@ serve(async (req: Request) => {
 
     return json({ success: true, specs })
   } catch (e) {
-    console.error('[complete-product]', e)
-    return json({ error: e instanceof Error ? e.message : String(e) }, 400)
+    if (e instanceof PdfDownloadError) return json({ error: e.message }, e.status)
+    console.error('[complete-product] Échec du traitement')
+    return json({ error: 'Impossible de traiter la fiche technique. Réessayez.' }, 400)
   }
 })

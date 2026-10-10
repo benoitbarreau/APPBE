@@ -136,3 +136,7 @@ Ces correctifs ne sont actifs en production qu’après application de la migrat
 ## Sauvegarde atomique
 
 Migration `20261009034950_atomic_project_save.sql` appliquée le 9 octobre 2026. `save_project_atomic` s’exécute avec les droits de l’appelant (RLS), verrouille la ligne, refuse une date obsolète et archive la version distante précédente dans la même transaction. Les trois derniers instantanés sont conservés. Exécution réservée aux utilisateurs authentifiés ; compte approuvé et droit d’édition contrôlés dans la fonction.
+
+## Complétion IA et fiches PDF
+
+La fonction complete-product contrôle Auth et profiles.status=approved. Elle n’accepte pour analyse que les URL publiques HTTPS du bucket product-datasheets du projet. Lecture limitée à 15 Mo, délai de téléchargement 20 s, redirections refusées, signature PDF contrôlée. Les URL externes nécessitent un import préalable. Les secrets Gemini restent côté serveur ; aucun changement SQL requis.

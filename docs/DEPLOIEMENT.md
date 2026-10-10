@@ -60,3 +60,11 @@ Build mesuré : entrée JS 431,33 Ko (122,06 Ko gzip), contre 1471,97 Ko (443,73
 Le changement de compte et la déconnexion purgent les données projet, images, groupes, colonnes IP, métadonnées et archives produits, accessoires, buffers de zones/signaux, métadonnées catalogue et historique d’annulation. Le même compte conserve son travail lors d’un F5. La purge attend la fin du bootstrap Auth pour préserver cette restauration.
 
 Les chargements initiaux sont ignorés après nettoyage de leur effet ou changement de compte. Les ouvertures et créations de projet ainsi que les réponses de sauvegarde vérifient le compte avant de modifier le store. Aucun changement de base ou de politique Supabase. Validation : 17 tests et compilation TypeScript/Vite ; les scénarios avec deux comptes réels ne sont pas exécutés en production.
+
+## Téléchargements PDF de la complétion IA — 10 octobre 2026
+
+`complete-product` exige désormais un profil approved après validation du jeton Auth. Seules les URL HTTPS publiques du bucket product-datasheets de ce projet Supabase sont téléchargées, sans identifiants, paramètres ou fragment. Les chemins ambigus et les redirections sont refusés. Les PDF provenant de liens externes doivent être importés dans SynoX avant analyse IA ; les liens eux-mêmes restent utilisables comme documents.
+
+La lecture est limitée à 15 Mo pendant le streaming (même si Content-Length est absent ou incorrect), avec annulation à 20 secondes et vérification de la signature %PDF-. Chaque appel Gemini est limité à 60 secondes. Aucun quota applicatif par compte n’est ajouté dans cette série.
+
+Validation : 27 tests Node dont scénarios serveur simulés, et vérification TypeScript du module de téléchargement. Aucun appel réel à Gemini ni modification de la base.
