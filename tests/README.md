@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute vingt-sept tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute trente et un tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -21,3 +21,5 @@ Les fixtures `atomic-project-fixture.sql`, la migration `20261009034950_atomic_p
 `user-isolation.test.mjs` exécute le vrai store avec un stockage local simulé : changement de compte, purge des buffers de migration, impossibilité de restaurer les données par annulation, maintien du travail sur rafraîchissement du même compte et purge à la déconnexion.
 
 `pdf-download.test.mjs` vérifie l’origine/bucket, les URL ambiguës, le refus des redirections, la lecture bornée avec taille déclarée absente ou mensongère, les délais avant et après réception des en-têtes, la signature PDF et les comptes non approuvés. Réseau et Gemini sont simulés : aucun appel IA facturable.
+
+`ai-quota.test.mjs` vérifie les refus sans appel PDF/Gemini et la libération après succès/échec. Dans une base jetable, lancer `ai-quota-fixture.sql`, la migration `20261010092505_ai_completion_quotas.sql`, puis `ai-quota-assertions.sql`. Les réservations concurrentes ont aussi été testées avec deux connexions PostgreSQL distinctes.

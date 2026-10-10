@@ -29,6 +29,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { downloadPdf, validatePdfUrl, PdfDownloadError } from './pdfDownload.ts'
+import { reserveQuota, releaseQuota, AiQuotaError } from './quota.ts'
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts'
 
 const CORS_HEADERS = {
@@ -107,6 +108,7 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
 
+  let release: (() => Promise<void>) | undefined
   try {
     // ── Vérifier que l'appelant est authentifié ────────────────────────
     const supabaseAdmin = createClient(
@@ -142,6 +144,9 @@ serve(async (req: Request) => {
     if (!geminiKey) {
       return json({ error: 'Clé IA non configurée (GEMINI_API_KEY manquant dans les secrets Supabase).' }, 503)
     }
+
+    const leaseId = await reserveQuota(supabaseAdmin, caller.id)
+    release = () => releaseQuota(supabaseAdmin, caller.id, leaseId)
 
     // ── Télécharger le PDF ─────────────────────────────────────────────
     const pdfBuf = await downloadPdf(safePdfUrl)
@@ -216,8 +221,10 @@ serve(async (req: Request) => {
 
     return json({ success: true, specs })
   } catch (e) {
-    if (e instanceof PdfDownloadError) return json({ error: e.message }, e.status)
+    if (e instanceof PdfDownloadError || e instanceof AiQuotaError) return json({ error: e.message }, e.status)
     console.error('[complete-product] Échec du traitement')
     return json({ error: 'Impossible de traiter la fiche technique. Réessayez.' }, 400)
+  } finally {
+    await release?.()
   }
 })

@@ -140,3 +140,7 @@ Migration `20261009034950_atomic_project_save.sql` appliquée le 9 octobre 2026.
 ## Complétion IA et fiches PDF
 
 La fonction complete-product contrôle Auth et profiles.status=approved. Elle n’accepte pour analyse que les URL publiques HTTPS du bucket product-datasheets du projet. Lecture limitée à 15 Mo, délai de téléchargement 20 s, redirections refusées, signature PDF contrôlée. Les URL externes nécessitent un import préalable. Les secrets Gemini restent côté serveur ; aucun changement SQL requis.
+
+## Configuration des quotas IA
+
+`ai_completion_limits` contient une ligne singleton avec daily_limit=50 et concurrent_limit=1. Modifiable uniquement côté serveur (SQL Editor/service_role), sans redéployer la fonction. Exemple : `UPDATE public.ai_completion_limits SET daily_limit=100, concurrent_limit=2 WHERE singleton;`. Les limites s’appliquent aussi aux administrateurs. `ai_completion_usage` conserve uniquement le compteur de la journée et les réservations temporaires, sans contenu PDF ou réponse IA. Ces tables ne sont pas accessibles aux utilisateurs.

@@ -68,3 +68,11 @@ Les chargements initiaux sont ignorés après nettoyage de leur effet ou changem
 La lecture est limitée à 15 Mo pendant le streaming (même si Content-Length est absent ou incorrect), avec annulation à 20 secondes et vérification de la signature %PDF-. Chaque appel Gemini est limité à 60 secondes. Aucun quota applicatif par compte n’est ajouté dans cette série.
 
 Validation : 27 tests Node dont scénarios serveur simulés, et vérification TypeScript du module de téléchargement. Aucun appel réel à Gemini ni modification de la base.
+
+## Quotas IA — 10 octobre 2026
+
+Migration `20261010092505_ai_completion_quotas.sql` appliquée avant le déploiement de complete-product. Limites initiales : 50 demandes acceptées par jour et par compte, une analyse simultanée. Réinitialisation à minuit Europe/Paris. Une demande réservée compte même si le téléchargement ou Gemini échoue ; les demandes refusées ne comptent pas. Une nouvelle tentative Gemini interne reste dans la même demande (au plus deux appels fournisseur).
+
+Réservation atomique sous verrou de la ligne utilisateur, libération en finally, expiration de secours après 5 minutes. Seul service_role peut lire/modifier les quotas et exécuter les RPC, qui restent SECURITY INVOKER. RLS est activé sans politique utilisateur, volontairement : les tables sont réservées au backend. Le conseiller signale ce choix à titre informatif ([explication Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)).
+
+31 tests Node, TypeScript du module quota, assertions SQL locales et test de deux réservations concurrentes passent. Validation distante réservation/refus/libération effectuée dans une transaction entièrement annulée ; aucun appel réel Gemini.

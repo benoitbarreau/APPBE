@@ -57,6 +57,7 @@ function handler(status, auth = true) {
     Deno: { env: { get: key => key === 'SUPABASE_URL' ? origin : 'test-secret' } },
     createClient: () => ({ auth: { getUser: async () => ({ data: { user: auth ? { id: 'user' } : null }, error: null }) }, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: status === 'error' ? null : { status }, error: status === 'error' ? {} : null }) }) }) }) }),
     validatePdfUrl, PdfDownloadError,
+    reserveQuota: async () => "test-lease", releaseQuota: async () => {}, AiQuotaError: class extends Error {},
     downloadPdf: async () => { downloads++; throw new PdfDownloadError('stopped') },
   })
   return { handle, downloads: () => downloads }
