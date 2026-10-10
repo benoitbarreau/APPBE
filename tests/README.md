@@ -23,3 +23,7 @@ Les fixtures `atomic-project-fixture.sql`, la migration `20261009034950_atomic_p
 `pdf-download.test.mjs` vérifie l’origine/bucket, les URL ambiguës, le refus des redirections, la lecture bornée avec taille déclarée absente ou mensongère, les délais avant et après réception des en-têtes, la signature PDF et les comptes non approuvés. Réseau et Gemini sont simulés : aucun appel IA facturable.
 
 `ai-quota.test.mjs` vérifie les refus sans appel PDF/Gemini et la libération après succès/échec. Dans une base jetable, lancer `ai-quota-fixture.sql`, la migration `20261010092505_ai_completion_quotas.sql`, puis `ai-quota-assertions.sql`. Les réservations concurrentes ont aussi été testées avec deux connexions PostgreSQL distinctes.
+
+## Chaîne complète de migrations
+
+`npm run test:migrations` lance une base jetable avec l’image `supabase/postgres:15.8.1.085`, applique les fichiers par ordre de nom, rejoue 017 et vérifie le schéma final. Les extensions pgcrypto, pg_net et Vault sont réelles. Auth/Storage sont initialisés avec les contrats SQL minimaux utilisés par le projet ; ce test ne valide pas les API Auth/Storage ni l’historique distant des migrations. Les valeurs Vault restent dans le conteneur, qui est supprimé en fin de test. Aucun email ni appel IA n’est envoyé.

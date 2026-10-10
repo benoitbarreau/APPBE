@@ -144,3 +144,7 @@ La fonction complete-product contrôle Auth et profiles.status=approved. Elle n�
 ## Configuration des quotas IA
 
 `ai_completion_limits` contient une ligne singleton avec daily_limit=50 et concurrent_limit=1. Modifiable uniquement côté serveur (SQL Editor/service_role), sans redéployer la fonction. Exemple : `UPDATE public.ai_completion_limits SET daily_limit=100, concurrent_limit=2 WHERE singleton;`. Les limites s’appliquent aussi aux administrateurs. `ai_completion_usage` conserve uniquement le compteur de la journée et les réservations temporaires, sans contenu PDF ou réponse IA. Ces tables ne sont pas accessibles aux utilisateurs.
+
+## Installations neuves et migrations
+
+Les 35 fichiers s’appliquent par ordre de nom, comme décrit dans README.md. 017 est désormais compatible avec 016 et ne change pas ses politiques. Sur un nouveau projet, la migration Vault ne crée plus automatiquement une URL pointant vers la production SynoX. Configurer synox_notification_webhook_url pour le projet concerné ; les valeurs Vault existantes sont conservées. Aucun rejeu des migrations historiques n’est nécessaire en production. `npm run test:migrations` vérifie cette chaîne dans une base jetable.

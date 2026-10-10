@@ -76,3 +76,11 @@ Migration `20261010092505_ai_completion_quotas.sql` appliquée avant le déploie
 Réservation atomique sous verrou de la ligne utilisateur, libération en finally, expiration de secours après 5 minutes. Seul service_role peut lire/modifier les quotas et exécuter les RPC, qui restent SECURITY INVOKER. RLS est activé sans politique utilisateur, volontairement : les tables sont réservées au backend. Le conseiller signale ce choix à titre informatif ([explication Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)).
 
 31 tests Node, TypeScript du module quota, assertions SQL locales et test de deux réservations concurrentes passent. Validation distante réservation/refus/libération effectuée dans une transaction entièrement annulée ; aucun appel réel Gemini.
+
+## Reproductibilité des migrations — 10 octobre 2026
+
+017 ne recrée plus les quatre politiques Storage déjà établies par 016. La migration Vault préserve une URL existante et ne configure une nouvelle URL que si app.supabase_url est explicitement fourni ; aucune référence au projet de production n’est incorporée pour une nouvelle installation. À défaut, la notification reste désactivée jusqu’à sa configuration dans Vault (README.md).
+
+`npm run test:migrations` applique les 35 fichiers à une base jetable avec les extensions réelles pgcrypto, pg_net et Vault. Le bootstrap complète les contrats SQL Auth/Storage nécessaires au projet, sans remplacer les fonctions présentes. Le test valide le schéma final, le rejeu de 017 sans modification des politiques, et la configuration d’une URL propre à l’installation. Les API des services Auth/Storage ne sont pas testées.
+
+Validation locale : 35 migrations et assertions réussies, 31 tests Node réussis. GitHub Actions exécute désormais ces vérifications avant la compilation ; les déploiements frontend et fonctions dépendent de ce job. Aucun script historique n’est rejoué sur la production : il s’agit de correctifs pour les installations futures et le contrôle continu.

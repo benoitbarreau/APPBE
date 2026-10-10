@@ -2,15 +2,10 @@
 -- Migration 012 : Notification admin à chaque nouvelle inscription
 -- ─────────────────────────────────────────────────────────────────────────────
 --
--- PRÉREQUIS : exécuter d'abord dans le SQL Editor du Dashboard Supabase
--- (ces valeurs ne sont PAS dans Git pour des raisons de sécurité) :
---
---   ALTER DATABASE postgres
---     SET app.supabase_url      = 'https://VOTRE_REF.supabase.co';
---   ALTER DATABASE postgres
---     SET app.service_role_key  = 'VOTRE_SERVICE_ROLE_KEY';
---
--- Vous retrouvez ces valeurs dans Dashboard → Project Settings → API.
+-- Migration historique : sa fonction sera remplacée par la migration Vault
+-- 20261009034436. Pour une installation neuve, ne pas configurer ici de clé
+-- service_role dans app.* ; terminer la chaîne puis configurer uniquement
+-- l’URL du webhook dans Vault comme expliqué dans README.md.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Activer pg_net si pas encore activé (déjà inclus dans tous les projets Supabase)

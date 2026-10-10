@@ -29,6 +29,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
+      - run: npm run test:migrations
       - run: npm run build
         env:
           BASE_PATH: /APPBE/
@@ -50,6 +52,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   deploy-functions:
+    needs: build
     runs-on: ubuntu-latest
     # Ne déployer les fonctions que si les secrets Supabase sont configurés
     if: ${{ vars.SUPABASE_PROJECT_ID != '' }}

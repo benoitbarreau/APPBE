@@ -139,7 +139,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 ### 2. Base de données Supabase
 
-Exécuter **toutes les migrations** de `supabase/migrations/` dans Supabase → SQL Editor, **dans l'ordre des numéros** (001 → 027). Aperçu des principales :
+Exécuter **toutes les migrations** de `supabase/migrations/` dans Supabase → SQL Editor, dans l’ordre des noms de fichiers : 001 → 027 (y compris les suffixes b/c), puis les migrations horodatées `2026…`. Aperçu des principales :
 
 | Migrations | Contenu |
 |---|---|
@@ -151,6 +151,22 @@ Exécuter **toutes les migrations** de `supabase/migrations/` dans Supabase → 
 | 016–022 | **Référentiel** : clients, sites, salles, documents, contacts, gestionnaire, suppression douce |
 | 023–025 | Zones utilisateur, journal admin, fiches techniques PDF |
 | 026–027 | Logos des marques et catégories du catalogue |
+
+Les migrations sont incrémentales : ne pas relancer toute la chaîne sur une base déjà installée. Les noms historiques ne suivent pas tous le format timestamp de la CLI ; ne pas utiliser `supabase db reset` comme substitut à cette procédure.
+
+Prérequis du projet Supabase : schémas Auth/Storage, pgcrypto dans extensions, Vault et pg_net disponibles. Après la migration Vault, configurer l’URL de notification **du projet installé** dans SQL Editor (remplacer YOUR_PROJECT_REF) :
+
+```sql
+SELECT vault.create_secret(
+  'https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-admin-new-user',
+  'synox_notification_webhook_url',
+  'Endpoint de notification de ce projet'
+);
+```
+
+À effectuer uniquement si ce secret nommé n’existe pas encore ; une configuration existante est conservée. Le jeton dédié est généré par la migration : aucune clé service_role à stocker pour le webhook. Sans URL configurée, les notifications sont ignorées sans bloquer les inscriptions.
+
+Vérification locale de l’ordre et du schéma : `npm run test:migrations` (Docker requis). Le script crée et détruit sa propre base jetable, sans accès à la production. Voir [tests/README.md](tests/README.md) pour la portée.
 
 ### 3. Configuration Supabase
 

@@ -2,6 +2,8 @@ BEGIN;
 
 -- Generate the dedicated token inside PostgreSQL; it never leaves Vault.
 DO $$
+DECLARE
+  project_url text := nullif(current_setting('app.supabase_url', true), '');
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'synox_notification_webhook_token') THEN
     PERFORM vault.create_secret(
@@ -10,9 +12,11 @@ BEGIN
       'Dedicated SynoX registration notification webhook token'
     );
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'synox_notification_webhook_url') THEN
+  -- Fresh installations must never send events to another project's endpoint.
+  -- An existing Vault URL is preserved; otherwise use the explicitly configured project.
+  IF project_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'synox_notification_webhook_url') THEN
     PERFORM vault.create_secret(
-      'https://dqywrwluwywdgjdzyyrx.supabase.co/functions/v1/notify-admin-new-user',
+      rtrim(project_url, '/') || '/functions/v1/notify-admin-new-user',
       'synox_notification_webhook_url',
       'SynoX notification endpoint; update when installing on another project'
     );
