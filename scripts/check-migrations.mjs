@@ -35,6 +35,7 @@ try {
   assert.equal(sql(policySignature), policiesBeforeReplay)
   sql(fs.readFileSync(path.join(root, 'tests/migration-assertions.sql'), 'utf8'))
   sql(fs.readFileSync(path.join(root, 'tests/referentiel-assertions.sql'), 'utf8'), 'supabase_admin')
+  sql(fs.readFileSync(path.join(root, 'tests/function-security-assertions.sql'), 'utf8'), 'supabase_admin')
   sql("SET app.supabase_url='https://installation-test.supabase.co';\n" + fs.readFileSync(path.join(directory, '20261009034436_configure_notification_webhook_vault.sql'), 'utf8'))
   sql("DO $$ BEGIN ASSERT (SELECT decrypted_secret='https://installation-test.supabase.co/functions/v1/notify-admin-new-user' FROM vault.decrypted_secrets WHERE name='synox_notification_webhook_url'); ASSERT (SELECT count(*)=1 FROM vault.secrets WHERE name='synox_notification_webhook_token'); END $$;")
   console.log(`${migrations.length} migrations applied; storage replay and final assertions passed.`)

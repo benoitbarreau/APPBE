@@ -385,3 +385,7 @@ Les constats initiaux 1 à 6 et 8 ont été traités par les correctifs déploy�
 Le constat 7 (doublon des politiques 016/017) est corrigé. Les 35 migrations passent sur une base jetable, avec un contrôle ajouté au workflow. La documentation d’installation inclut les fichiers horodatés et la configuration du webhook propre au projet.
 
 Le constat 9 est traité par la migration d’accès gestionnaire et la RPC de réassignation : hiérarchie, contacts et fichiers privés accessibles selon le client assigné ; protection du propriétaire et vérifications RLS ajoutées. Les validations sont détaillées dans DEPLOIEMENT.md.
+
+### Audit SQL — 11 octobre 2026
+
+Les 10 fonctions SECURITY DEFINER auparavant accessibles à anon sont fermées; le search_path mutable est fixé. Les recherches de profils nécessitent un compte approuvé; les fonctions admin exigent également ce statut. Les triggers ne sont plus des RPC clients. Les 10 accès privilégiés authenticated conservés sont nécessaires et documentés dans DEPLOIEMENT.md. La protection Auth contre les mots de passe compromis reste à activer dans Supabase.
