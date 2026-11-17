@@ -206,7 +206,7 @@ Un produit collé dans le même synoptique reçoit un nouveau label (ex. DSP-01 
 Une même règle s'applique partout (glisser, clic, propriétés, synchronisation) : un équipement ne peut pas dépasser la baie, en chevaucher un autre, ni entrer dans une baie 10" s'il est en 19". Le motif d'un refus est affiché.
 
 ### Verrouiller un équipement
-Cochez **Verrouillé** dans ses propriétés : il ne peut plus être déplacé, redimensionné ni supprimé, jusqu'à ce que vous décochiez la case.
+Cochez **Verrouillé** dans ses propriétés : il ne peut plus être déplacé, redimensionné ni supprimé, et sa baie ne peut plus être supprimée, jusqu’à ce que vous décochiez la case. Les champs Position et Hauteur se valident en quittant le champ ou par Entrée.
 
 ### Synchroniser les labels depuis le synoptique
 Le bouton **"⟳ Synchroniser"** dans la barre de la baie met à jour automatiquement les labels et références des équipements depuis les données du synoptique. Une nouvelle hauteur du catalogue n'est reprise que si elle tient à sa place.

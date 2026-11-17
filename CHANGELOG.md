@@ -8,7 +8,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraison
 - Une seule règle de placement (`src/lib/rackLayout.ts`) pour le clic, le glisser-déposer, le panneau Propriétés, la synchronisation et le store : un équipement ne peut plus dépasser la baie, en chevaucher un autre, ni entrer en 19" dans une baie 10". Motif du refus affiché.
 - Ajout au clic : première place libre en partant du bas, message s'il n'y en a plus (il était posé au-dessus de la baie).
 - Glisser-déposer : l'aperçu montre l'emplacement réel (il était décalé d'un U et figé en colonne 0), en rouge s'il est refusé.
-- Équipement verrouillé : position, taille et suppression bloquées partout, pas seulement au glisser.
+- Équipement verrouillé : position, taille et suppression bloquées partout, pas seulement au glisser ; sa baie ne peut plus être supprimée.
 - Synchronisation : une hauteur de catalogue plus grande n'est reprise que si elle tient.
 - Numérotation « 1 en haut » : les équipements ne s'affichent plus en miroir de l'endroit où on les a posés ; le champ Position et les exports suivent la numérotation affichée.
 - Création de baie : nom par défaut en 10" correct, hauteur hors limites signalée.

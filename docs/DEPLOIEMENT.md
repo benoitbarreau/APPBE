@@ -145,5 +145,5 @@ Module Baie (`docs/AUDIT_2026-11-17.md`, H2 à H5, M5 à M7). Frontend seulement
 - **Position** toujours comptée depuis le bas ; la numérotation ne change que les numéros affichés (repères, Propriétés, exports CSV et XLS). Corrige l'affichage en miroir des baies « 1 en haut ».
 - **Suppression d'une baie** confirmée ; **équipements orphelins** signalés.
 
-Validation locale : 80 tests Node (dont 14 nouveaux), TypeScript et build. Non vérifié en navigateur : glisser-déposer, aperçu rouge, fenêtre ⚙.
+Validation locale : 85 tests Node (dont 19 nouveaux), TypeScript et build. Non vérifié en navigateur : glisser-déposer, aperçu rouge, fenêtre ⚙.
 
