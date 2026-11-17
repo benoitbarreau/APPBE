@@ -203,6 +203,27 @@ test('supprimer une forme supprime aussi ses câbles', () => {
   assert.deepEqual(store.getState().cables, [])
 })
 
+test('supprimer au clavier un élément et ses câbles fait une seule entrée d’annulation', async () => {
+  const { historyGestureUntilNextTask } = await loadStore()
+  store.getState().loadProjectData('p1', 'Projet', project([synoptic('A', {
+    nodes: [node('a1')],
+    shapeNodes: [{ id: 's1', position: { x: 0, y: 0 } }],
+    cables: [{ id: 'c1', fromNodeId: 'a1', fromPortId: 'o', toNodeId: 's1', toPortId: 'i', signal: 'HDMI' }],
+  })]))
+  const before = history().pastStates.length
+  // React Flow (touche Suppr) : onBeforeDelete, puis les câbles, puis l'élément.
+  historyGestureUntilNextTask()
+  historyGestureUntilNextTask()
+  store.getState().removeCable('c1')
+  store.getState().removeShapeNode('s1')
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(history().pastStates.length, before + 1)
+  assert.equal(history().isTracking, true)
+  history().undo()
+  assert.equal(store.getState().shapeNodes.length, 1)
+  assert.equal(store.getState().cables.length, 1)
+})
+
 test('à l’ouverture, un câble dont une extrémité n’existe plus est retiré', () => {
   store.getState().loadProjectData('p1', 'Projet', project([
     synoptic('A', {

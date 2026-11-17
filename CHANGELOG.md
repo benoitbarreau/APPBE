@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
+## [2026-11-17] Vérification des lots dans le navigateur
+
+### Corrigé
+- Supprimer au clavier (Suppr) un élément relié par des câbles : un seul Ctrl+Z le ramène avec ses câbles (il en fallait deux, React Flow retirant les câbles puis l'élément en deux changements).
+- Touche Suppr sur une image sélectionnée : ses câbles ne disparaissent plus en laissant l'image ; une image se supprime par sa barre d'outils (✕).
+
 ## [2026-11-17] Lot 5 : performance et dette
 
 ### Amélioré

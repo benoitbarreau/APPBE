@@ -18,7 +18,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { beginHistoryGesture, endHistoryGesture, useAppStore, useEditorState, type HistoryGesture } from "../store";
+import { beginHistoryGesture, endHistoryGesture, historyGestureUntilNextTask, useAppStore, useEditorState, type HistoryGesture } from "../store";
 import { BLANK_PRODUCT, type PlacedProduct, type Port, type PortSide, type Product, type SignalType, type TextNodeData, type ShapeNodeData, type ImageNodeData } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
@@ -99,6 +99,13 @@ function AlignGuides({ guides }: { guides: Guide[] }) {
 }
 
 const nodeTypes = { product: ProductNode, page: PageNode, text: TextNodeComponent, shape: ShapeNodeComponent, image: ImageNodeComponent };
+
+/** Touche Suppr : React Flow retire les câbles de la sélection puis les éléments,
+ *  en deux changements ; ils forment ici une seule entrée d'annulation. */
+const groupDeletionInHistory = async () => {
+  historyGestureUntilNextTask();
+  return true;
+};
 const edgeTypes = { cable: CableEdge };
 
 /** Largeur d'un nœud ReactFlow : measured > style explicit > fallback 150 px. */
@@ -284,6 +291,9 @@ export function DiagramCanvas({
       selected: selectedIds.has(img.id),
       zIndex: img.layer === "background" ? img.zOrder - 800 : 1500 + img.zOrder,
       style: { width: img.width, height: img.height },
+      // Une image se supprime par sa barre d'outils (✕), pas par la touche Suppr :
+      // sinon React Flow retirait ses câbles en laissant l'image.
+      deletable: false,
     }));
 
     const bgImages = imageRfNodes.filter((n) => (n.data as unknown as { layer: string }).layer === "background");
@@ -1035,6 +1045,7 @@ export function DiagramCanvas({
         onNodeDragStart={readOnly ? undefined : onNodeDragStart}
         onNodeDrag={readOnly ? undefined : onNodeDrag}
         onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+        onBeforeDelete={readOnly ? undefined : groupDeletionInHistory}
         reconnectRadius={10}
         connectionMode={ConnectionMode.Loose}
         nodesDraggable={!readOnly}

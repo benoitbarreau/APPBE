@@ -2251,3 +2251,19 @@ export function endHistoryGesture(gesture: HistoryGesture): void {
     futureStates: [],
   });
 }
+
+let pendingTaskGesture: HistoryGesture | null = null;
+
+/** Geste fermé à la tâche suivante : regroupe en une entrée d'annulation tout ce
+ *  qui change d'ici là. Sert à la suppression au clavier, où React Flow retire les
+ *  câbles de l'élément puis l'élément, en deux changements (deux Ctrl+Z sinon).
+ *  Plusieurs appels dans la même tâche ne font qu'un geste. */
+export function historyGestureUntilNextTask(): void {
+  if (pendingTaskGesture) return;
+  pendingTaskGesture = beginHistoryGesture();
+  setTimeout(() => {
+    const gesture = pendingTaskGesture;
+    pendingTaskGesture = null;
+    if (gesture) endHistoryGesture(gesture);
+  }, 0);
+}

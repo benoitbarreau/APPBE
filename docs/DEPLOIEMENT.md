@@ -170,3 +170,9 @@ Performance et dette (`docs/AUDIT_2026-11-17.md`, H6, H7, H9, M9, IP « lenteur 
 
 Non fait, à décider : découpe de `store.ts` (≈ 2 100 lignes) et `App.tsx` (≈ 1 450) sans tests d'interface ; persistance locale allégée (écriture différée du localStorage) ; réécriture du routage pour que les arcs suivent les vrais tracés (M8). Validation locale : 135 tests Node (dont 12 nouveaux), TypeScript et build ; non vérifié en navigateur (fluidité, annulation des glisser).
 
+## Vérification des cinq lots dans le navigateur — 17 novembre 2026
+
+Passée en production sur un projet d'essai : versions archivées à chaque « Sauvegarder » (lot 1), collage avec nouveau label, Tableau IP (doublons, masque, mot de passe masqué et exclu de l'export Excel, cellules au format texte, import CSV par glisser-déposer), baie (placement sans chevauchement, réduction refusée sous l'occupation), annulation d'un glisser de produit ou de segment en un Ctrl+Z, câbles supprimés avec leur forme. Non vérifié : lecture seule d'un partage (lot 2, faute de compte lecteur).
+
+Corrigé ensuite : la touche Suppr faisait deux entrées d'annulation (câbles puis élément), regroupées par `onBeforeDelete` et `historyGestureUntilNextTask` (fin de `src/store.ts`) ; une image n'est plus supprimable par Suppr (`deletable: false`), ce qui retirait ses câbles en la laissant.
+
