@@ -105,13 +105,17 @@ export function syncIPRowsFromSynoptics(
   //    encore sur un synoptique (produit supprimé puis remis, copié puis
   //    original supprimé), ou lignes sans lien du tout (anciennes lignes,
   //    lignes orphelines). Plusieurs lignes peuvent partager un label.
+  //    Une instance peut être liée à plusieurs lignes (ligne fusionnée et ligne
+  //    orpheline qui garde son équipement) : on les garde toutes.
   const presentIds = new Set(flat.map((f) => f.node.id))
-  const existingByInstanceId = new Map<string, IPTableRow>()
+  const existingByInstanceId = new Map<string, IPTableRow[]>()
   const unlinkedByLabel = new Map<string, IPTableRow[]>()
   for (const row of existing) {
     if (row.manual) continue
     for (const iid of row.productInstanceIds) {
-      existingByInstanceId.set(iid, row)
+      const arr = existingByInstanceId.get(iid) ?? []
+      arr.push(row)
+      existingByInstanceId.set(iid, arr)
     }
     const lbl = row.label.trim().toLowerCase()
     if (lbl && !row.productInstanceIds.some((iid) => presentIds.has(iid))) {
@@ -141,13 +145,22 @@ export function syncIPRowsFromSynoptics(
     const productId = group[0].node.productId
     const instanceIds = group.map((g) => g.node.id)
 
-    // Chercher une ligne existante déjà liée à un de ces IDs
+    // Chercher une ligne existante déjà liée à un de ces IDs. Si plusieurs lignes
+    // conviennent, prendre celle dont les instances correspondent le mieux au
+    // groupe (part de ses instances qui sont dans le groupe), puis une ligne
+    // non orpheline : deux équipements séparés retrouvent chacun leur ligne.
+    const groupIds = new Set(instanceIds)
+    const score = (r: IPTableRow) =>
+      r.productInstanceIds.filter((iid) => groupIds.has(iid)).length / r.productInstanceIds.length
     let existingRow: IPTableRow | undefined
     for (const iid of instanceIds) {
-      const candidate = existingByInstanceId.get(iid)
-      if (candidate && !consumedRowIds.has(candidate.id)) {
-        existingRow = candidate
-        break
+      for (const candidate of existingByInstanceId.get(iid) ?? []) {
+        if (consumedRowIds.has(candidate.id)) continue
+        if (
+          !existingRow
+          || score(candidate) > score(existingRow)
+          || (score(candidate) === score(existingRow) && existingRow.orphan && !candidate.orphan)
+        ) existingRow = candidate
       }
     }
     // Sinon, reprendre une ligne sans lien (ancienne ou orpheline) de même label.
@@ -182,11 +195,17 @@ export function syncIPRowsFromSynoptics(
 
   // 5. Lignes auto existantes non reprises (produit supprimé, label vidé, deux
   //    équipements fusionnés sous un même label…) : celles qui contiennent des
-  //    saisies sont gardées, sans lien et marquées orphelines, pour que rien ne
-  //    se perde sans que l'utilisateur le décide. Les lignes vides sont retirées.
+  //    saisies sont gardées et marquées orphelines, pour que rien ne se perde
+  //    sans que l'utilisateur le décide. Elles gardent le lien vers leurs
+  //    équipements encore présents, pour être reprises si le label change.
+  //    Les lignes vides sont retirées.
   const orphanRows: IPTableRow[] = existing
     .filter((r) => !r.manual && !consumedRowIds.has(r.id) && rowHasUserData(r))
-    .map((r) => ({ ...r, productInstanceIds: [], orphan: true }))
+    .map((r) => ({
+      ...r,
+      productInstanceIds: r.productInstanceIds.filter((iid) => presentIds.has(iid)),
+      orphan: true,
+    }))
 
   return [...manualRows, ...autoRows, ...orphanRows]
 }

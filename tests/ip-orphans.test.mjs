@@ -88,3 +88,25 @@ test('une ligne orpheline revient au produit qu’elle décrivait, pas à un aut
   assert.equal(after.find(r => r.productInstanceIds.includes('n3')).ip, '10.0.0.2')
   assert.equal(after.find(r => r.productInstanceIds.includes('n1')).ip, '')
 })
+
+test('une ligne dont on vide le label est reprise quand on lui en redonne un autre', () => {
+  const rows = withIp(sync([], [node('n1', 'p1', 'DSP-01')]), '10.0.0.5')
+  const emptied = sync(rows, [node('n1', 'p1', '')])
+  assert.equal(emptied.length, 1)
+  assert.equal(emptied[0].orphan, true)
+  const relabelled = sync(emptied, [node('n1', 'p1', 'DSP-05')])
+  assert.equal(relabelled.length, 1)
+  assert.equal(relabelled[0].ip, '10.0.0.5')
+  assert.equal(relabelled[0].label, 'DSP-05')
+  assert.ok(!relabelled[0].orphan)
+})
+
+test('deux équipements fusionnés puis séparés retrouvent chacun leur IP', () => {
+  let rows = sync([], [node('n1', 'p1', 'CAM1'), node('n2', 'p1', 'CAM2')])
+  rows = rows.map(r => ({ ...r, ip: r.label === 'CAM1' ? '10.0.0.1' : '10.0.0.2' }))
+  const merged = sync(rows, [node('n1', 'p1', 'CAM1'), node('n2', 'p1', 'CAM1')])
+  const split = sync(merged, [node('n1', 'p1', 'CAM1'), node('n2', 'p1', 'CAM3')])
+  assert.equal(split.find(r => r.productInstanceIds.includes('n1')).ip, '10.0.0.1')
+  assert.equal(split.find(r => r.productInstanceIds.includes('n2')).ip, '10.0.0.2')
+  assert.equal(split.filter(r => r.orphan).length, 0)
+})
