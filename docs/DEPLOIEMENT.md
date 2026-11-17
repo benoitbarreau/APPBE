@@ -105,18 +105,18 @@ Restent 10 avis SECURITY DEFINER authenticated : accès intentionnels, avec cont
 
 ## Lot 1 de l'audit — 17 novembre 2026
 
-Corrige les huit pertes de données critiques de `docs/AUDIT_2026-11-17.md` (C1 à C8). **Pas encore déployé.**
+Corrige les huit pertes de données critiques de `docs/AUDIT_2026-11-17.md` (C1 à C8).
 
 - **C1, C4** : la sauvegarde, l'empreinte « modifié » et l'export JSON emportent les images et les groupes de l'onglet actif (`getFlushedTabs` = `flushActive`). Les six champs du canevas (produits, câbles, textes, formes, images, groupes) sont remplacés ensemble à chaque changement d'onglet, ouverture, création ou suppression (`workingStateOf`) ; la duplication d’un synoptique copie ses groupes et relie les câbles des formes à leurs copies.
 - **C2** : l'historique d'annulation est vidé à chaque changement d'onglet, de projet ou de compte (`resetHistoryAround`), et une modification hors canevas (sélection, cartouche, Tableau IP) n'y crée plus d'entrée (`equality: shallow`).
 - **C3** : créer un Tableau IP ou dupliquer une baie ne vide plus les zones du projet.
 - **C5** : migration `20261117090000_archive_saved_version.sql` : « Enregistrer » archive l'état enregistré sous son nouveau numéro, et non plus la dernière sauvegarde automatique sous l'ancien.
-- **C6, C7** : la synchronisation IP ne supprime plus une ligne qui contient des saisies : elle la garde « orpheline » (fond orangé, badge, suppression avec confirmation) et la reprend si un équipement de même référence et de même label revient. Deux équipements renommés avec le même label gardent leurs deux lignes. Un produit collé dans le même synoptique reçoit un nouveau label.
+- **C6, C7** : la synchronisation IP ne supprime plus une ligne qui contient des saisies : elle la garde « orpheline » (fond orangé, badge, suppression avec confirmation) et la reprend si un équipement de même référence et de même label revient, ou si son équipement, toujours présent, reçoit de nouveau un label à lui. Deux équipements renommés avec le même label gardent leurs deux lignes. Un produit collé dans le même synoptique reçoit un nouveau label.
 - **C8** : une réponse de sauvegarde arrivée après l'ouverture d'un autre projet n'est plus appliquée au projet affiché (époque du projet, `getProjectEpoch`).
 
-Validation locale : 55 tests Node (dont 22 nouveaux), TypeScript et build réussis. Assertions SQL de la sauvegarde atomique rejouées sur PostgreSQL en mémoire (PGlite) avec la nouvelle migration. La chaîne complète des migrations (`npm run test:migrations`, Docker) n'a pas pu être lancée sur la machine de développement : la CI la jouera.
+Validation locale : 57 tests Node (dont 24 nouveaux), TypeScript et build réussis. Assertions SQL de la sauvegarde atomique rejouées sur PostgreSQL en mémoire (PGlite) avec la nouvelle migration. La chaîne complète des migrations (`npm run test:migrations`, Docker) n'a pas pu être lancée sur la machine de développement : la CI la jouera.
 
-**Ordre de mise en production** : appliquer la migration `20261117090000_archive_saved_version.sql` dans Supabase, puis pousser la branche (le workflow déploie le frontend). Les versions déjà archivées gardent l'ancien sens (état précédent).
+**Mise en production** : migration `20261117090000_archive_saved_version.sql` appliquée le 17/11/2026 dans le SQL Editor du projet `dqywrwluwywdgjdzyyrx`, avant le push du frontend. Avant : corps de `save_project_atomic` identique à celui de `20261009034950` (empreinte SHA-256 comparée). Après : corps identique à la nouvelle migration, `anon` sans droit d'exécution, `authenticated` avec, `search_path` vide, SECURITY INVOKER. Retour arrière : rejouer la fonction de `20261009034950_atomic_project_save.sql`. Les versions déjà archivées gardent l'ancien sens (état précédent).
 
 Non vérifié en navigateur : parcours réels d'annulation, de changement d'onglet et des lignes orphelines.
 

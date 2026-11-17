@@ -119,9 +119,10 @@ Les panneaux **Câbles**, **Étiquettes câbles** et **Labels produits** agrège
 - **Nouveau** : crée un projet vierge
 - **Sauvegarder** : enregistre le projet complet en base (Supabase) — synoptiques, baies et accessoires personnalisés inclus
 - **Projets** : liste et ouvre les projets sauvegardés
-- Historique de versions (dernières sauvegardes)
+- Historique de versions : chaque « Enregistrer » crée un point de version qui contient l'état enregistré (les trois derniers sont gardés) ; la sauvegarde automatique ne crée pas de version
 - Sauvegarde locale automatique en localStorage entre les sessions
-- Export JSON du projet complet
+- Export JSON du projet complet (images et groupes compris)
+- Tableau IP : une ligne qui contient des saisies n'est jamais supprimée par la synchronisation ; si son équipement disparaît, elle reste « orpheline » (badge, suppression confirmée)
 
 ---
 
@@ -151,6 +152,7 @@ Exécuter **toutes les migrations** de `supabase/migrations/` dans Supabase → 
 | 016–022 | **Référentiel** : clients, sites, salles, documents, contacts, gestionnaire, suppression douce |
 | 023–025 | Zones utilisateur, journal admin, fiches techniques PDF |
 | 026–027 | Logos des marques et catégories du catalogue |
+| 2026… (horodatées) | Durcissement des accès, sauvegarde atomique, notifications Vault, quotas IA, gestionnaires de compte, fonctions exposées, points de version (`20261117090000_archive_saved_version.sql`) |
 
 Les migrations sont incrémentales : ne pas relancer toute la chaîne sur une base déjà installée. Les noms historiques ne suivent pas tous le format timestamp de la CLI ; ne pas utiliser `supabase db reset` comme substitut à cette procédure.
 
@@ -196,6 +198,33 @@ Ouvrir http://localhost:5173
 
 ---
 
+## Tests
+
+```bash
+npm test                 # tests Node ciblés (store, synchronisation IP, sauvegarde, fonctions serveur simulées)
+npm run typecheck        # vérification TypeScript
+npm run build            # compilation de production
+npm run test:migrations  # chaîne complète des migrations sur une base jetable (Docker requis)
+```
+
+Sous Windows, cloner avec `git clone --config core.autocrlf=false …` : plusieurs tests retirent les `import` des fonctions serveur par une expression qui ne reconnaît pas les fins de ligne CRLF. Portée et tests SQL : [tests/README.md](tests/README.md).
+
+---
+
+## Structure des dossiers
+
+| Dossier | Contenu |
+|---|---|
+| `src/` | Application React : `store.ts` (état, onglets, historique), `App.tsx` (éditeur, sauvegarde), `components/` (synoptique, Tableau IP, baie `bay/`, éditeur produit), `pages/` (projets, catalogue, référentiel, administration), `lib/` (API Supabase, synchronisation IP, imports et exports) |
+| `supabase/migrations/` | Migrations SQL, à appliquer dans l'ordre des noms |
+| `supabase/functions/` | Fonctions serveur Deno (invitation, mise à jour d'utilisateur, notification, complétion IA) |
+| `tests/` | Tests Node (`*.test.mjs`), assertions SQL pour base jetable, `support/` (chargement du store) |
+| `scripts/` | `check-migrations.mjs` (chaîne des migrations) |
+| `public/` | Logos, favicon, guide utilisateur HTML |
+| `docs/` | Analyse, audit du 17/11/2026, journal de déploiement |
+
+---
+
 ## Déploiement GitHub Pages
 
 À chaque push sur `main` ou `claude/av-diagram-generator-DvBJA`, GitHub Actions construit et déploie sur : **https://benoitbarreau.github.io/APPBE/**
@@ -215,6 +244,12 @@ Pré-requis (à faire une fois) :
 | État | Zustand (persist — localStorage) |
 | Backend | Supabase (Auth + PostgreSQL + RLS) |
 | Déploiement | GitHub Pages via GitHub Actions |
+
+---
+
+## Historique des changements
+
+Voir [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

@@ -166,7 +166,7 @@ Utilisez le bouton **"Synchroniser"** pour mettre à jour automatiquement le Tab
 
 ### Lignes orphelines
 Quand un équipement disparaît de tous les synoptiques (supprimé, label vidé, ou renommé avec le label d'un autre équipement), sa ligne n'est plus effacée si elle contient des saisies (IP, MAC, identifiants, n° de série, colonnes personnalisées) : elle reste, sur fond orangé, avec le badge **« lignes orphelines »** dans la barre d'état.
-- Si un équipement de même référence revient avec le même label, la ligne est reprise avec ses saisies.
+- Si un équipement de même référence revient avec le même label, ou si son équipement, toujours sur un synoptique, reçoit de nouveau un label à lui, la ligne est reprise avec ses saisies.
 - Sinon, supprimez-la avec ✕ (une confirmation est demandée).
 - Une ligne orpheline vide n'est pas gardée.
 
