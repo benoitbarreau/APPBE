@@ -65,11 +65,13 @@ jobs:
         run: |
           # Déploie une fonction avec jusqu'à 3 tentatives (résiste aux hoquets
           # réseau / API Supabase qui faisaient échouer le job sans raison de fond).
+          # --yes : la CLI demande désormais une confirmation avant de déployer et
+          # n'en peut pas recevoir en CI (« Confirmation required … Re-run with --yes »).
           deploy() {
             fn="$1"
             attempt=1
             max=3
-            until supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt; do
+            until supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt --yes; do
               if [ "$attempt" -ge "$max" ]; then
                 echo "::error::Échec du déploiement de $fn après $max tentatives"
                 return 1

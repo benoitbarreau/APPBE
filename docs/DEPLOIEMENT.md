@@ -120,3 +120,7 @@ Validation locale : 57 tests Node (dont 24 nouveaux), TypeScript et build réuss
 
 Non vérifié en navigateur : parcours réels d'annulation, de changement d'onglet et des lignes orphelines.
 
+### CI : déploiement des fonctions — 17 novembre 2026
+
+Le job `deploy-functions` du push du lot 1 a échoué sans rien déployer : la CLI Supabase (`version: latest`) demande désormais une confirmation (« Confirmation required … Re-run with --yes ») qu'un job CI ne peut pas donner. Ajout de `--yes` à `supabase functions deploy`. Les fonctions de production n'ont pas changé dans l'intervalle (code identique depuis octobre).
+

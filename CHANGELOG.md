@@ -17,5 +17,8 @@ Lot 1 de l'audit (`docs/AUDIT_2026-11-17.md`) : plus aucune perte de données si
 ### Modifié
 - « Enregistrer » archive l'état enregistré sous son nouveau numéro de version (migration `20261117090000_archive_saved_version.sql`, appliquée en production le 17/11/2026). Les versions déjà archivées gardent l'ancien sens.
 
+### Corrigé (CI)
+- Déploiement des fonctions serveur : `--yes` ajouté, la CLI Supabase demandant désormais une confirmation impossible en CI.
+
 ### Ajouté
 - Lignes orphelines du Tableau IP : fond orangé, badge dans la barre d'état, suppression confirmée, reprise automatique quand l'équipement revient.
