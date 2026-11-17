@@ -82,7 +82,13 @@ Les boutons ⎘ (dupliquer) et ✕ (supprimer) sont visibles à droite du nom de
 La sauvegarde est automatique. Vous pouvez aussi forcer une sauvegarde avec le bouton **"Enregistrer"** dans la barre du haut.
 
 ### Mode lecture seule
-Quand vous consultez une version archivée, l'éditeur passe en mode lecture seule (aucune modification possible).
+Quand vous consultez une version archivée, ou un projet partagé avec vous en **Lecture** (y compris ouvert depuis le Référentiel ou après un F5), l'éditeur passe en lecture seule : catalogue, mises en forme et ajout, renommage, duplication ou fermeture d'onglets sont masqués, et aucune modification n'est possible, même par raccourci. Les mots de passe des équipements n'y sont jamais affichés ni exportés.
+
+### Enregistrement
+- Si l'enregistrement échoue, un badge rouge **« ⚠ Non enregistré »** apparaît dans l'en-tête ; son motif s'affiche au survol (partage retiré, projet supprimé, réseau). Sans droit ou sans projet, l'enregistrement automatique s'arrête : exportez le projet en JSON pour garder votre travail.
+- Fermer l'onglet du navigateur, rafraîchir la page ou se déconnecter avec des modifications non enregistrées demande confirmation.
+- Fermer un onglet du projet qui n'est pas vide demande confirmation.
+- En cas de modification ailleurs, **Recharger** et **Écraser** demandent tous deux confirmation.
 
 ---
 
@@ -156,6 +162,11 @@ L'onglet Tableau IP regroupe les informations réseau du projet :
 ### Remplir le tableau
 - Cliquez sur une cellule pour l'éditer directement.
 - Les colonnes disponibles : Désignation, Référence, Adresse MAC, IP, VLAN, Login, Mot de passe, Notes.
+
+### Mots de passe des équipements
+- Ils sont masqués par défaut ; le bouton **« 👁 Mots de passe »** les affiche le temps de les relire.
+- Aucun modèle d'export ne les contient : pour les exporter, cochez la colonne **Mot de passe** à la main (un avertissement rappelle qu'ils seront en clair dans le fichier).
+- En lecture seule, ils ne sont ni affichés ni exportables, et l'export JSON du projet les retire.
 
 ### Import / Export du Tableau IP
 - **Import** : importez un fichier CSV pour remplir le tableau automatiquement.
@@ -281,6 +292,8 @@ Ctrl+Z et Ctrl+Y portent sur le synoptique affiché. L'historique repart de zér
 3. Choisissez le niveau d'accès : **Lecture** ou **Édition**.
 
 > Les utilisateurs invités voient le projet dans leur section "Projets partagés".
+
+Un projet enregistré n'emporte que les fiches produits qu'il utilise (synoptiques et baies), et non plus tout votre catalogue : vos fiches en attente de modération ne partent pas chez les personnes avec qui vous partagez le projet.
 
 ### Consulter une version archivée
 1. Cliquez sur **"Historique"** depuis la carte du projet.

@@ -123,6 +123,9 @@ Les panneaux **Câbles**, **Étiquettes câbles** et **Labels produits** agrège
 - Sauvegarde locale automatique en localStorage entre les sessions
 - Export JSON du projet complet (images et groupes compris)
 - Tableau IP : une ligne qui contient des saisies n'est jamais supprimée par la synchronisation ; si son équipement disparaît, elle reste « orpheline » (badge, suppression confirmée)
+- Mots de passe des équipements masqués, hors des modèles d'export, jamais affichés ni exportés en lecture seule
+- Un projet n'enregistre que les fiches produits qu'il utilise
+- Lecture seule (version archivée, partage en lecture) garantie pour toutes les modifications
 
 ---
 

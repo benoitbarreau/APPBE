@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute cinquante-sept tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute soixante-cinq tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -33,3 +33,5 @@ Les fixtures `atomic-project-fixture.sql`, les migrations `20261009034950_atomic
 `npm run test:migrations` lance une base jetable avec l’image `supabase/postgres:15.8.1.085`, applique les fichiers par ordre de nom, rejoue 017 et vérifie le schéma final. Les extensions pgcrypto, pg_net et Vault sont réelles. Auth/Storage sont initialisés avec les contrats SQL minimaux utilisés par le projet ; ce test ne valide pas les API Auth/Storage ni l’historique distant des migrations. Les valeurs Vault restent dans le conteneur, qui est supprimé en fin de test. Aucun email ni appel IA n’est envoyé.
 
 Les assertions `referentiel-assertions.sql` sont intégrées au test complet des migrations : propriétaire, gestionnaire, administrateur, compte non approuvé, accès fichiers, refus inter-clients, protection de propriété et retrait de l’assignation. Les comptes sont fictifs et réservés à la base jetable. `referentiel-fixture.sql` permet également une exécution isolée avec les migrations 016, 018, 019, 020, 021 et la migration gestionnaire de compte.
+
+`lot2-droits.test.mjs` : barrière de lecture seule du store (modifications sans effet, navigation et ouverture permises), produits embarqués limités à ceux utilisés (synoptiques, baies, ancien format), mots de passe retirés d'une copie, aucun modèle d'export avec mot de passe, motifs d'échec d'enregistrement.

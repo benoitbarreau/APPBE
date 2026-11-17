@@ -2,7 +2,20 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
-## [2026-11-17]
+## [2026-11-17] Lot 2 : droits et confidentialité
+
+### Sécurité
+- Mots de passe des équipements masqués par défaut (bouton pour les afficher), absents de tous les modèles d'export, jamais affichés ni exportés en lecture seule ; l'export JSON en lecture seule les retire.
+- Un projet n'enregistre plus que les fiches produits qu'il utilise : le catalogue complet, fiches en attente de modération comprises, ne part plus chez les destinataires d'un partage.
+- Lecture seule garantie par le store : toute action qui modifie le projet est sans effet en lecture seule, quel que soit le bouton ou le raccourci ; la légende globale d'un administrateur n'est plus modifiable depuis une version archivée.
+- Ouverture depuis le Référentiel et retour après F5 : le rôle de partage est vérifié (lecteur → lecture seule). Le rôle lu est celui du compte connecté.
+
+### Corrigé
+- Échec de création de projet : message sur la page Projets au lieu d'un éditeur sans identifiant.
+- Échec d'enregistrement : motif affiché (droit retiré, projet supprimé, réseau) ; sans droit, l'enregistrement automatique s'arrête au lieu de réessayer toutes les 4 secondes.
+- Confirmation avant de fermer l'onglet du navigateur, de se déconnecter avec des modifications non enregistrées, de fermer un onglet non vide, de recharger ou d'écraser en cas de conflit.
+
+## [2026-11-17] Lot 1 : pertes de données
 
 Lot 1 de l'audit (`docs/AUDIT_2026-11-17.md`) : plus aucune perte de données silencieuse.
 
