@@ -611,6 +611,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   // Export de tous les onglets en cours : l'éditeur change d'onglet pour capturer
   // chaque synoptique ; un écran d'attente empêche les clics qui fausseraient la capture.
   const [exportingAll, setExportingAll] = useState(false);
+  // Garde synchrone : l'état React ne change qu'au rendu suivant, un double-clic
+  // aurait lancé deux exports qui changent d'onglet en même temps.
+  const exportingAllRef = useRef(false);
   const [scopeModal, setScopeModal] = useState<{
     action: "export" | "print";
     format?: "png" | "jpeg" | "svg" | "pdf";
@@ -665,7 +668,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   };
 
   const handlePrintAllTabs = async () => {
-    if (exportingAll) return;
+    if (exportingAllRef.current) return;
+    exportingAllRef.current = true;
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
     const signals = state.signals;
@@ -706,6 +710,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       await switchTabAndWait(originalTabId);
       setPrinting(false);
       setExportingAll(false);
+      exportingAllRef.current = false;
     }
   };
 
@@ -788,7 +793,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   };
 
   const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
-    if (exportingAll) return;
+    if (exportingAllRef.current) return;
+    exportingAllRef.current = true;
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
     const signals = state.signals;
@@ -856,6 +862,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     } finally {
       await switchTabAndWait(originalTabId);
       setExportingAll(false);
+      exportingAllRef.current = false;
     }
   };
 

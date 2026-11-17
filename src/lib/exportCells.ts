@@ -12,5 +12,6 @@ export function composedImageType(format?: string): "image/jpeg" | "image/png" {
 }
 
 /** Style d'une cellule XLS (tableau HTML) lue comme du texte par Excel : pas de
- *  formule, zéros de tête et identifiants (« 1-2 ») conservés. */
-export const XLS_TEXT_CELL = 'mso-number-format:"\\@";';
+ *  formule, zéros de tête et identifiants (« 1-2 ») conservés. Apostrophes et non
+ *  guillemets : la valeur est insérée dans un attribut style="…". */
+export const XLS_TEXT_CELL = "mso-number-format:'\\@';";

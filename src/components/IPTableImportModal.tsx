@@ -43,8 +43,7 @@ export function IPTableImportModal({
 }) {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const ipTableColumns = useAppStore((s) => s.ipTableColumns);
-  const addIPRows = useAppStore((s) => s.addIPRows);
-  const updateIPRow = useAppStore((s) => s.updateIPRow);
+  const applyIPImport = useAppStore((s) => s.applyIPImport);
 
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,8 +108,8 @@ export function IPTableImportModal({
 
   const applyImport = () => {
     if (!pending || !plan) return;
-    for (const u of plan.updates) updateIPRow(tabId, u.rowId, u.patch);
-    if (plan.additions.length > 0) addIPRows(tabId, plan.additions);
+    // Une seule mise à jour du store (et une seule écriture locale) pour tout l'import.
+    applyIPImport(tabId, plan.updates, plan.additions);
     setInfo(
       `${plural(plan.updates.length, "ligne mise à jour", "lignes mises à jour")}, ` +
         `${plural(plan.additions.length, "ajoutée", "ajoutées")} depuis ${pending.fileName}.`,

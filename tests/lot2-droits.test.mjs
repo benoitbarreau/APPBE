@@ -97,3 +97,16 @@ test('une erreur de programmation n’est pas présentée comme une panne résea
   assert.doesNotMatch(msg, /réseau|connexion/)
   assert.match(msg, /Cannot read properties/)
 })
+
+test('un import du Tableau IP s’applique en une seule fois, et pas en lecture seule', () => {
+  store.getState().loadProjectData('p', 'Projet', { tabs: [
+    { id: 'ip', name: 'IP', kind: 'iptable', nodes: [], cables: [], zones: [], rows: [{ id: 'r1', label: 'CAM1', manual: true, productInstanceIds: [], ip: '' }] },
+  ], activeTabId: 'ip', projectMeta: {} })
+  const additions = [{ id: 'n', label: 'CAM2', manual: true, productInstanceIds: [], ip: '10.0.0.2' }]
+  useEditorState.setState({ readOnly: true })
+  store.getState().applyIPImport('ip', [{ rowId: 'r1', patch: { ip: '10.0.0.1' } }], additions)
+  assert.equal(store.getState().tabs[0].rows.length, 1)
+  useEditorState.setState({ readOnly: false })
+  store.getState().applyIPImport('ip', [{ rowId: 'r1', patch: { ip: '10.0.0.1' } }], additions)
+  assert.deepEqual(store.getState().tabs[0].rows.map(r => [r.label, r.ip]), [['CAM1', '10.0.0.1'], ['CAM2', '10.0.0.2']])
+})

@@ -146,6 +146,9 @@ interface State {
   removeIPRow: (tabId: string, rowId: string) => void;
   /** Ajoute plusieurs lignes en une fois (utilisé pour l'import). */
   addIPRows: (tabId: string, rows: IPTableRow[]) => void;
+  /** Applique un import en une seule mise à jour du store : champs modifiés des
+   *  lignes existantes (sans propagation de label) puis lignes ajoutées. */
+  applyIPImport: (tabId: string, updates: { rowId: string; patch: Partial<IPTableRow> }[], additions: IPTableRow[]) => void;
   /** Met à jour le cartouche réseau d'un Tableau IP. */
   updateIPNetwork: (tabId: string, patch: Partial<IPNetworkInfo>) => void;
   /** Met à jour le titre de document du Tableau IP. */
@@ -889,6 +892,24 @@ export const useAppStore = create<State>()(
           }));
           return newRow.id;
         },
+
+        applyIPImport: (tabId, updates, additions) =>
+          set((s) => {
+            const patches = new Map(updates.map((u) => [u.rowId, u.patch]));
+            return {
+              tabs: s.tabs.map((t) =>
+                t.id === tabId && isIPTableTab(t)
+                  ? {
+                      ...t,
+                      rows: [
+                        ...(t.rows ?? []).map((r) => (patches.has(r.id) ? { ...r, ...patches.get(r.id) } : r)),
+                        ...additions,
+                      ],
+                    }
+                  : t,
+              ),
+            };
+          }),
 
         removeIPRow: (tabId, rowId) =>
           set((s) => ({
@@ -2128,7 +2149,7 @@ const READ_ONLY_BLOCKED = [
   "addTab", "addIPTableTab", "addBayTab", "updateBayConfig", "syncBayItems",
   "addRackToTab", "removeRackFromTab", "renameRack", "updateRack", "addRackItem", "updateRackItem", "removeRackItem",
   "removeTab", "renameTab", "duplicateTab", "reorderTabs", "setActiveTabTrade",
-  "syncIPTable", "updateIPRow", "addIPRow", "removeIPRow", "addIPRows", "updateIPNetwork", "updateIPTitle",
+  "syncIPTable", "updateIPRow", "addIPRow", "removeIPRow", "addIPRows", "applyIPImport", "updateIPNetwork", "updateIPTitle",
   "setIPTableColumns", "addIPTableColumn",
   "addTextNode", "updateTextNode", "removeTextNode",
   "addShapeNode", "updateShapeNode", "removeShapeNode", "bringShapeForward", "sendShapeBackward",

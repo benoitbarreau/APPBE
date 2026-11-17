@@ -67,5 +67,14 @@ test('les exports de baie reprennent l’IP et le n° de série du Tableau IP', 
 
 test('le style texte des cellules XLS est celui qu’Excel attend', async () => {
   const { XLS_TEXT_CELL } = await import(loadSource(path.resolve('src/lib/exportCells.ts')))
-  assert.equal(XLS_TEXT_CELL, 'mso-number-format:"' + String.fromCharCode(92) + '@";')
+  // Apostrophes : la valeur est insérée dans un attribut style="…" entre guillemets doubles.
+  assert.equal(XLS_TEXT_CELL, "mso-number-format:'" + String.fromCharCode(92) + "@';")
+  assert.equal(XLS_TEXT_CELL.includes('"'), false)
+})
+
+test('le bureau d’étude saisi garde son intitulé dans la case du cartouche', async () => {
+  const { bureauEtudeLabel } = await import(loadSource(path.resolve('src/lib/cartouche.ts')))
+  assert.equal(bureauEtudeLabel('Vidéo Synergie'), "BE : Vidéo Synergie")
+  assert.equal(bureauEtudeLabel(''), "BUREAU D'ÉTUDE")
+  assert.equal(bureauEtudeLabel(undefined), "BUREAU D'ÉTUDE")
 })

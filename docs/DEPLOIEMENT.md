@@ -156,5 +156,5 @@ Exports et Tableau IP (`docs/AUDIT_2026-11-17.md`, H5, constats « Baie et expor
 - **Tableau IP (exports)** : `src/lib/ipExportValues.ts` (`NET_LABELS` avec « MASQUE », `exportCellValue` qui marque les orphelines), style texte `XLS_TEXT_CELL`, logo échappé.
 - **Tableau IP (import et contrôles)**, fait par un sous-agent puis intégré : `src/lib/ipImport.ts` (décodage UTF-8 ou Windows-1252, séparateur `;` tabulation `,`, en-têtes sans accents dont « IP DANTE SECONDAIRE », choix du tableau d'un .xls par en-têtes reconnus, mise à jour par label avec aperçu, acceptation des fichiers), glisser-déposer dans la fenêtre d'import (bouton conservé ; pas d'outillage E2E dans ce dépôt, test unitaire de la fonction d'acceptation), doublons IPv4 et MAC normalisés, formats IP et MAC signalés sans bloquer (`isValidIPv4`, `isValidMac`).
 
-Validation locale : 121 tests Node (dont 36 nouveaux), TypeScript et build. Non vérifié en navigateur : impression, export de tout le projet, glisser-déposer de l'import, aperçu de mise à jour.
+Validation locale : 123 tests Node (dont 38 nouveaux), TypeScript et build. Non vérifié en navigateur : impression, export de tout le projet, glisser-déposer de l'import, aperçu de mise à jour.
 

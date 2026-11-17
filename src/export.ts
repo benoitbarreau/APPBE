@@ -3,6 +3,7 @@ import { getViewportForBounds } from "@xyflow/react";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "./page";
 import type { Cable, SignalDef } from "./types";
 import { composedImageType } from "./lib/exportCells";
+import { bureauEtudeLabel } from "./lib/cartouche";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "pdf";
 
@@ -399,7 +400,7 @@ export async function drawCartouche(
     `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   cell(
-    data.bureauEtude || "BUREAU D'ÉTUDE",
+    bureauEtudeLabel(data.bureauEtude),
     x2col, y3, col2W, rowH,
     `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
