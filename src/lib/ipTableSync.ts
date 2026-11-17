@@ -74,7 +74,9 @@ function productLabelFor(node: PlacedProduct, product: Product | undefined): str
  *     toujours utilisé), les colonnes saisies à la main (IP, login, etc.)
  *     sont conservées et les colonnes auto (PRODUIT, LABEL, productInstanceIds)
  *     sont rafraîchies.
- *   • si elles ne correspondent plus à aucun nœud, elles sont retirées.
+ *   • si elles ne correspondent plus à aucun nœud : retirées si elles sont
+ *     vides, sinon gardées sans lien et marquées `orphan` (reprises si un
+ *     produit de même référence et de même label revient).
  * - Les nouveaux LABELs détectés génèrent une ligne vierge.
  */
 export function syncIPRowsFromSynoptics(
@@ -98,18 +100,24 @@ export function syncIPRowsFromSynoptics(
     byKey.set(key, arr)
   }
 
-  // 2. Map des lignes existantes par "clé d'instance" et par productId:label
+  // 2. Lignes existantes, auto seulement : par instance liée, et lignes sans
+  //    lien vivant par label. Sans lien vivant = aucune de leurs instances n'est
+  //    encore sur un synoptique (produit supprimé puis remis, copié puis
+  //    original supprimé), ou lignes sans lien du tout (anciennes lignes,
+  //    lignes orphelines). Plusieurs lignes peuvent partager un label.
+  const presentIds = new Set(flat.map((f) => f.node.id))
   const existingByInstanceId = new Map<string, IPTableRow>()
-  const existingByProductLabel = new Map<string, IPTableRow>()
+  const unlinkedByLabel = new Map<string, IPTableRow[]>()
   for (const row of existing) {
+    if (row.manual) continue
     for (const iid of row.productInstanceIds) {
       existingByInstanceId.set(iid, row)
     }
-    // La colonne "product" n'est pas stockée avec productId, on ne peut pas
-    // reconstruire la clé → on garde un fallback par label seul pour la
-    // migration des lignes créées avant ce correctif.
-    if (row.label.trim()) {
-      existingByProductLabel.set(row.label.trim().toLowerCase(), row)
+    const lbl = row.label.trim().toLowerCase()
+    if (lbl && !row.productInstanceIds.some((iid) => presentIds.has(iid))) {
+      const arr = unlinkedByLabel.get(lbl) ?? []
+      arr.push(row)
+      unlinkedByLabel.set(lbl, arr)
     }
   }
 
@@ -120,25 +128,31 @@ export function syncIPRowsFromSynoptics(
   const autoRows: IPTableRow[] = []
   const consumedRowIds = new Set<string>()
 
+  /** Ligne sans lien à reprendre pour ce groupe : d'abord celle du même produit
+   *  (ligne orpheline), sinon une ancienne ligne dont le produit est inconnu. */
+  const takeUnlinked = (label: string, productId: string | undefined): IPTableRow | undefined => {
+    const candidates = (unlinkedByLabel.get(label.toLowerCase()) ?? []).filter((r) => !consumedRowIds.has(r.id))
+    return candidates.find((r) => productId && r.productId === productId)
+      ?? candidates.find((r) => !r.productId)
+  }
+
   for (const [, group] of byKey.entries()) {
     const label = group[0].node.label!.trim()
+    const productId = group[0].node.productId
     const instanceIds = group.map((g) => g.node.id)
 
-    // Chercher une ligne existante non-manuelle déjà liée à un de ces IDs
+    // Chercher une ligne existante déjà liée à un de ces IDs
     let existingRow: IPTableRow | undefined
     for (const iid of instanceIds) {
       const candidate = existingByInstanceId.get(iid)
-      if (candidate && !candidate.manual && !consumedRowIds.has(candidate.id)) {
+      if (candidate && !consumedRowIds.has(candidate.id)) {
         existingRow = candidate
         break
       }
     }
-    // Fallback legacy uniquement pour les lignes sans lien d’instance.
+    // Sinon, reprendre une ligne sans lien (ancienne ou orpheline) de même label.
     // Une ligne déjà liée ne doit pas être récupérée par un autre produit.
-    if (!existingRow) {
-      const byLbl = existingByProductLabel.get(label.toLowerCase())
-      if (byLbl && !byLbl.manual && !consumedRowIds.has(byLbl.id) && byLbl.productInstanceIds.length === 0) existingRow = byLbl
-    }
+    if (!existingRow) existingRow = takeUnlinked(label, productId)
 
     // Décrire le produit (premier du groupe — tous identiques en pratique)
     const productLabel = productLabelFor(group[0].node, group[0].product)
@@ -146,10 +160,13 @@ export function syncIPRowsFromSynoptics(
     if (existingRow) {
       consumedRowIds.add(existingRow.id)
       // Préserver les saisies manuelles, rafraîchir l'auto
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { orphan: _wasOrphan, ...kept } = existingRow
       autoRows.push({
-        ...existingRow,
+        ...kept,
         product: productLabel,
         label,
+        productId,
         productInstanceIds: instanceIds,
       })
     } else {
@@ -157,14 +174,32 @@ export function syncIPRowsFromSynoptics(
         ...makeEmptyRow(false),
         product: productLabel,
         label,
+        productId,
         productInstanceIds: instanceIds,
       })
     }
   }
 
-  // 5. Les lignes auto existantes qui n'ont PAS été consommées sont retirées
-  //    (leur produit n'existe plus dans les synoptiques OU n'a plus de LABEL)
-  return [...manualRows, ...autoRows]
+  // 5. Lignes auto existantes non reprises (produit supprimé, label vidé, deux
+  //    équipements fusionnés sous un même label…) : celles qui contiennent des
+  //    saisies sont gardées, sans lien et marquées orphelines, pour que rien ne
+  //    se perde sans que l'utilisateur le décide. Les lignes vides sont retirées.
+  const orphanRows: IPTableRow[] = existing
+    .filter((r) => !r.manual && !consumedRowIds.has(r.id) && rowHasUserData(r))
+    .map((r) => ({ ...r, productInstanceIds: [], orphan: true }))
+
+  return [...manualRows, ...autoRows, ...orphanRows]
+}
+
+/** Vrai si la ligne contient une saisie de l'utilisateur (hors colonnes calculées
+ *  PRODUIT et LABEL). Une telle ligne ne doit jamais disparaître à la synchronisation. */
+export function rowHasUserData(row: IPTableRow): boolean {
+  const fields = [
+    row.deviceId, row.ip, row.ipDante, row.ipDanteSec, row.login, row.password,
+    row.serialNumber, row.mac, row.macDante,
+  ]
+  if (fields.some((v) => (v ?? '').trim() !== '')) return true
+  return Object.values(row.customFields ?? {}).some((v) => (v ?? '').trim() !== '')
 }
 
 /**

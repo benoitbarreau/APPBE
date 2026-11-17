@@ -102,3 +102,21 @@ Migration `20261011065725_harden_exposed_sql_functions.sql` appliquée en produc
 Validation : 33 tests Node réussis, migrations applicatives sur PostgreSQL 16 isolé (hors Vault/webhook), assertions référentiel et nouveaux tests SQL anon/pending/user/admin réussis. Vérification des permissions et advisors après application en production. Aucun compte de production créé ou supprimé pour les tests.
 
 Restent 10 avis SECURITY DEFINER authenticated : accès intentionnels, avec contrôles dans les fonctions. Les helpers d'appartenance renvoient uniquement un booléen relatif à auth.uid; ils évitent la récursion RLS. Les RPC admin sont réservés aux administrateurs approuvés, les recherches aux comptes approuvés et l'assignation au propriétaire/gestionnaire/admin approuvé. Retirer SECURITY DEFINER casserait ces accès ou la récursion RLS. Voir https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable . Les 2 INFO de quotas sans politiques sont intentionnels : tables serveur uniquement. La protection des mots de passe compromis reste désactivée, réglage Auth non modifiable avec les outils disponibles : https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection .
+
+## Lot 1 de l'audit — 17 novembre 2026
+
+Corrige les huit pertes de données critiques de `docs/AUDIT_2026-11-17.md` (C1 à C8). **Pas encore déployé.**
+
+- **C1, C4** : la sauvegarde, l'empreinte « modifié » et l'export JSON emportent les images et les groupes de l'onglet actif (`getFlushedTabs` = `flushActive`). Les six champs du canevas (produits, câbles, textes, formes, images, groupes) sont remplacés ensemble à chaque changement d'onglet, ouverture, création ou suppression (`workingStateOf`) ; la duplication d’un synoptique copie ses groupes et relie les câbles des formes à leurs copies.
+- **C2** : l'historique d'annulation est vidé à chaque changement d'onglet, de projet ou de compte (`resetHistoryAround`), et une modification hors canevas (sélection, cartouche, Tableau IP) n'y crée plus d'entrée (`equality: shallow`).
+- **C3** : créer un Tableau IP ou dupliquer une baie ne vide plus les zones du projet.
+- **C5** : migration `20261117090000_archive_saved_version.sql` : « Enregistrer » archive l'état enregistré sous son nouveau numéro, et non plus la dernière sauvegarde automatique sous l'ancien.
+- **C6, C7** : la synchronisation IP ne supprime plus une ligne qui contient des saisies : elle la garde « orpheline » (fond orangé, badge, suppression avec confirmation) et la reprend si un équipement de même référence et de même label revient. Deux équipements renommés avec le même label gardent leurs deux lignes. Un produit collé dans le même synoptique reçoit un nouveau label.
+- **C8** : une réponse de sauvegarde arrivée après l'ouverture d'un autre projet n'est plus appliquée au projet affiché (époque du projet, `getProjectEpoch`).
+
+Validation locale : 55 tests Node (dont 22 nouveaux), TypeScript et build réussis. Assertions SQL de la sauvegarde atomique rejouées sur PostgreSQL en mémoire (PGlite) avec la nouvelle migration. La chaîne complète des migrations (`npm run test:migrations`, Docker) n'a pas pu être lancée sur la machine de développement : la CI la jouera.
+
+**Ordre de mise en production** : appliquer la migration `20261117090000_archive_saved_version.sql` dans Supabase, puis pousser la branche (le workflow déploie le frontend). Les versions déjà archivées gardent l'ancien sens (état précédent).
+
+Non vérifié en navigateur : parcours réels d'annulation, de changement d'onglet et des lignes orphelines.
+

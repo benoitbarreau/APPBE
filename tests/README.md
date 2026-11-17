@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute trente-trois tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute cinquante-cinq tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -16,7 +16,11 @@ docker rm --force synox-security-check
 
 Ne jamais exécuter les fixtures SQL sur la production. Pour le frontend : `npm run typecheck` et `npm run build`.
 
-Les fixtures `atomic-project-fixture.sql`, la migration `20261009034950_atomic_project_save.sql`, puis `atomic-project-assertions.sql` se lancent dans cet ordre dans une autre base jetable. Elles vérifient conflits, rollback complet en cas d’échec, conservation de trois versions et droits propriétaire/éditeur/administrateur/lecteur.
+Les fixtures `atomic-project-fixture.sql`, les migrations `20261009034950_atomic_project_save.sql` et `20261117090000_archive_saved_version.sql`, puis `atomic-project-assertions.sql` se lancent dans cet ordre dans une autre base jetable. Elles vérifient conflits, rollback complet en cas d’échec, conservation de trois versions, contenu des versions (l'état enregistré, sous son propre numéro, même après une sauvegarde automatique) et droits propriétaire/éditeur/administrateur/lecteur. Sans Docker, PGlite (PostgreSQL en mémoire, `@electric-sql/pglite`) suffit pour ces trois fichiers.
+
+`tab-state.test.mjs` exécute le vrai store : images et groupes de l'onglet actif dans la sauvegarde, groupes rechargés à chaque changement d'onglet ou de projet, zones conservées à la création d'un Tableau IP et à la duplication d'une baie, historique d'annulation vidé aux changements d'onglet ou de projet et sans entrée pour une modification hors canevas, label renouvelé au collage dans le même onglet, câbles des formes reliés à leurs copies à la duplication, époque du projet (une réponse de sauvegarde ne s'applique pas à un autre projet ouvert entre-temps).
+
+`ip-orphans.test.mjs` vérifie que la synchronisation IP ne perd aucune saisie : produit supprimé puis remis, ligne remplie gardée orpheline puis reprise, ligne vide retirée, colonnes personnalisées, deux équipements renommés avec le même label, anciennes lignes de même label.
 
 `user-isolation.test.mjs` exécute le vrai store avec un stockage local simulé : changement de compte, purge des buffers de migration, impossibilité de restaurer les données par annulation, maintien du travail sur rafraîchissement du même compte et purge à la déconnexion.
 

@@ -5187,6 +5187,16 @@ select {
   font-size: 11px;
   font-weight: 700;
 }
+.ip-orphan-badge {
+  display: inline-block;
+  margin-left: 12px;
+  background: #fff1db;
+  color: #9a5300;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
 
 /* Tableau principal */
 .ip-table-wrap {
@@ -5260,6 +5270,13 @@ select {
 }
 .ip-table tbody tr.ip-row-manual:hover td {
   background: #fff5cc;
+}
+/* Ligne orpheline : équipement absent de tous les synoptiques, gardé pour ses saisies */
+.ip-table tbody tr.ip-row-orphan td {
+  background: #fff1db;
+}
+.ip-table tbody tr.ip-row-orphan td:first-child {
+  box-shadow: inset 3px 0 0 #d97706;
 }
 /* Teinte de fond selon la zone du produit lié — variables --zone-bg et
    --zone-bg-hover calculées en JS via hexToRgba pour une compatibilité

@@ -151,6 +151,12 @@ export interface IPTableRow {
   productInstanceIds: string[]
   /** True = ligne ajoutée manuellement (n'écrit pas dans les synoptiques). */
   manual: boolean
+  /** Référence catalogue des équipements liés (lignes auto), pour reprendre
+   *  une ligne orpheline quand un équipement de même référence revient. */
+  productId?: string
+  /** True = ligne auto dont l'équipement n'est plus sur aucun synoptique,
+   *  gardée parce qu'elle contient des saisies. */
+  orphan?: boolean
   product: string
   label: string
   deviceId: string

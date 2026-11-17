@@ -168,7 +168,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
 
   // ── Vue LAN : set des rowIds éligibles (produit avec port RJ45/IP) ────────
-  // Les lignes manuelles (manual=true) sont toujours éligibles.
+  // Les lignes manuelles (manual=true) et orphelines sont toujours éligibles.
   // Pour les lignes auto, on vérifie si le produit lié a au moins un port
   // dont signal === "RJ45" (type "RJ45 / IP" dans DEFAULT_SIGNAL_DEFS).
   const lanEligibleIds = useMemo(() => {
@@ -183,7 +183,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 
     const eligible = new Set<string>();
     for (const row of rows) {
-      if (row.manual) {
+      if (row.manual || row.orphan) {
         eligible.add(row.id);
         continue;
       }
@@ -230,6 +230,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
 
   const duplicateMap = useMemo(() => detectIPDuplicates(rows), [rows]);
   const hasDuplicates = duplicateMap.size > 0;
+  const orphanCount = rows.filter((r) => r.orphan).length;
 
   const visibleRows = useMemo<IPTableRow[]>(() => {
     let list: IPTableRow[] = rows;
@@ -256,7 +257,19 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     setOnlyDuplicates(false);
   };
 
-  const handleRemoveRow = (row: IPTableRow) => {
+  const handleRemoveRow = async (row: IPTableRow) => {
+    // Ligne orpheline : son équipement n'est plus sur aucun synoptique, elle n'a
+    // été gardée que pour ses saisies. On la supprime après confirmation.
+    if (row.orphan) {
+      const ok = await confirmDialog({
+        title: `Supprimer la ligne orpheline « ${row.label || "sans label"} » ?`,
+        message: "Son équipement n'est plus sur aucun synoptique.\nSes saisies (IP, MAC, identifiants, colonnes personnalisées) seront perdues.",
+        confirmLabel: "🗑 Supprimer",
+        danger: true,
+      });
+      if (ok) removeIPRow(tabId, row.id);
+      return;
+    }
     const ipValue    = (row.ip ?? "").trim();
     const serialValue = (row.serialNumber ?? "").trim();
     const ipDup  = duplicateMap.get(row.id)?.has("ip") ?? false;
@@ -441,6 +454,14 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
               ⚠ {duplicateMap.size} ligne(s) avec IP en doublon
             </span>
           )}
+          {orphanCount > 0 && (
+            <span
+              className="ip-orphan-badge"
+              title="Équipements absents de tous les synoptiques : leurs lignes sont gardées pour ne pas perdre leurs saisies. Remettez l'équipement avec le même label, ou supprimez la ligne."
+            >
+              ⚠ {orphanCount} ligne(s) orpheline(s)
+            </span>
+          )}
         </div>
         <div className="ip-table-status-actions">
           {hasDuplicates && (
@@ -592,10 +613,15 @@ function IPRow({
       } as React.CSSProperties)
     : undefined;
   const className =
-    (row.manual ? "ip-row-manual" : "ip-row-auto") + (zoneColor ? " ip-row-zone" : "");
+    (row.manual ? "ip-row-manual" : "ip-row-auto") + (zoneColor ? " ip-row-zone" : "")
+    + (row.orphan ? " ip-row-orphan" : "");
 
   return (
-    <tr className={className} style={trStyle}>
+    <tr
+      className={className}
+      style={trStyle}
+      title={row.orphan ? "Ligne orpheline : cet équipement n'est plus sur aucun synoptique. Ses saisies sont gardées." : undefined}
+    >
       {columns.map((col) => {
         const isDup = IP_DUP_COLS.has(col.id) && duplicates.has(col.id as IPColumn);
         const value = getCellValue(row, col.id);
@@ -635,7 +661,8 @@ function IPRow({
           const ipDup     = duplicates.has("ip");
           const ipBlocks  = ipFilled && !ipDup;
           const serialBlocks = (row.serialNumber ?? "").trim() !== "";
-          const blocked   = ipBlocks || serialBlocks;
+          // Une ligne orpheline se supprime toujours, après confirmation.
+          const blocked   = !row.orphan && (ipBlocks || serialBlocks);
           const fields = ipBlocks && serialBlocks ? "les champs IP et N° SERIE"
             : ipBlocks ? "le champ IP" : "le champ N° SERIE";
           return (

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { temporal } from "zundo";
+import { shallow } from "zustand/shallow";
 import type {
   Cable,
   ImageNodeData,
@@ -289,7 +290,9 @@ function categoryPrefix(category: string): string {
  *  tous les labels existants à travers tous les onglets. Retourne par
  *  exemple "DSP-01" puis "DSP-02" etc. */
 function nextAutoLabel(prefix: string, allLabels: string[]): string {
-  const re = new RegExp(`^${prefix}-(\\d+)$`, "i");
+  // Préfixe échappé : il peut venir d'un label saisi (parenthèses, points…).
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^${escaped}-(\\d+)$`, "i");
   let max = 0;
   for (const lbl of allLabels) {
     const m = (lbl ?? "").trim().match(re);
@@ -369,6 +372,39 @@ const flushActive = (s: Pick<State, "tabs" | "activeTabId" | "nodes" | "cables" 
     return { ...t, nodes: s.nodes, cables: s.cables, textNodes: s.textNodes, shapeNodes: s.shapeNodes, imageNodes: s.imageNodes, groups: s.groups };
   });
 
+/** État de travail du canevas pour l'onglet qui devient actif : le contenu d'un
+ *  synoptique, ou un canevas vide pour un Tableau IP ou une Baie. Les six champs
+ *  sont toujours remplacés ensemble, pour qu'aucun ne passe d'un onglet à l'autre. */
+const workingStateOf = (t: Tab | undefined) =>
+  t && isSynopticTab(t)
+    ? {
+        nodes: t.nodes ?? [], cables: t.cables ?? [], textNodes: t.textNodes ?? [],
+        shapeNodes: t.shapeNodes ?? [], imageNodes: t.imageNodes ?? [], groups: t.groups ?? [],
+      }
+    : { nodes: [], cables: [], textNodes: [], shapeNodes: [], imageNodes: [], groups: [] };
+
+/** Compteur de contexte projet : change à chaque ouverture, nouveau projet ou
+ *  changement de compte. Une réponse de sauvegarde ne s'applique au store que si
+ *  l'époque n'a pas changé pendant la requête. */
+let _projectEpoch = 0;
+export const getProjectEpoch = (): number => _projectEpoch;
+
+/** Applique un changement de contexte (onglet, projet, compte) hors de l'historique
+ *  d'annulation, puis vide celui-ci. L'historique ne retient que le canevas actif :
+ *  un Ctrl+Z qui traverserait un changement d'onglet collerait l'ancien canevas
+ *  dans l'onglet devenu actif. */
+function resetHistoryAround(change: () => void): void {
+  const history = useAppStore.temporal.getState();
+  const wasTracking = history.isTracking;
+  history.pause();
+  try {
+    change();
+  } finally {
+    history.clear();
+    if (wasTracking) history.resume();
+  }
+}
+
 /**
  * Buffer de migration des zones utilisateur (user_zones Supabase).
  * Rempli au login par mergeUserZones, utilisé en fallback dans loadProjectData
@@ -440,28 +476,24 @@ export const useAppStore = create<State>()(
         // ── Gestion des onglets ─────────────────────────────────────────
 
         addTab: (name?) =>
-          set((s) => {
+          resetHistoryAround(() => set((s) => {
             const flushed = flushActive(s);
             const synopticCount = flushed.filter((t) => isSynopticTab(t)).length;
             const newTab = makeDefaultTab(name ?? `Synoptique ${synopticCount + 1}`);
             return {
               tabs: [...flushed, newTab],
               activeTabId: newTab.id,
-              nodes: [],
-              cables: [],
-              textNodes: [],
-              shapeNodes: [],
-              imageNodes: [],
+              ...workingStateOf(newTab),
               // s.zones inchangé : les zones sont globales au projet,
               // ne pas les réinitialiser à DEFAULT_ZONES lors de l'ajout d'un onglet.
               selectedNodeId: null,
               selectedCableId: null,
             };
-          }),
+          })),
 
         addIPTableTab: (name, autoSync = true) => {
           const newId = uid();
-          set((s) => {
+          resetHistoryAround(() => set((s) => {
             const flushed = flushActive(s);
             const ipCount = flushed.filter((t) => isIPTableTab(t)).length;
             const tabName = name ?? (ipCount === 0 ? "Tableau IP" : `Tableau IP ${ipCount + 1}`);
@@ -474,20 +506,19 @@ export const useAppStore = create<State>()(
             return {
               tabs: [...flushed, newTab],
               activeTabId: newTab.id,
-              // L'état de travail synoptique n'est plus pertinent → vide
-              nodes: [],
-              cables: [],
-              zones: [],
+              // L'état de travail synoptique n'est plus pertinent → vide.
+              // Les zones, communes au projet, ne sont jamais vidées ici.
+              ...workingStateOf(newTab),
               selectedNodeId: null,
               selectedCableId: null,
             };
-          });
+          }));
           return newId;
         },
 
         addBayTab: (opts) => {
           const newId = uid();
-          set((s) => {
+          resetHistoryAround(() => set((s) => {
             const flushed = flushActive(s);
             const bayCount = flushed.filter((t) => isBayTab(t)).length;
             const tabName = opts?.name ?? (bayCount === 0 ? "Baie 1" : `Baie ${bayCount + 1}`);
@@ -496,14 +527,13 @@ export const useAppStore = create<State>()(
             return {
               tabs: [...flushed, newTab],
               activeTabId: newTab.id,
-              nodes: [],
-              cables: [],
+              ...workingStateOf(newTab),
               // Ne pas vider zones : elles seraient persistées vides en localStorage
               // et effaceraient les zones de l'utilisateur au rechargement.
               selectedNodeId: null,
               selectedCableId: null,
             };
-          });
+          }));
           return newId;
         },
 
@@ -637,52 +667,28 @@ export const useAppStore = create<State>()(
             ),
           })),
 
-        removeTab: (tabId) =>
-          set((s) => {
-            if (s.tabs.length <= 1) return {};
-            const flushed = flushActive(s);
+        removeTab: (tabId) => {
+          const s = get();
+          if (s.tabs.length <= 1) return;
+          if (s.activeTabId !== tabId) {
+            set({ tabs: flushActive(s).filter((t) => t.id !== tabId) });
+            return;
+          }
+          resetHistoryAround(() => set((st) => {
+            const flushed = flushActive(st);
             const newTabs = flushed.filter((t) => t.id !== tabId);
-            if (s.activeTabId !== tabId) {
-              return { tabs: newTabs };
-            }
             const idx = flushed.findIndex((t) => t.id === tabId);
             const newActive = newTabs[Math.min(idx, newTabs.length - 1)];
-            if (isIPTableTab(newActive)) {
-              return {
-                tabs: newTabs,
-                activeTabId: newActive.id,
-                nodes: [],
-                cables: [],
-                // Conserver zones (même logique que bay)
-                selectedNodeId: null,
-                selectedCableId: null,
-              };
-            }
-            if (isBayTab(newActive)) {
-              return {
-                tabs: newTabs,
-                activeTabId: newActive.id,
-                nodes: [],
-                cables: [],
-                // Conserver zones — cf. commentaire addBayTab
-                selectedNodeId: null,
-                selectedCableId: null,
-              };
-            }
             return {
               tabs: newTabs,
               activeTabId: newActive.id,
-              nodes: newActive.nodes ?? [],
-              cables: newActive.cables ?? [],
-              textNodes: newActive.textNodes ?? [],
-              shapeNodes: newActive.shapeNodes ?? [],
-              imageNodes: newActive.imageNodes ?? [],
-              groups: newActive.groups ?? [],
+              ...workingStateOf(newActive),
               // zones globales : inchangé
               selectedNodeId: null,
               selectedCableId: null,
             };
-          }),
+          }));
+        },
 
         renameTab: (tabId, name) =>
           set((s) => ({
@@ -864,7 +870,7 @@ export const useAppStore = create<State>()(
           }),
 
         duplicateTab: (tabId) =>
-          set((s) => {
+          resetHistoryAround(() => set((s) => {
             const flushed = flushActive(s);
             const source = flushed.find((t) => t.id === tabId);
             if (!source) return {};
@@ -886,33 +892,36 @@ export const useAppStore = create<State>()(
               return {
                 tabs: newTabs,
                 activeTabId: newTab.id,
-                nodes: [],
-                cables: [],
-                zones: [],
+                // Les zones, communes au projet, ne sont jamais vidées ici.
+                ...workingStateOf(newTab),
                 selectedNodeId: null,
                 selectedCableId: null,
               };
             }
 
-            // Remappage des IDs de nœuds (les câbles référencent les IDs de nœuds)
+            // Remappage des IDs de nœuds (les câbles et les groupes référencent les IDs de nœuds)
             const nodeIdMap = new Map<string, string>();
-            const newNodes = source.nodes.map((n) => {
+            const remap = <T extends { id: string }>(n: T): T => {
               const newId = uid();
               nodeIdMap.set(n.id, newId);
               return { ...n, id: newId };
-            });
+            };
+            const newNodes = source.nodes.map(remap);
+            // Zones globales : pas besoin de les copier par onglet.
+            const newTextNodes = (source.textNodes ?? []).map(remap);
+            const newShapeNodes = (source.shapeNodes ?? []).map(remap);
+            const newImageNodes = (source.imageNodes ?? []).map(remap);
 
+            // Après tous les remappages : un câble peut aboutir à une forme.
             const newCables = source.cables.map((c) => ({
               ...c,
               id: uid(),
               fromNodeId: nodeIdMap.get(c.fromNodeId) ?? c.fromNodeId,
               toNodeId: nodeIdMap.get(c.toNodeId) ?? c.toNodeId,
             }));
-
-            // Zones globales : pas besoin de les copier par onglet.
-            const newTextNodes = (source.textNodes ?? []).map((n) => ({ ...n, id: uid() }));
-            const newShapeNodes = (source.shapeNodes ?? []).map((n) => ({ ...n, id: uid() }));
-            const newImageNodes = (source.imageNodes ?? []).map((n) => ({ ...n, id: uid() }));
+            const newGroups = (source.groups ?? [])
+              .map((g) => ({ id: uid(), nodeIds: g.nodeIds.filter((id) => nodeIdMap.has(id)).map((id) => nodeIdMap.get(id)!) }))
+              .filter((g) => g.nodeIds.length >= 2);
             const newTab: Tab = {
               id: uid(),
               name: `Copie de ${source.name}`,
@@ -922,6 +931,7 @@ export const useAppStore = create<State>()(
               textNodes: newTextNodes,
               shapeNodes: newShapeNodes,
               imageNodes: newImageNodes,
+              groups: newGroups,
             };
 
             // Insérer juste après l'onglet source
@@ -935,62 +945,31 @@ export const useAppStore = create<State>()(
             return {
               tabs: newTabs,
               activeTabId: newTab.id,
-              nodes: newNodes,
-              cables: newCables,
-              textNodes: newTextNodes,
-              shapeNodes: newShapeNodes,
-              imageNodes: newImageNodes,
+              ...workingStateOf(newTab),
               // s.zones inchangé (zones globales)
               selectedNodeId: null,
               selectedCableId: null,
             };
-          }),
+          })),
 
-        setActiveTab: (tabId) =>
-          set((s) => {
-            if (s.activeTabId === tabId) return {};
+        setActiveTab: (tabId) => {
+          const current = get();
+          if (current.activeTabId === tabId || !current.tabs.some((t) => t.id === tabId)) return;
+          resetHistoryAround(() => set((s) => {
             const flushed = flushActive(s);
             const target = flushed.find((t) => t.id === tabId);
             if (!target) return {};
-            // Onglet IP : vider nodes/cables mais CONSERVER zones — même
-            // raison que pour les baies : zones: [] persiste en localStorage
-            // et efface les définitions de zones de l'utilisateur.
-            if (isIPTableTab(target)) {
-              return {
-                tabs: flushed,
-                activeTabId: tabId,
-                nodes: [],
-                cables: [],
-                selectedNodeId: null,
-                selectedCableId: null,
-              };
-            }
-            // Baie : vider nodes/cables mais CONSERVER zones pour ne pas
-            // les persister vides en localStorage et effacer les zones utilisateur.
-            if (isBayTab(target)) {
-              return {
-                tabs: flushed,
-                activeTabId: tabId,
-                nodes: [],
-                cables: [],
-                selectedNodeId: null,
-                selectedCableId: null,
-              };
-            }
-            // Zones globales : on ne restaure PAS depuis t.zones (obsolète).
-            // s.zones reste inchangé — il est la source unique de vérité.
+            // Zones globales : on ne restaure PAS depuis t.zones (obsolète) et on ne
+            // les vide jamais (Tableau IP, Baie) : s.zones est la seule source de vérité.
             return {
               tabs: flushed,
               activeTabId: tabId,
-              nodes: target.nodes ?? [],
-              cables: target.cables ?? [],
-              textNodes: target.textNodes ?? [],
-              shapeNodes: target.shapeNodes ?? [],
-              imageNodes: target.imageNodes ?? [],
+              ...workingStateOf(target),
               selectedNodeId: null,
               selectedCableId: null,
             };
-          }),
+          }));
+        },
 
         // ── Produits ────────────────────────────────────────────────────
 
@@ -1203,11 +1182,25 @@ export const useAppStore = create<State>()(
         },
 
         pasteNodes: ({ nodes: nodesToPaste, textNodes: tns, shapeNodes: sns, imageNodes: ins, offsetX, offsetY }) =>
-          set((s) => ({
-            nodes: [
-              ...s.nodes,
-              ...nodesToPaste.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
-            ],
+          set((s) => {
+            // Un produit collé dans un onglet qui a déjà son label est un autre
+            // équipement : il reçoit un nouveau label, sinon le Tableau IP
+            // fusionnerait les deux équipements sur une seule ligne.
+            const tabLabels = new Set(s.nodes.map((n) => (n.label ?? "").trim().toLowerCase()).filter(Boolean));
+            const allLabels = collectAllLabels(s);
+            const pastedNodes = nodesToPaste.map((n) => {
+              let label = n.label;
+              const trimmed = (label ?? "").trim();
+              if (trimmed && tabLabels.has(trimmed.toLowerCase())) {
+                const numbered = trimmed.match(/^(.*)-(\d+)$/);
+                label = nextAutoLabel(numbered ? numbered[1] : trimmed, allLabels);
+                allLabels.push(label);
+              }
+              if (label?.trim()) tabLabels.add(label.trim().toLowerCase());
+              return { ...n, id: uid(), label, position: { x: n.position.x + offsetX, y: n.position.y + offsetY } };
+            });
+            return {
+            nodes: [...s.nodes, ...pastedNodes],
             textNodes: [
               ...s.textNodes,
               ...tns.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
@@ -1220,7 +1213,8 @@ export const useAppStore = create<State>()(
               ...(s.imageNodes ?? []),
               ...ins.map((n) => ({ ...n, id: uid(), position: { x: n.position.x + offsetX, y: n.position.y + offsetY } })),
             ],
-          })),
+            };
+          }),
 
         groupNodes: (nodeIds) =>
           set((s) => {
@@ -1647,18 +1641,15 @@ export const useAppStore = create<State>()(
             return [...DEFAULT_ZONES];
           })();
 
-          set({
+          _projectEpoch++;
+          resetHistoryAround(() => set({
             currentProjectId: id,
             currentProjectUpdatedAt: updatedAt ?? null,
             currentProjectName: name,
             currentVersionsMeta: versionsMeta ?? [],
             tabs,
             activeTabId,
-            nodes: activeTab.nodes,
-            cables: activeTab.cables,
-            textNodes: activeTab.textNodes ?? [],
-            shapeNodes: activeTab.shapeNodes ?? [],
-            imageNodes: activeTab.imageNodes ?? [],
+            ...workingStateOf(activeTab),
             zones: projectZones,
             signals: effectiveSignals,
             projectMeta: data.projectMeta ?? DEFAULT_PROJECT_META,
@@ -1674,7 +1665,7 @@ export const useAppStore = create<State>()(
               : [...DEFAULT_IP_TABLE_COLUMNS],
             selectedNodeId: null,
             selectedCableId: null,
-          });
+          }));
           const signature = buildSignature(flushActive(get()), get());
           set({ currentProjectSavedSignature: signature.full, currentProjectVersionedHash: signature.base });
           // Réinitialiser l'état éditeur volatile : étiquettes câbles masquées par défaut
@@ -1683,14 +1674,11 @@ export const useAppStore = create<State>()(
 
         resetProject: () => {
           const tab = makeDefaultTab();
-          set({
+          _projectEpoch++;
+          resetHistoryAround(() => set({
             tabs: [tab],
             activeTabId: tab.id,
-            nodes: [],
-            cables: [],
-            textNodes: [],
-            shapeNodes: [],
-            imageNodes: [],
+            ...workingStateOf(tab),
             zones: [...DEFAULT_ZONES],
             ipTableColumns: [...DEFAULT_IP_TABLE_COLUMNS],
             currentProjectId: null,
@@ -1702,7 +1690,7 @@ export const useAppStore = create<State>()(
             projectMeta: { ...DEFAULT_PROJECT_META },
             selectedNodeId: null,
             selectedCableId: null,
-          });
+          }));
         },
 
         mergeUserProducts: (fetched) =>
@@ -1837,6 +1825,7 @@ export const useAppStore = create<State>()(
           if (userId !== null && get().lastUserId === userId) return;
           _loginZonesForMigration = null;
           _adminGlobalSignals = null;
+          _projectEpoch++;
           const history = useAppStore.temporal.getState();
           const wasTracking = history.isTracking;
           history.pause();
@@ -1994,6 +1983,9 @@ export const useAppStore = create<State>()(
       imageNodes: state.imageNodes,
       groups: state.groups,
     }),
+    // Pas d'entrée d'annulation quand le canevas n'a pas changé (sélection,
+    // cartouche, Tableau IP…) : sinon Ctrl+Z semble ne rien faire.
+    equality: shallow,
     limit: 50, // max 50 snapshots en mémoire
   }
  )
@@ -2007,12 +1999,9 @@ export const defaultCableFor = (signal: SignalType): string =>
  * À appeler dans App.tsx avant de sauvegarder le projet.
  */
 export function getFlushedTabs(): Tab[] {
-  const s = useAppStore.getState();
-  return s.tabs.map((t) => {
-    if (t.id !== s.activeTabId) return t;
-    if (isIPTableTab(t) || isBayTab(t)) return t;
-    return { ...t, nodes: s.nodes, cables: s.cables, zones: s.zones, textNodes: s.textNodes, shapeNodes: s.shapeNodes };
-  });
+  // Même recopie que les changements d'onglet : images et groupes compris.
+  // Les zones sont communes au projet et sauvegardées à part (ProjectData.zones).
+  return flushActive(useAppStore.getState());
 }
 
 // ── Store catalogue méta (non persisté) ──────────────────────────────────

@@ -164,6 +164,14 @@ L'onglet Tableau IP regroupe les informations réseau du projet :
 ### Synchronisation avec les synoptiques
 Utilisez le bouton **"Synchroniser"** pour mettre à jour automatiquement le Tableau IP depuis les produits et câbles des onglets Synoptique.
 
+### Lignes orphelines
+Quand un équipement disparaît de tous les synoptiques (supprimé, label vidé, ou renommé avec le label d'un autre équipement), sa ligne n'est plus effacée si elle contient des saisies (IP, MAC, identifiants, n° de série, colonnes personnalisées) : elle reste, sur fond orangé, avec le badge **« lignes orphelines »** dans la barre d'état.
+- Si un équipement de même référence revient avec le même label, la ligne est reprise avec ses saisies.
+- Sinon, supprimez-la avec ✕ (une confirmation est demandée).
+- Une ligne orpheline vide n'est pas gardée.
+
+Un produit collé dans le même synoptique reçoit un nouveau label (ex. DSP-01 → DSP-03), pour ne pas être fusionné avec l'original dans le Tableau IP.
+
 ---
 
 ## 6. Onglet Baie Rack
@@ -261,8 +269,11 @@ Le bouton d'export du Tableau IP permet d'exporter en **CSV** ou **XLS**.
 ## 9. Versioning & partage
 
 ### Sauvegarde des versions
-Chaque fois que vous sauvegardez, une **version archivée** est créée automatiquement.  
+Chaque clic sur **« Enregistrer »** (ou Ctrl+S) crée un point de version : le numéro avance (V1.0 → V1.1) et une **version archivée** contenant exactement l'état enregistré est conservée. Les sauvegardes automatiques mettent le projet à jour sans créer de version. Les trois dernières versions sont gardées.  
 Vous pouvez consulter et restaurer les versions depuis la page Projets (bouton historique sur la carte du projet).
+
+### Annuler / refaire
+Ctrl+Z et Ctrl+Y portent sur le synoptique affiché. L'historique repart de zéro quand vous changez d'onglet ou de projet : on ne peut pas annuler une action faite dans un autre onglet.
 
 ### Partager un projet
 1. Cliquez sur **"Partager"** sur la carte du projet (page Projets).

@@ -22,7 +22,7 @@ import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { ImageImportModal } from "./components/ImageImportModal";
-import { useAppStore, getFlushedTabs } from "./store";
+import { useAppStore, getFlushedTabs, getProjectEpoch } from "./store";
 import { layoutNodes } from "./layout";
 import {
   exportDiagram,
@@ -51,6 +51,15 @@ interface AppProps {
   onGoToReferentiel?: (clientId: string) => void
   readOnly?: boolean
   readOnlyVersion?: string
+}
+
+
+/** La sauvegarde a réussi, mais le projet affiché a changé pendant la requête. */
+class ProjectChangedDuringSaveError extends Error {
+  constructor() {
+    super("Le projet affiché a changé pendant l’enregistrement.");
+    this.name = "ProjectChangedDuringSaveError";
+  }
 }
 
 export default function App({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, readOnly, readOnlyVersion }: AppProps) {
@@ -333,6 +342,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
    *  Lève ProjectConflictError si le projet a été modifié ailleurs entre-temps. */
   const persistProject = async (createVersion: boolean, force = false): Promise<void> => {
     const state = useAppStore.getState();
+    const epoch = getProjectEpoch();
     const flushedTabs = getFlushedTabs();
     const { base: baseHash } = buildSignature(flushedTabs, state);
     const isExistingProject = !!state.currentProjectId;
@@ -351,6 +361,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           versionsMeta: [], version: state.projectMeta.version };
     if (useAppStore.getState().lastUserId !== state.lastUserId) {
       throw new Error("La session a changé pendant l’enregistrement.");
+    }
+    if (getProjectEpoch() !== epoch) {
+      // Un autre projet a été ouvert (ou un nouveau créé) pendant la requête : la
+      // sauvegarde a bien eu lieu sur l'ancien projet, mais son accusé de réception
+      // (identifiant, date, empreinte) ne doit pas être appliqué au projet affiché,
+      // sinon la sauvegarde suivante écrirait ce projet-ci dans l'ancien.
+      throw new ProjectChangedDuringSaveError();
     }
     const { id, updatedAt } = saved;
     const metaToSave = { ...state.projectMeta, version: saved.version };
@@ -403,6 +420,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       return true;
     } catch (e) {
       if (e instanceof ProjectConflictError) { setConflict(true); return false; }
+      if (e instanceof ProjectChangedDuringSaveError) return false;
       notify("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)), "error");
       return false;
     } finally {
@@ -422,6 +440,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       setLastSavedAt(new Date());
       setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
     } catch (e) {
+      if (e instanceof ProjectChangedDuringSaveError) return;
       if (e instanceof ProjectConflictError) {
         // Modifié ailleurs → on arrête l'auto-save et on demande à l'utilisateur.
         setConflict(true);
