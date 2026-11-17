@@ -170,3 +170,50 @@ test('dupliquer un synoptique relie les câbles des formes à leurs copies', () 
   assert.equal(cables[0].toNodeId, shapeNodes[0].id)
   assert.notEqual(shapeNodes[0].id, 's1')
 })
+
+test('un geste (glisser, mise en page) fait une seule entrée d’annulation, qui ramène l’état d’avant', async () => {
+  const { beginHistoryGesture, endHistoryGesture } = await loadStore()
+  store.getState().loadProjectData('p1', 'Projet', project([synoptic('A', { nodes: [node('a1'), node('a2')] })]))
+  const before = history().pastStates.length
+  const gesture = beginHistoryGesture()
+  for (let x = 1; x <= 20; x++) store.getState().updateNode('a1', { position: { x, y: 0 } })
+  store.getState().updateNode('a2', { position: { x: 99, y: 99 } })
+  endHistoryGesture(gesture)
+  assert.equal(history().pastStates.length, before + 1)
+  history().undo()
+  assert.deepEqual(store.getState().nodes.map(n => n.position), [{ x: 0, y: 0 }, { x: 0, y: 0 }])
+})
+
+test('un geste sans changement ne crée pas d’entrée d’annulation', async () => {
+  const { beginHistoryGesture, endHistoryGesture } = await loadStore()
+  store.getState().loadProjectData('p1', 'Projet', project([synoptic('A', { nodes: [node('a1')] })]))
+  const before = history().pastStates.length
+  endHistoryGesture(beginHistoryGesture())
+  assert.equal(history().pastStates.length, before)
+  assert.equal(history().isTracking, true)
+})
+
+test('supprimer une forme supprime aussi ses câbles', () => {
+  store.getState().loadProjectData('p1', 'Projet', project([synoptic('A', {
+    nodes: [node('a1')],
+    shapeNodes: [{ id: 's1', position: { x: 0, y: 0 } }],
+    cables: [{ id: 'c1', fromNodeId: 'a1', fromPortId: 'o', toNodeId: 's1', toPortId: 'i', signal: 'HDMI' }],
+  })]))
+  store.getState().removeShapeNode('s1')
+  assert.deepEqual(store.getState().cables, [])
+})
+
+test('à l’ouverture, un câble dont une extrémité n’existe plus est retiré', () => {
+  store.getState().loadProjectData('p1', 'Projet', project([
+    synoptic('A', {
+      nodes: [node('a1'), node('a2')],
+      cables: [
+        { id: 'ok', fromNodeId: 'a1', fromPortId: 'o', toNodeId: 'a2', toPortId: 'i', signal: 'HDMI' },
+        { id: 'orphelin', fromNodeId: 'a1', fromPortId: 'o', toNodeId: 'disparu', toPortId: 'i', signal: 'HDMI' },
+      ],
+    }),
+    synoptic('B', { nodes: [node('b1')], cables: [{ id: 'orphelin-b', fromNodeId: 'x', fromPortId: 'o', toNodeId: 'b1', toPortId: 'i', signal: 'HDMI' }] }),
+  ]))
+  assert.deepEqual(store.getState().cables.map(c => c.id), ['ok'])
+  assert.deepEqual(store.getState().tabs.find(t => t.id === 'B').cables, [])
+})

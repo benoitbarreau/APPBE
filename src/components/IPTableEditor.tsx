@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from "react";
+import { memo, useCallback, useRef, useMemo, useState } from "react";
 import { useAppStore, useEditorState } from "../store";
 import { confirmDialog, notify } from "./dialogs/dialogStore";
 import {
@@ -167,17 +167,12 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     setIPTableColumns([...DEFAULT_IP_TABLE_COLUMNS]);
   };
 
-  if (!tab || !isIPTableTab(tab)) {
-    return (
-      <div className="ip-table-empty">
-        <p>Cet onglet n'est pas un Tableau IP.</p>
-      </div>
-    );
-  }
-
-  const rawRows = tab.rows ?? [];
-  const network = tab.network ?? { plageIp: "", dhcp: "", dns: "", passerelle: "", ntp: "" };
-  const documentTitle = tab.documentTitle ?? "";
+  // Tous les hooks sont appelés à chaque rendu (règle des hooks) : le cas « pas un
+  // Tableau IP » ne sort qu'au moment du rendu, plus bas.
+  const isIPTab = !!tab && isIPTableTab(tab);
+  const rawRows = useMemo(() => (isIPTab ? tab?.rows ?? [] : []), [isIPTab, tab?.rows]);
+  const network = tab?.network ?? { plageIp: "", dhcp: "", dns: "", passerelle: "", ntp: "" };
+  const documentTitle = tab?.documentTitle ?? "";
 
   const rows = useMemo(() => dedupeRowsById(rawRows), [rawRows]);
 
@@ -195,6 +190,8 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
       }
     }
 
+    // Produits indexés une fois (au lieu d'un find par ligne et par instance).
+    const productById = new Map(allProducts.map((p) => [p.id, p]));
     const eligible = new Set<string>();
     for (const row of rows) {
       if (row.manual || row.orphan) {
@@ -204,7 +201,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
       for (const instanceId of row.productInstanceIds) {
         const productId = instanceProductMap.get(instanceId);
         if (!productId) continue;
-        const product = allProducts.find((p) => p.id === productId);
+        const product = productById.get(productId);
         if (!product) continue;
         const allPorts = [
           ...product.inputs,
@@ -309,8 +306,25 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     removeIPRow(tabId, row.id);
   };
 
+  // Rappels stables : une frappe ne redessine que la ligne modifiée (IPRow mémorisé).
+  const changeRow = useCallback(
+    (rowId: string, patch: Partial<IPTableRow>) => updateIPRow(tabId, rowId, patch),
+    [tabId, updateIPRow],
+  );
+  const removeRowRef = useRef(handleRemoveRow);
+  removeRowRef.current = handleRemoveRow;
+  const removeRow = useCallback((row: IPTableRow) => { void removeRowRef.current(row); }, []);
+
   const hasActiveFilter =
     onlyDuplicates || visibleCols.some((c) => (filters[c.id] ?? "").trim() !== "");
+
+  if (!isIPTab) {
+    return (
+      <div className="ip-table-empty">
+        <p>Cet onglet n'est pas un Tableau IP.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="ip-table-editor">
@@ -564,13 +578,13 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 tabId={tabId}
                 row={row}
                 columns={visibleCols}
-                duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
+                duplicates={duplicateMap.get(row.id) ?? NO_DUPLICATES}
                 zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
                 showPasswords={showPasswords && !readOnly}
                 isLanEligible={lanEligibleIds.has(row.id)}
-                onChange={(patch) => updateIPRow(tabId, row.id, patch)}
-                onRemove={() => handleRemoveRow(row)}
+                onChange={changeRow}
+                onRemove={removeRow}
               />
             ))}
             {visibleRows.length === 0 && (
@@ -622,7 +636,10 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 // ── IPRow ──────────────────────────────────────────────────────────────────
-function IPRow({
+/** Aucune cellule en doublon (référence partagée, pour ne pas casser la mémorisation). */
+const NO_DUPLICATES: Set<IPColumn> = new Set();
+
+const IPRow = memo(function IPRow({
   row, columns, duplicates, zoneColor, readOnly, showPasswords, isLanEligible, onChange, onRemove,
 }: {
   tabId: string;
@@ -634,8 +651,8 @@ function IPRow({
   /** Mots de passe en clair (bouton de la barre, jamais en lecture seule). */
   showPasswords: boolean;
   isLanEligible: boolean;
-  onChange: (patch: Partial<IPTableRow>) => void;
-  onRemove: () => void;
+  onChange: (rowId: string, patch: Partial<IPTableRow>) => void;
+  onRemove: (row: IPTableRow) => void;
 }) {
   const trStyle: React.CSSProperties | undefined = zoneColor
     ? ({
@@ -660,10 +677,10 @@ function IPRow({
 
         const handleChange = (val: string) => {
           if (FIXED_IDS.has(col.id)) {
-            onChange({ [col.id]: val });
+            onChange(row.id, { [col.id]: val });
           } else {
             // Colonne custom → met à jour customFields
-            onChange({ customFields: { ...(row.customFields ?? {}), [col.id]: val } });
+            onChange(row.id, { customFields: { ...(row.customFields ?? {}), [col.id]: val } });
           }
         };
 
@@ -722,7 +739,7 @@ function IPRow({
           return (
             <button
               className={`danger ip-remove-btn${blocked ? " ip-remove-btn-blocked" : ""}`}
-              onClick={onRemove}
+              onClick={() => onRemove(row)}
               title={blocked ? `Suppression bloquée — videz d'abord ${fields}` : "Supprimer cette ligne"}
             >
               {blocked ? "🔒" : "✕"}
@@ -732,7 +749,7 @@ function IPRow({
       </td>
     </tr>
   );
-}
+});
 
 // ── Exports rétrocompatibilité ─────────────────────────────────────────────
 export { DEFAULT_IP_TABLE_COLUMNS as IP_TABLE_COLUMNS };

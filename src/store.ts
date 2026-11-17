@@ -393,6 +393,17 @@ const workingStateOf = (t: Tab | undefined) =>
       }
     : { nodes: [], cables: [], textNodes: [], shapeNodes: [], imageNodes: [], groups: [] };
 
+/** Onglet synoptique sans ses câbles orphelins (extrémité absente de tous ses
+ *  éléments : produits, textes, formes, images). Inchangé s'il n'y en a pas. */
+const withoutOrphanCables = (t: Tab): Tab => {
+  if (!isSynopticTab(t) || !t.cables?.length) return t;
+  const ids = new Set<string>([
+    ...(t.nodes ?? []), ...(t.textNodes ?? []), ...(t.shapeNodes ?? []), ...(t.imageNodes ?? []),
+  ].map((n) => n.id));
+  const cables = t.cables.filter((c) => ids.has(c.fromNodeId) && ids.has(c.toNodeId));
+  return cables.length === t.cables.length ? t : { ...t, cables };
+};
+
 /** Compteur de contexte projet : change à chaque ouverture, nouveau projet ou
  *  changement de compte. Une réponse de sauvegarde ne s'applique au store que si
  *  l'époque n'a pas changé pendant la requête. */
@@ -1088,7 +1099,11 @@ export const useAppStore = create<State>()(
             textNodes: (s.textNodes ?? []).map((n) => n.id === id ? { ...n, ...patch } : n),
           })),
         removeTextNode: (id) =>
-          set((s) => ({ textNodes: (s.textNodes ?? []).filter((n) => n.id !== id) })),
+          // Ses câbles partent avec lui (sinon invisibles mais comptés et exportés).
+          set((s) => ({
+            textNodes: (s.textNodes ?? []).filter((n) => n.id !== id),
+            cables: s.cables.filter((c) => c.fromNodeId !== id && c.toNodeId !== id),
+          })),
 
         // ── Blocs forme ─────────────────────────────────────────────────
 
@@ -1123,7 +1138,11 @@ export const useAppStore = create<State>()(
           })),
 
         removeShapeNode: (id) =>
-          set((s) => ({ shapeNodes: (s.shapeNodes ?? []).filter((n) => n.id !== id) })),
+          // Ses câbles partent avec lui (sinon invisibles mais comptés et exportés).
+          set((s) => ({
+            shapeNodes: (s.shapeNodes ?? []).filter((n) => n.id !== id),
+            cables: s.cables.filter((c) => c.fromNodeId !== id && c.toNodeId !== id),
+          })),
 
         bringShapeForward: (id) =>
           set((s) => {
@@ -1187,7 +1206,11 @@ export const useAppStore = create<State>()(
           })),
 
         removeImageNode: (id) =>
-          set((s) => ({ imageNodes: (s.imageNodes ?? []).filter((n) => n.id !== id) })),
+          // Ses câbles partent avec lui (sinon invisibles mais comptés et exportés).
+          set((s) => ({
+            imageNodes: (s.imageNodes ?? []).filter((n) => n.id !== id),
+            cables: s.cables.filter((c) => c.fromNodeId !== id && c.toNodeId !== id),
+          })),
 
         bringImageForward: (id) =>
           set((s) => {
@@ -1688,6 +1711,10 @@ export const useAppStore = create<State>()(
             activeTabId = legacyTab.id;
           }
 
+          // Câbles dont une extrémité n'existe plus (laissés par d'anciennes versions) :
+          // invisibles sur le canevas mais comptés, numérotés et exportés « ? • ? ».
+          tabs = tabs.map(withoutOrphanCables);
+
           const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
           // ── Fusion produits ───────────────────────────────────────────────
@@ -2177,4 +2204,42 @@ const READ_ONLY_BLOCKED = [
     };
   }
   useAppStore.setState(guarded);
+}
+
+// ── Gestes et historique d'annulation ────────────────────────────────────
+// Un glisser (produit, segment ou étiquette de câble) ou une mise en page
+// automatique modifie le canevas des dizaines de fois : sans regroupement,
+// chaque mouvement prenait une entrée (limite 50) et le geste ne s'annulait pas.
+
+/** Contenu du canevas tel que l'historique le retient. */
+export type CanvasSnapshot = Pick<State, "nodes" | "cables" | "textNodes" | "shapeNodes" | "imageNodes" | "groups">;
+
+const canvasSnapshot = (s: State): CanvasSnapshot => ({
+  nodes: s.nodes, cables: s.cables, textNodes: s.textNodes,
+  shapeNodes: s.shapeNodes, imageNodes: s.imageNodes, groups: s.groups,
+});
+
+export interface HistoryGesture {
+  before: CanvasSnapshot;
+  wasTracking: boolean;
+}
+
+/** Début d'un geste : mémorise le canevas et suspend l'historique. */
+export function beginHistoryGesture(): HistoryGesture {
+  const history = useAppStore.temporal.getState();
+  const gesture = { before: canvasSnapshot(useAppStore.getState()), wasTracking: history.isTracking };
+  history.pause();
+  return gesture;
+}
+
+/** Fin d'un geste : reprend l'historique et y ajoute une seule entrée (l'état
+ *  d'avant le geste), seulement si le canevas a changé. */
+export function endHistoryGesture(gesture: HistoryGesture): void {
+  const history = useAppStore.temporal.getState();
+  if (gesture.wasTracking) history.resume();
+  if (shallow(gesture.before, canvasSnapshot(useAppStore.getState()))) return;
+  useAppStore.temporal.setState({
+    pastStates: [...history.pastStates, gesture.before].slice(-50),
+    futureStates: [],
+  });
 }

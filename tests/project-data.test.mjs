@@ -74,3 +74,12 @@ test('renaming triggers dirty detection without changing the content version has
   assert.notEqual(after.full, before.full)
   assert.equal(after.base, before.base)
 })
+
+test('l’empreinte ne dépend que des produits utilisés, pas du catalogue entier', () => {
+  const tabs = [tab([node('n1', 'p1')])]
+  const base = { ...state, products: [{ id: 'p1', reference: 'A' }] }
+  const withCatalog = { ...state, products: [{ id: 'p1', reference: 'A' }, { id: 'p9', reference: 'Z' }] }
+  assert.equal(buildSignature(tabs, withCatalog).full, buildSignature(tabs, base).full)
+  const changedUsed = { ...state, products: [{ id: 'p1', reference: 'B' }] }
+  assert.notEqual(buildSignature(tabs, changedUsed).base, buildSignature(tabs, base).base)
+})

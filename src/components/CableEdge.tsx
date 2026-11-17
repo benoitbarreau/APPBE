@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -6,8 +6,16 @@ import {
   type EdgeProps,
   type Edge,
 } from "@xyflow/react";
-import { useAppStore, useEditorState } from "../store";
-import type { Cable, PortSide } from "../types";
+import { beginHistoryGesture, endHistoryGesture, useAppStore, useEditorState } from "../store";
+import type { Cable } from "../types";
+import {
+  baseRoutesFor,
+  effectiveWaypoints,
+  obstaclesFor,
+  type Point,
+  type Rect,
+  type Seg,
+} from "../lib/cableRouting";
 
 export interface CableEdgeData extends Record<string, unknown> {
   color: string;
@@ -15,8 +23,6 @@ export interface CableEdgeData extends Record<string, unknown> {
 
 export type CableEdgeType = Edge<CableEdgeData, "cable">;
 
-type Point = { x: number; y: number };
-type Seg = { a: Point; b: Point; isH: boolean; isV: boolean };
 
 // Insert small SVG arc bumps where the path crosses other cables (=
 // segments perpendicular to the current one). Bumps are drawn over the
@@ -144,158 +150,6 @@ function intersect(s1: Seg, s2: Seg): Point | null {
   return null;
 }
 
-function getHandlePos(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nodeLookup: Map<string, any>,
-  nodeId: string,
-  portId: string,
-  side: PortSide,
-): Point | null {
-  const node = nodeLookup.get(nodeId);
-  if (!node?.internals?.handleBounds) return null;
-  const handleId = `${side}:${portId}`;
-  const sources = node.internals.handleBounds.source ?? [];
-  const targets = node.internals.handleBounds.target ?? [];
-  const handle = [...sources, ...targets].find(
-    (h: { id: string }) => h.id === handleId,
-  );
-  if (!handle) return null;
-  const abs = node.internals.positionAbsolute;
-  return {
-    x: abs.x + handle.x + handle.width / 2,
-    y: abs.y + handle.y + handle.height / 2,
-  };
-}
-
-type Rect = { x: number; y: number; width: number; height: number };
-
-function segmentCrossesRect(a: Point, b: Point, r: Rect): boolean {
-  const padding = 8;
-  const x1 = r.x - padding;
-  const y1 = r.y - padding;
-  const x2 = r.x + r.width + padding;
-  const y2 = r.y + r.height + padding;
-  if (Math.abs(a.y - b.y) < 1) {
-    if (a.y < y1 || a.y > y2) return false;
-    const lo = Math.min(a.x, b.x);
-    const hi = Math.max(a.x, b.x);
-    return hi > x1 && lo < x2;
-  }
-  if (Math.abs(a.x - b.x) < 1) {
-    if (a.x < x1 || a.x > x2) return false;
-    const lo = Math.min(a.y, b.y);
-    const hi = Math.max(a.y, b.y);
-    return hi > y1 && lo < y2;
-  }
-  return false;
-}
-
-function routeCollides(
-  source: Point,
-  target: Point,
-  waypoints: Point[],
-  obstacles: Rect[],
-): boolean {
-  const all = [source, ...waypoints, target];
-  for (let i = 0; i < all.length - 1; i++) {
-    for (const o of obstacles) {
-      if (segmentCrossesRect(all[i], all[i + 1], o)) return true;
-    }
-  }
-  return false;
-}
-
-// Snap stored waypoints so the rendered polyline only ever has H or V
-// segments. The direction of the first segment is inferred from where the
-// user has placed wp[0] - whichever axis is closer to source. The chain
-// then alternates and the final segment is snapped to land on target.
-function orthogonalize(
-  source: Point,
-  target: Point,
-  stored: Point[],
-  obstacles: Rect[] = [],
-): Point[] {
-  if (stored.length === 0) {
-    if (Math.abs(source.y - target.y) < 1) return [];
-    const midX = (source.x + target.x) / 2;
-    const candidates: number[] = [midX];
-    for (const o of obstacles) {
-      candidates.push(o.x - 30);
-      candidates.push(o.x + o.width + 30);
-    }
-    candidates.sort((a, b) => Math.abs(a - midX) - Math.abs(b - midX));
-    for (const x of candidates) {
-      const wps = [
-        { x, y: source.y },
-        { x, y: target.y },
-      ];
-      if (!routeCollides(source, target, wps, obstacles)) return wps;
-    }
-    return [
-      { x: midX, y: source.y },
-      { x: midX, y: target.y },
-    ];
-  }
-  const wps = stored.map((p) => ({ x: p.x, y: p.y }));
-  let dir: "H" | "V" =
-    Math.abs(wps[0].x - source.x) < Math.abs(wps[0].y - source.y) ? "V" : "H";
-  if (dir === "H") wps[0].y = source.y;
-  else wps[0].x = source.x;
-  for (let i = 1; i < wps.length; i++) {
-    dir = dir === "H" ? "V" : "H";
-    if (dir === "H") wps[i].y = wps[i - 1].y;
-    else wps[i].x = wps[i - 1].x;
-  }
-  dir = dir === "H" ? "V" : "H";
-  if (dir === "H") wps[wps.length - 1].y = target.y;
-  else wps[wps.length - 1].x = target.x;
-  return wps;
-}
-
-// Drop waypoints that no longer matter: zero-length steps and collinear
-// corners (where prev/cur/next sit on the same H or V line, so cur is
-// just a point on a longer straight segment). Iterates until stable.
-function simplify(source: Point, target: Point, waypoints: Point[]): Point[] {
-  const eq = (a: number, b: number) => Math.abs(a - b) < 0.5;
-  let wps = waypoints;
-  for (let pass = 0; pass < 10; pass++) {
-    const next: Point[] = [];
-    const all = [source, ...wps, target];
-    for (let i = 1; i < all.length - 1; i++) {
-      const prev = next.length > 0 ? next[next.length - 1] : source;
-      const cur = all[i];
-      const after = all[i + 1];
-      // Same as previous -> degenerate, drop.
-      if (eq(prev.x, cur.x) && eq(prev.y, cur.y)) continue;
-      // Same as next -> degenerate, drop.
-      if (eq(cur.x, after.x) && eq(cur.y, after.y)) continue;
-      // prev/cur/after collinear -> cur is on a straight bar, drop.
-      if (eq(prev.y, cur.y) && eq(cur.y, after.y)) continue;
-      if (eq(prev.x, cur.x) && eq(cur.x, after.x)) continue;
-      next.push(cur);
-    }
-    if (next.length === wps.length) return wps;
-    wps = next;
-  }
-  return wps;
-}
-
-function effectiveWaypoints(
-  source: Point,
-  target: Point,
-  stored: Point[],
-  obstacles: Rect[] = [],
-): Point[] {
-  let wps = stored;
-  for (let pass = 0; pass < 5; pass++) {
-    const ortho = orthogonalize(source, target, wps, obstacles);
-    const simple = simplify(source, target, ortho);
-    if (simple.length === wps.length) return simple;
-    wps = simple;
-  }
-  return wps;
-}
-
 /** Distance minimale (en px canvas) entre deux segments câbles parallèles. */
 const MIN_CABLE_GAP = 10;
 /** Rayon d'arrondi (en px canvas) des angles intermédiaires des câbles. */
@@ -345,44 +199,18 @@ const allNodes = useAppStore((s) => s.nodes);
   const source = { x: sourceX, y: sourceY };
   const target = { x: targetX, y: targetY };
 
-  const buildObstacles = (forCable: Cable | undefined): Rect[] => {
-    const portOnRight = (s: PortSide | undefined) => s === "out" || s === "midR";
-    return allNodes
-      .map((n): Rect | null => {
-        const p = allProducts.find((pr) => pr.id === n.productId);
-        const rows = Math.max(p?.inputs.length ?? 0, p?.outputs.length ?? 0, 1);
-        const middleCount = p?.middle?.length ?? 0;
-        const fullW = 180;
-        const fullH = 50 + rows * 16 + middleCount * 16;
-        const isFrom = n.id === forCable?.fromNodeId;
-        const isTo = n.id === forCable?.toNodeId;
-        if (isFrom && isTo) return null;
-        if (isFrom) {
-          return portOnRight(forCable?.fromPortSide ?? "out")
-            ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
-            : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
-        }
-        if (isTo) {
-          return portOnRight(forCable?.toPortSide ?? "in")
-            ? { x: n.position.x, y: n.position.y, width: fullW - 40, height: fullH }
-            : { x: n.position.x + 40, y: n.position.y, width: fullW - 40, height: fullH };
-        }
-        return { x: n.position.x, y: n.position.y, width: fullW, height: fullH };
-      })
-      .filter((o): o is Rect => o !== null);
-  };
+  // Produits indexés une fois par catalogue (au lieu d'un find par nœud et par câble).
+  const productMap = useMemo(() => new Map(allProducts.map((p) => [p.id, p])), [allProducts]);
+  const buildObstacles = (forCable: Cable | undefined): Rect[] => obstaclesFor(allNodes, productMap, forCable);
 
   /** Renvoie tous les segments de TOUS les autres câbles (pour le snap). */
   const buildOtherCablesSegs = (): Seg[] => {
     const result: Seg[] = [];
+    const routes = baseRoutesFor(allCables, allNodes, productMap, nodeLookup);
     for (const ec of allCables) {
       if (ec.id === id) continue;
-      const eFrom = getHandlePos(nodeLookup, ec.fromNodeId, ec.fromPortId, ec.fromPortSide ?? "out");
-      const eTo = getHandlePos(nodeLookup, ec.toNodeId, ec.toPortId, ec.toPortSide ?? "in");
-      if (!eFrom || !eTo) continue;
-      const eObs = buildObstacles(ec);
-      const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObs);
-      const ePts = [eFrom, ...ewps, eTo];
+      const ePts = routes.get(ec.id);
+      if (!ePts) continue;
       for (let i = 0; i < ePts.length - 1; i++) {
         const a = ePts[i];
         const b = ePts[i + 1];
@@ -394,26 +222,15 @@ const allNodes = useAppStore((s) => s.nodes);
 
   // Step 1: compute earlier cables' segments first (we need them to (a)
   // avoid routing on top of them and (b) draw bumps where we cross).
+  // Tracés de base de tous les câbles : calculés une fois pour tout le rendu et
+  // partagés par tous les câbles (auparavant chaque câble recalculait tous les
+  // câbles précédents, soit C² tracés par image pendant un glisser).
   const cableIdx = allCables.findIndex((c) => c.id === id);
+  const baseRoutes = baseRoutesFor(allCables, allNodes, productMap, nodeLookup);
   const earlierSegs: Seg[] = [];
   for (let ci = 0; ci < cableIdx; ci++) {
-    const ec = allCables[ci];
-    const eFrom = getHandlePos(
-      nodeLookup,
-      ec.fromNodeId,
-      ec.fromPortId,
-      ec.fromPortSide ?? "out",
-    );
-    const eTo = getHandlePos(
-      nodeLookup,
-      ec.toNodeId,
-      ec.toPortId,
-      ec.toPortSide ?? "in",
-    );
-    if (!eFrom || !eTo) continue;
-    const eObstacles = buildObstacles(ec);
-    const ewps = effectiveWaypoints(eFrom, eTo, ec.waypoints ?? [], eObstacles);
-    const ePts = [eFrom, ...ewps, eTo];
+    const ePts = baseRoutes.get(allCables[ci].id);
+    if (!ePts) continue;
     for (let i = 0; i < ePts.length - 1; i++) {
       const a = ePts[i];
       const b = ePts[i + 1];
@@ -518,7 +335,10 @@ const allNodes = useAppStore((s) => s.nodes);
       dragRef.current = null;
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      endHistoryGesture(gesture);
     };
+    // Tout le glisser = une seule entrée d'annulation.
+    const gesture = beginHistoryGesture();
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   };
@@ -561,7 +381,10 @@ const allNodes = useAppStore((s) => s.nodes);
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      endHistoryGesture(gesture);
     };
+    // Tout le glisser = une seule entrée d'annulation.
+    const gesture = beginHistoryGesture();
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   };
@@ -681,7 +504,10 @@ const allNodes = useAppStore((s) => s.nodes);
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      endHistoryGesture(gesture);
     };
+    // Tout le glisser = une seule entrée d'annulation.
+    const gesture = beginHistoryGesture();
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   };
@@ -826,7 +652,10 @@ const allNodes = useAppStore((s) => s.nodes);
                     const onUp = () => {
                       document.removeEventListener("mousemove", onMove);
                       document.removeEventListener("mouseup", onUp);
+                      endHistoryGesture(gesture);
                     };
+                    // Tout le glisser = une seule entrée d'annulation.
+                    const gesture = beginHistoryGesture();
                     document.addEventListener("mousemove", onMove);
                     document.addEventListener("mouseup", onUp);
                   }}

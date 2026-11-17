@@ -24,7 +24,7 @@ import { InstancePortsConfig } from "./components/InstancePortsConfig";
 import { AdminSettings } from "./components/AdminSettings";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { ImageImportModal } from "./components/ImageImportModal";
-import { useAppStore, getFlushedTabs, getProjectEpoch } from "./store";
+import { useAppStore, getFlushedTabs, getProjectEpoch, beginHistoryGesture, endHistoryGesture } from "./store";
 import { layoutNodes } from "./layout";
 import {
   exportDiagram,
@@ -221,11 +221,18 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const handleAutoLayout = () => {
     const state = useAppStore.getState();
     const positions = layoutNodes(state.nodes, state.cables, state.products);
-    for (const p of positions) updateNode(p.id, { position: { x: p.x, y: p.y } });
-    for (const c of state.cables) {
-      if (c.labelOffset || (c.waypoints && c.waypoints.length > 0)) {
-        updateCable(c.id, { labelOffset: { x: 0, y: 0 }, waypoints: [] });
+    // Une seule entrée d'annulation pour toute la mise en page : Ctrl+Z la défait
+    // en entier (tracés manuels des câbles compris).
+    const gesture = beginHistoryGesture();
+    try {
+      for (const p of positions) updateNode(p.id, { position: { x: p.x, y: p.y } });
+      for (const c of state.cables) {
+        if (c.labelOffset || (c.waypoints && c.waypoints.length > 0)) {
+          updateCable(c.id, { labelOffset: { x: 0, y: 0 }, waypoints: [] });
+        }
       }
+    } finally {
+      endHistoryGesture(gesture);
     }
   };
 

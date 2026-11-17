@@ -18,7 +18,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useAppStore, useEditorState } from "../store";
+import { beginHistoryGesture, endHistoryGesture, useAppStore, useEditorState, type HistoryGesture } from "../store";
 import { BLANK_PRODUCT, type PlacedProduct, type Port, type PortSide, type Product, type SignalType, type TextNodeData, type ShapeNodeData, type ImageNodeData } from "../types";
 
 function parseHandle(handleId: string | null): { side: PortSide; portId: string } | null {
@@ -432,13 +432,17 @@ export function DiagramCanvas({
     [rfNodes, SNAP_THRESHOLD],
   );
 
+  // ── Début du glisser : un seul geste d'annulation pour tout le déplacement ──
+  const dragGestureRef = useRef<HistoryGesture | null>(null);
+  const onNodeDragStart = useCallback(() => {
+    if (!dragGestureRef.current) dragGestureRef.current = beginHistoryGesture();
+  }, []);
+
   // ── Drag natif React Flow : smart guides sur tous les types de nœuds ────────
   const onNodeDrag = useCallback(
     (_e: React.MouseEvent, node: Node) => {
       if (node.type === "page") return;
-      // Suspendre l'historique pendant le drag pour ne pas enregistrer
-      // chaque position intermédiaire (une seule entrée au drag-stop).
-      useAppStore.temporal.getState().pause();
+      // Historique suspendu depuis onNodeDragStart (une seule entrée au drag-stop).
       const dW = nodeW(node);
       const dH = nodeH(node);
       const { guides: g, snap } = computeGuides(node.id, node.position, dW, dH);
@@ -464,8 +468,12 @@ export function DiagramCanvas({
       }
       snapTargetRef.current = null;
       setGuides([]);
-      // Reprendre l'historique : la position finale est enregistrée ici
-      useAppStore.temporal.getState().resume();
+      // Fin du geste : une seule entrée d'annulation, qui ramène les positions
+      // d'avant le glisser (auparavant le glisser ne s'annulait pas).
+      if (dragGestureRef.current) {
+        endHistoryGesture(dragGestureRef.current);
+        dragGestureRef.current = null;
+      }
     },
     [updateNode, updateTextNode, updateShapeNode, updateImageNode],
   );
@@ -1016,6 +1024,7 @@ export function DiagramCanvas({
         onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
         onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
         onPaneClick={onPaneClick}
+        onNodeDragStart={readOnly ? undefined : onNodeDragStart}
         onNodeDrag={readOnly ? undefined : onNodeDrag}
         onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         reconnectRadius={10}

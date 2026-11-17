@@ -23,13 +23,17 @@ export function computeProjectHash(
  *  - `full`  : base + colonnes Tableau IP + métadonnées cartouche + nom du projet
  *              → sert à la détection « modifié » de l'auto-save (ne rien perdre). */
 export function buildSignature(
-  flushedTabs: unknown,
+  flushedTabs: Tab[],
   state: {
-    products: unknown; signals: unknown; accessories: unknown; zones: unknown;
+    products: { id: string }[]; signals: unknown; accessories: unknown; zones: unknown;
     ipTableColumns: unknown; projectMeta: unknown; currentProjectName: string;
   },
 ): { base: string; full: string } {
-  const base = computeProjectHash(flushedTabs, state.products, state.signals, state.accessories, state.zones);
+  // Seuls les produits utilisés comptent (ce sont eux qu'on enregistre) : sérialiser
+  // tout le catalogue toutes les 2 s coûtait cher, et une fiche du catalogue
+  // modifiée ailleurs marquait à tort le projet « modifié ».
+  const products = usedProducts(flushedTabs, state.products);
+  const base = computeProjectHash(flushedTabs, products, state.signals, state.accessories, state.zones);
   const full = `${base}|${JSON.stringify(state.ipTableColumns)}|${JSON.stringify(state.projectMeta)}|${JSON.stringify(state.currentProjectName)}`;
   return { base, full };
 }
