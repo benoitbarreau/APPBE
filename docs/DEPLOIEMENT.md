@@ -128,11 +128,11 @@ Le job `deploy-functions` du push du lot 1 a échoué sans rien déployer : la C
 
 Droits et confidentialité (`docs/AUDIT_2026-11-17.md`, H1 et constats « Projets » et « Lecture seule partielle »). Aucune migration : frontend seulement.
 
-- **Mots de passe des équipements** (H1) : masqués par défaut dans le Tableau IP, retirés des quatre modèles d'export (`src/lib/ipExportTemplates.ts`), export seulement si la colonne est cochée à la main, jamais en lecture seule ; l'export JSON en lecture seule les retire (`redactPasswords`). **Limite** : ils restent dans le JSON du projet en base, lisible par tout destinataire du partage via l'API ; une vraie protection demande de les sortir dans une table à part, avec RLS propriétaire et éditeurs (à décider).
+- **Mots de passe des équipements** (H1) : masqués par défaut dans le Tableau IP, retirés des quatre modèles d'export (`src/lib/ipExportTemplates.ts`), export seulement si la colonne est cochée à la main, jamais en lecture seule (ni filtre ni tri sur cette colonne) ; cellules en `autoComplete="new-password"` pour que le navigateur n'y remplisse pas le mot de passe du compte ; l'export JSON en lecture seule les retire (`redactPasswords`). **Limite** : ils restent dans le JSON du projet en base, lisible par tout destinataire du partage via l'API ; une vraie protection demande de les sortir dans une table à part, avec RLS propriétaire et éditeurs (à décider).
 - **Catalogue embarqué** : un projet n'enregistre plus que les fiches utilisées par ses synoptiques et ses baies (`usedProducts`), à la sauvegarde, à la création (page Projets et Référentiel) et dans l'export JSON.
 - **Lecture seule** : barrière dans le store (`READ_ONLY_BLOCKED`, fin de `src/store.ts`) ; interface : catalogue, mises en forme et gestion des onglets masqués, légende, blocs texte et liste des câbles non modifiables. Le drapeau est levé en quittant l'éditeur.
 - **Rôle de partage** : `getMyShareRole` filtre sur le compte connecté ; ouverture depuis le Référentiel et restauration après F5 respectent le rôle lecteur.
 - **Erreurs et sorties** : code SQL conservé dans les erreurs (`pgErr`), motif affiché (`describeSaveError`), auto-save arrêté sur refus de droit ou projet supprimé ; confirmation avant fermeture du navigateur (`beforeunload`), déconnexion (`guardedLeave`), fermeture d'un onglet non vide, Recharger et Écraser ; échec de création de projet affiché sur la page Projets.
 
-Validation locale : 65 tests Node (dont 8 nouveaux), TypeScript et build. Non vérifié en navigateur : parcours en Mode Lecteur, badge d'erreur, confirmations.
+Validation locale : 66 tests Node (dont 9 nouveaux), TypeScript et build. Non vérifié en navigateur : parcours en Mode Lecteur, badge d'erreur, confirmations.
 
