@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
+## [2026-11-17] Lot 3 : baie
+
+### Corrigé
+- Une seule règle de placement (`src/lib/rackLayout.ts`) pour le clic, le glisser-déposer, le panneau Propriétés, la synchronisation et le store : un équipement ne peut plus dépasser la baie, en chevaucher un autre, ni entrer en 19" dans une baie 10". Motif du refus affiché.
+- Ajout au clic : première place libre en partant du bas, message s'il n'y en a plus (il était posé au-dessus de la baie).
+- Glisser-déposer : l'aperçu montre l'emplacement réel (il était décalé d'un U et figé en colonne 0), en rouge s'il est refusé.
+- Équipement verrouillé : position, taille et suppression bloquées partout, pas seulement au glisser.
+- Synchronisation : une hauteur de catalogue plus grande n'est reprise que si elle tient.
+- Numérotation « 1 en haut » : les équipements ne s'affichent plus en miroir de l'endroit où on les a posés ; le champ Position et les exports suivent la numérotation affichée.
+- Création de baie : nom par défaut en 10" correct, hauteur hors limites signalée.
+
+### Ajouté
+- Modifier une baie (⚙) : nom, format, hauteur, numérotation, avec refus si des équipements ne tiennent plus.
+- Confirmation avant de supprimer une baie.
+- Badge « orphelin » pour un équipement dont le produit n'est plus sur aucun synoptique.
+
 ## [2026-11-17] Lot 2 : droits et confidentialité
 
 ### Sécurité

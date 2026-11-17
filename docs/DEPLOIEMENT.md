@@ -136,3 +136,14 @@ Droits et confidentialité (`docs/AUDIT_2026-11-17.md`, H1 et constats « Projet
 
 Validation locale : 66 tests Node (dont 9 nouveaux), TypeScript et build. Non vérifié en navigateur : parcours en Mode Lecteur, badge d'erreur, confirmations.
 
+## Lot 3 de l'audit — 17 novembre 2026
+
+Module Baie (`docs/AUDIT_2026-11-17.md`, H2 à H5, M5 à M7). Frontend seulement, aucune migration.
+
+- **Règle de placement unique** : `src/lib/rackLayout.ts` (`placementProblem`, `findFreeSlot`, `rackResizeProblem`, `uLabel`), appliquée par le store (`addRackItem` renvoie `''` si refusé, `updateRackItem` refuse position et taille invalides ou verrouillées, `removeRackItem` refuse un équipement verrouillé) et par l'interface (clic, glisser-déposer, Propriétés), avec le motif affiché.
+- **Modification d'une baie** : action `updateRack` (refus si la hauteur coupe des équipements ou si un 19" passerait en 10"), bouton ⚙, fenêtre `BayCreateModal` généralisée avec la numérotation.
+- **Position** toujours comptée depuis le bas ; la numérotation ne change que les numéros affichés (repères, Propriétés, exports CSV et XLS). Corrige l'affichage en miroir des baies « 1 en haut ».
+- **Suppression d'une baie** confirmée ; **équipements orphelins** signalés.
+
+Validation locale : 80 tests Node (dont 14 nouveaux), TypeScript et build. Non vérifié en navigateur : glisser-déposer, aperçu rouge, fenêtre ⚙.
+

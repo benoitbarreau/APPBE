@@ -193,19 +193,28 @@ Un produit collé dans le même synoptique reçoit un nouveau label (ex. DSP-01 
 - **Largeur** (19" ou 10")
 - **Hauteur** (en U, ex. 42U)
 
-### Ajouter plusieurs baies
-Cliquez sur **"+ Ajouter une baie"** pour ajouter une seconde baie dans le même onglet.
+### Ajouter, modifier, supprimer une baie
+- **"+ Ajouter une baie"** ajoute une seconde baie dans le même onglet.
+- **⚙** (à côté du nom) modifie la baie : nom, format 19"/10", hauteur et numérotation. Une hauteur plus petite que ses équipements, ou le passage en 10" avec un équipement 19", est refusé avec le motif.
+- **×** supprime la baie, après confirmation (ses équipements et annotations sont perdus).
 
 ### Remplir une baie
 1. Ouvrez la **bibliothèque de produits** (panneau gauche).
-2. **Faites glisser** un produit depuis la bibliothèque vers la baie.
-3. Cliquez sur un équipement pour voir et modifier ses propriétés (IP, port switch, VLAN, N° de série).
+2. **Faites glisser** un produit vers la baie : l'aperçu montre exactement où il sera posé (haut de l'équipement sous le pointeur), en rouge si l'emplacement est refusé. Un **clic** sur un produit le pose à la première place libre en partant du bas.
+3. Cliquez sur un équipement pour voir et modifier ses propriétés (position, taille, IP, port switch, VLAN, N° de série).
+
+Une même règle s'applique partout (glisser, clic, propriétés, synchronisation) : un équipement ne peut pas dépasser la baie, en chevaucher un autre, ni entrer dans une baie 10" s'il est en 19". Le motif d'un refus est affiché.
+
+### Verrouiller un équipement
+Cochez **Verrouillé** dans ses propriétés : il ne peut plus être déplacé, redimensionné ni supprimé, jusqu'à ce que vous décochiez la case.
 
 ### Synchroniser les labels depuis le synoptique
-Le bouton **"⟳ Synchroniser"** dans la barre de la baie met à jour automatiquement les labels et références des équipements depuis les données du synoptique.
+Le bouton **"⟳ Synchroniser"** dans la barre de la baie met à jour automatiquement les labels et références des équipements depuis les données du synoptique. Une nouvelle hauteur du catalogue n'est reprise que si elle tient à sa place.
+
+Un équipement venu d'un synoptique dont le produit a été supprimé de tous les synoptiques porte le badge **⚠ orphelin** (cadre orangé pointillé) : supprimez-le ou remettez le produit.
 
 ### Numérotation
-Choisissez la numérotation **du bas vers le haut** ou **du haut vers le bas** selon votre convention.
+Choisissez la numérotation **1 en bas** ou **1 en haut** dans **⚙**. Seuls les numéros affichés (repères, champ Position, exports) changent : les équipements restent à leur place.
 
 ---
 

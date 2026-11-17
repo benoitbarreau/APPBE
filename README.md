@@ -126,6 +126,7 @@ Les panneaux **Câbles**, **Étiquettes câbles** et **Labels produits** agrège
 - Mots de passe des équipements masqués, hors des modèles d'export, jamais affichés ni exportés en lecture seule
 - Un projet n'enregistre que les fiches produits qu'il utilise
 - Lecture seule (version archivée, partage en lecture) garantie pour toutes les modifications
+- Baie : placement contrôlé partout (limites, chevauchement, format 19"/10", verrou), baie modifiable (⚙), suppression confirmée, équipements orphelins signalés
 
 ---
 
