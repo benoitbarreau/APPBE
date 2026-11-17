@@ -158,3 +158,15 @@ Exports et Tableau IP (`docs/AUDIT_2026-11-17.md`, H5, constats « Baie et expor
 
 Validation locale : 123 tests Node (dont 38 nouveaux), TypeScript et build. Non vérifié en navigateur : impression, export de tout le projet, glisser-déposer de l'import, aperçu de mise à jour.
 
+## Lot 5 de l'audit — 17 novembre 2026
+
+Performance et dette (`docs/AUDIT_2026-11-17.md`, H6, H7, H9, M9, IP « lenteur », écarts du guide). Frontend seulement.
+
+- **Routage** : `src/lib/cableRouting.ts` (`obstaclesFor`, `baseRoutesFor` avec cache par rendu vidé en microtâche, car React Flow modifie `nodeLookup` sur place). Même tracé qu'avant (arcs compris).
+- **Historique** : `beginHistoryGesture` / `endHistoryGesture` (fin de `src/store.ts`) pour les glisser de `DiagramCanvas` (`onNodeDragStart` / `onNodeDragStop`) et de `CableEdge`, et pour la mise en page automatique.
+- **Empreinte** : `buildSignature` calcule sur `usedProducts`. Après déploiement, un projet ouvert avant peut paraître « modifié » une fois (ancienne empreinte) et s'enregistrer automatiquement.
+- **Tableau IP** : `IPRow` mémorisé, rappels stables, plus de hooks après un retour anticipé.
+- **Câbles orphelins** : supprimés avec leur forme, texte ou image ; retirés à l'ouverture (`withoutOrphanCables`).
+
+Non fait, à décider : découpe de `store.ts` (≈ 2 100 lignes) et `App.tsx` (≈ 1 450) sans tests d'interface ; persistance locale allégée (écriture différée du localStorage) ; réécriture du routage pour que les arcs suivent les vrais tracés (M8). Validation locale : 132 tests Node (dont 9 nouveaux), TypeScript et build ; non vérifié en navigateur (fluidité, annulation des glisser).
+

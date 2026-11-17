@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute cent vingt-trois tests ciblés : synchronisation IP, import et contrôles du Tableau IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute cent trente-deux tests ciblés : synchronisation IP, import et contrôles du Tableau IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -41,3 +41,5 @@ Les assertions `referentiel-assertions.sql` sont intégrées au test complet des
 `rack-layout.test.mjs` : règle de placement des baies (haut et hauteur de la baie, position et largeur, chevauchement, 19" en 10", première place libre, réduction de hauteur, numéro affiché) et son application par le store (ajout, modification, verrou, modification de la baie, synchronisation).
 
 `exports.test.mjs` : cartouche commun des exports (campus, lot, bureau d'étude, date), cellules CSV neutralisées, vrai JPEG, style texte XLS, intitulé MASQUE, lignes orphelines marquées, IP et n° de série du Tableau IP dans les exports de baie.
+
+`cable-routing.test.mjs` : obstacles d'un câble, tracé de base identique au calcul câble par câble, partage des tracés dans un même rendu, câble sans extrémité. `tab-state.test.mjs` couvre aussi les gestes d'annulation (une entrée par glisser) et les câbles orphelins.

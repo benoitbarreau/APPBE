@@ -95,9 +95,9 @@ Quand vous consultez une version archivée, ou un projet partagé avec vous en *
 ## 4. Onglet Synoptique
 
 ### Ajouter un produit
-1. Ouvrez la **Palette** (bouton en haut à gauche).
+1. Ouvrez le **Catalogue** (bandeau à gauche).
 2. Recherchez un produit par nom, fabricant ou catégorie.
-3. **Faites glisser** le produit sur le canvas.
+3. Cliquez sur **+** à droite du produit : il est placé sur le synoptique, avec un label automatique (ex. DSP-01). Déplacez-le ensuite à la souris.
 
 > Pour créer un **bloc vierge** (produit non catalogué), utilisez l'option "Bloc vierge" dans la palette.
 
@@ -143,25 +143,25 @@ Le panneau à droite de l'éditeur contient plusieurs onglets :
 | **Zones** | Gestion des zones du projet |
 
 ### Numérotation des câbles
-Chaque câble reçoit un numéro automatique basé sur le préfixe du signal (ex. "IP1", "HDMI3"). Modifiable dans le panneau Câbles.
+Chaque câble reçoit un numéro automatique basé sur le préfixe du signal (ex. "IP1", "HDMI3"), compté dans le synoptique où il est tracé. Le numéro n'est pas modifiable à la main.
 
 ### Pages d'impression
-Ajoutez des **nœuds de page** sur le canvas pour définir les zones d'impression (format A3 paysage). Chaque page deviendra une page distincte dans l'export PDF.
+Les **repères de page** (format A3 paysage) se placent automatiquement autour des produits du synoptique. Chaque repère devient une page de l'export PDF et de l'impression. Un texte, une forme ou une image placé hors de ces repères n'est pas imprimé.
 
 ### Synchroniser avec le Tableau IP
-Le bouton **"Synchroniser"** dans la barre synoptique met à jour le Tableau IP avec les produits et câbles du synoptique.
+Le bouton **« ⟳ Synchroniser »** se trouve dans l'onglet Tableau IP : il met à jour le tableau avec les produits (et leurs labels) de tous les synoptiques.
 
 ---
 
 ## 5. Onglet Tableau IP
 
 L'onglet Tableau IP regroupe les informations réseau du projet :
-- **Équipements** : liste des devices avec adresses IP, VLAN, informations de connexion
+- **Équipements** : une ligne par équipement, avec ses adresses IP et MAC, ses identifiants de connexion et son n° de série
 - **Réseau** : configuration du réseau (plage, masque, passerelle, DNS)
 
 ### Remplir le tableau
 - Cliquez sur une cellule pour l'éditer directement.
-- Les colonnes disponibles : Désignation, Référence, Adresse MAC, IP, VLAN, Login, Mot de passe, Notes.
+- Les colonnes : PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC, LOGIN, MOT DE PASSE, N° SÉRIE, MAC, MAC DANTE, plus vos colonnes personnalisées (gestionnaire de colonnes). Le cartouche réseau au-dessus donne la plage IP, le masque, la passerelle, le DNS et le NTP.
 
 ### Mots de passe des équipements
 - Ils sont masqués par défaut ; le bouton **« 👁 Mots de passe »** les affiche le temps de les relire.
@@ -169,8 +169,8 @@ L'onglet Tableau IP regroupe les informations réseau du projet :
 - En lecture seule, ils ne sont ni affichés ni exportables, et l'export JSON du projet les retire.
 
 ### Import / Export du Tableau IP
-- **Import** : importez un fichier CSV pour remplir le tableau automatiquement.
-- **Export** : exportez le tableau en CSV ou XLS.
+- **Import** : CSV ou .xls (détails ci-dessous).
+- **Export** : PDF, Excel (.xls) ou impression, avec des modèles de colonnes (complet, réseau, client, maintenance).
 
 ### Import et contrôles
 - **Fichiers acceptés** : CSV (séparés par « ; », « , » ou tabulation), TSV, TXT et le .xls exporté par SynoX. Un CSV enregistré par Excel en Windows-1252 est lu correctement (« N° SERIE », accents). Le format XLSX n'est pas pris en charge : réenregistrez le fichier en CSV.
@@ -320,7 +320,7 @@ Un projet enregistré n'emporte que les fiches produits qu'il utilise (synoptiqu
 ### Consulter une version archivée
 1. Cliquez sur **"Historique"** depuis la carte du projet.
 2. Sélectionnez une version pour l'ouvrir en **mode lecture seule**.
-3. Vous pouvez la restaurer ou la télécharger depuis cette vue.
+3. Vous pouvez l'exporter (PDF, images, JSON sans mots de passe) depuis cette vue. Pour repartir de cette version, exportez-la en JSON : le retour à une version n'existe pas encore dans l'application.
 
 ---
 

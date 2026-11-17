@@ -2,6 +2,21 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
+## [2026-11-17] Lot 5 : performance et dette
+
+### Amélioré
+- Tracé des câbles : chaque câble ne recalcule plus tous les câbles précédents ; les tracés sont calculés une fois par rendu (nettement plus fluide en déplaçant un produit sur un gros synoptique). Tracé identique.
+- Saisie dans le Tableau IP : seule la ligne modifiée est redessinée.
+- Détection « modifié » : calculée sur les seules fiches produits utilisées, plus sur tout le catalogue toutes les 2 secondes.
+
+### Corrigé
+- Ctrl+Z annule un déplacement de produit, de segment, de coin ou d'étiquette de câble, et toute une mise en page automatique, en une fois (le glisser ne s'annulait pas ; la mise en page remplissait l'historique).
+- Supprimer une forme, un texte ou une image supprime aussi ses câbles ; les câbles orphelins d'anciens projets sont retirés à l'ouverture.
+- Guide utilisateur remis d'accord avec l'application (ajout de produit par « + », repères de page automatiques, numéro de câble non modifiable, colonnes et exports du Tableau IP, versions).
+
+### Interne
+- Routage des câbles dans `src/lib/cableRouting.ts` (testé), gestes d'annulation `beginHistoryGesture` / `endHistoryGesture` (store), code mort retiré de `projectsApi.ts`.
+
 ## [2026-11-17] Lot 4 : exports et Tableau IP
 
 ### Corrigé (exports)
