@@ -243,40 +243,97 @@ export function findNodesByInstanceIds(
   return result
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Formats IP et MAC (lot 4 de l'audit du 17/11/2026)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Colonnes d'adresse IPv4 du Tableau IP. */
+export type IPAddressColumn = 'ip' | 'ipDante' | 'ipDanteSec'
+/** Colonnes d'adresse MAC du Tableau IP. */
+export type MacColumn = 'mac' | 'macDante'
+/** Colonnes contrôlées pour les doublons (IP et MAC). */
+export type IPColumn = IPAddressColumn | MacColumn
+
+export const IP_ADDRESS_COLUMNS: readonly IPAddressColumn[] = ['ip', 'ipDante', 'ipDanteSec']
+export const MAC_COLUMNS: readonly MacColumn[] = ['mac', 'macDante']
+
+/** Octets d'une IPv4 (quatre nombres de 0 à 255, zéros de tête admis), ou null. */
+function ipv4Octets(value: string): number[] | null {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(value)
+  if (!m) return null
+  const octets = m.slice(1).map(Number)
+  return octets.every((o) => o <= 255) ? octets : null
+}
+
+/** Vrai si la valeur est vide ou une IPv4 valide (espaces autour ignorés). */
+export function isValidIPv4(value: string): boolean {
+  const v = (value ?? '').trim()
+  return v === '' || ipv4Octets(v) !== null
+}
+
+/** Forme comparable d'une IP : sans espaces ni zéros de tête
+ *  (« 192.168.1.010 » donne « 192.168.1.10 »). Une valeur qui n'est pas une
+ *  IPv4 est seulement débarrassée de ses espaces et mise en minuscules. */
+export function normalizeIPv4(value: string): string {
+  const v = (value ?? '').replace(/\s+/g, '')
+  const octets = ipv4Octets(v)
+  return octets ? octets.join('.') : v.toLowerCase()
+}
+
+const MAC_FORMATS = [
+  /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i,
+  /^[0-9a-f]{2}(-[0-9a-f]{2}){5}$/i,
+  /^[0-9a-f]{4}(\.[0-9a-f]{4}){2}$/i,
+  /^[0-9a-f]{12}$/i,
+]
+
+/** Vrai si la valeur est vide ou une MAC valide : six octets séparés par « : »
+ *  ou « - », trois groupes de quatre séparés par « . », ou douze chiffres
+ *  hexadécimaux sans séparateur. */
+export function isValidMac(value: string): boolean {
+  const v = (value ?? '').trim()
+  return v === '' || MAC_FORMATS.some((re) => re.test(v))
+}
+
+/** Forme comparable d'une MAC : minuscules, sans séparateurs ni espaces. */
+export function normalizeMac(value: string): string {
+  return (value ?? '').replace(/[\s:.-]/g, '').toLowerCase()
+}
+
 /**
- * Détecte les doublons d'IP à travers les colonnes IP / IP DANTE / IP DANTE SEC.
+ * Détecte les doublons d'adresses : IP (colonnes IP / IP DANTE / IP DANTE SEC,
+ * comparées normalisées) et MAC (colonnes MAC / MAC DANTE, comparées sans
+ * casse ni séparateurs). Une IP n'est comparée qu'aux IP, une MAC qu'aux MAC.
  * Retourne une Map row.id → Set<colonne> des cellules en doublon.
  *
  * Fonction PURE : ne modifie jamais `rows`, ne déclenche aucun side-effect.
  */
-export type IPColumn = 'ip' | 'ipDante' | 'ipDanteSec'
-
 export function detectIPDuplicates(
   rows: IPTableRow[],
 ): Map<string, Set<IPColumn>> {
-  const cols: IPColumn[] = ['ip', 'ipDante', 'ipDanteSec']
-  // Compter chaque IP non-vide à travers toutes les lignes & colonnes
-  const counts = new Map<string, number>()
-  for (const row of rows) {
-    for (const col of cols) {
-      const v = (row[col] ?? '').trim()
-      if (!v) continue
-      counts.set(v, (counts.get(v) ?? 0) + 1)
-    }
-  }
-  // Marquer les cellules avec une valeur en doublon
   const dups = new Map<string, Set<IPColumn>>()
-  for (const row of rows) {
-    for (const col of cols) {
-      const v = (row[col] ?? '').trim()
-      if (!v) continue
-      if ((counts.get(v) ?? 0) > 1) {
+  const scan = (cols: readonly IPColumn[], norm: (v: string) => string) => {
+    // Compter chaque valeur non vide à travers toutes les lignes et colonnes
+    const counts = new Map<string, number>()
+    for (const row of rows) {
+      for (const col of cols) {
+        const v = norm(row[col] ?? '')
+        if (v) counts.set(v, (counts.get(v) ?? 0) + 1)
+      }
+    }
+    // Marquer les cellules dont la valeur est en doublon
+    for (const row of rows) {
+      for (const col of cols) {
+        const v = norm(row[col] ?? '')
+        if (!v || (counts.get(v) ?? 0) < 2) continue
         const set = dups.get(row.id) ?? new Set<IPColumn>()
         set.add(col)
         dups.set(row.id, set)
       }
     }
   }
+  scan(IP_ADDRESS_COLUMNS, normalizeIPv4)
+  scan(MAC_COLUMNS, normalizeMac)
   return dups
 }
 
@@ -317,7 +374,7 @@ export function applyRowFilters<C extends string>(
   return list
 }
 
-/** Garde uniquement les lignes en doublon IP. */
+/** Garde uniquement les lignes en doublon (IP ou MAC). */
 export function filterDuplicateIpRows(
   rows: IPTableRow[],
   duplicates: Map<string, Set<IPColumn>>,

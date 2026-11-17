@@ -6,6 +6,8 @@ import {
   dedupeRowsById,
   detectIPDuplicates,
   filterDuplicateIpRows,
+  isValidIPv4,
+  isValidMac,
   type IPColumn,
 } from "../lib/ipTableSync";
 import type { IPTableColumnConfig, IPTableRow } from "../types";
@@ -23,8 +25,18 @@ const FIXED_IDS = new Set([
   "ipDanteSec", "login", "password", "serialNumber", "mac", "macDante",
 ]);
 
-// Colonnes "doublon IP" (mise en évidence)
-const IP_DUP_COLS = new Set(["ip", "ipDante", "ipDanteSec"]);
+// Colonnes contrôlées (doublons et format) : adresses IP et adresses MAC
+const IP_ADDR_COLS = new Set(["ip", "ipDante", "ipDanteSec"]);
+const MAC_ADDR_COLS = new Set(["mac", "macDante"]);
+const IP_DUP_COLS = new Set([...IP_ADDR_COLS, ...MAC_ADDR_COLS]);
+
+/** Message de format d'une cellule IP ou MAC, ou null si la valeur est valide
+ *  (ou vide). La saisie n'est jamais bloquée : la cellule est seulement signalée. */
+function formatError(colId: string, value: string): string | null {
+  if (IP_ADDR_COLS.has(colId) && !isValidIPv4(value)) return "Format IP invalide";
+  if (MAC_ADDR_COLS.has(colId) && !isValidMac(value)) return "Format MAC invalide";
+  return null;
+}
 
 interface NetworkField { key: keyof typeof NET_FIELDS; label: string }
 const NET_FIELDS = {
@@ -464,8 +476,8 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
             </span>
           )}
           {hasDuplicates && (
-            <span className="ip-dup-badge" title="Au moins une IP est en doublon">
-              ⚠ {duplicateMap.size} ligne(s) avec IP en doublon
+            <span className="ip-dup-badge" title="Au moins une adresse IP ou MAC est en doublon">
+              ⚠ {duplicateMap.size} ligne(s) avec IP ou MAC en doublon
             </span>
           )}
           {orphanCount > 0 && (
@@ -657,16 +669,24 @@ function IPRow({
 
         // Fond noir + texte blanc sur les colonnes IP/MAC en vue totale
         const isIpMacCol = IP_MAC_COLS.has(col.id);
+        const invalid = formatError(col.id, value);
         const cellClass = [
           isDup ? "ip-cell-dup" : "",
+          invalid ? "ip-cell-invalid" : "",
           isIpMacCol && !isLanEligible ? "ip-cell-dark" : "",
         ].filter(Boolean).join(" ") || undefined;
+        const dupTitle = isDup
+          ? MAC_ADDR_COLS.has(col.id)
+            ? "Cette adresse MAC est en doublon avec une autre cellule."
+            : "Cette IP est en doublon avec une autre cellule."
+          : null;
+        const cellTitle = [invalid, dupTitle].filter(Boolean).join(" ; ") || undefined;
 
         return (
           <td
             key={col.id}
             className={cellClass}
-            title={isDup ? "Cette IP est en doublon avec une autre cellule." : undefined}
+            title={cellTitle}
           >
             {col.id === "password" && readOnly ? (
               // Lecture seule : le mot de passe n'est jamais affiché, même masqué
@@ -681,6 +701,8 @@ function IPRow({
                 data-lpignore={col.id === "password" ? "true" : undefined}
                 data-1p-ignore={col.id === "password" ? "true" : undefined}
                 value={value} readOnly={readOnly} placeholder=""
+                aria-invalid={invalid ? true : undefined}
+                title={invalid ?? undefined}
                 onChange={(e) => handleChange(e.target.value)}
               />
             )}

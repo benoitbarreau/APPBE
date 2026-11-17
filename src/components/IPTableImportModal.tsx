@@ -1,128 +1,38 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppStore } from "../store";
-import { makeEmptyRow } from "../lib/ipTableSync";
+import {
+  checkImportFile,
+  decodeImportBytes,
+  parseDelimited,
+  pickDataTable,
+  planIPImport,
+  readImportedRows,
+  type ImportedRow,
+} from "../lib/ipImport";
+import { isIPTableTab } from "../types";
 import type { IPTableRow } from "../types";
 
-/**
- * Mapping des en-têtes connus (toutes formes) vers la clé interne.
- * On accepte FR / EN / variantes accentuées.
- */
-const HEADER_MAP: Record<string, keyof IPTableRow> = {
-  produit: "product",
-  product: "product",
-  modele: "product",
-  "modèle": "product",
-  reference: "product",
-  "référence": "product",
-  label: "label",
-  etiquette: "label",
-  "étiquette": "label",
-  id: "deviceId",
-  identifiant: "deviceId",
-  ip: "ip",
-  "adresse ip": "ip",
-  "ip dante": "ipDante",
-  "ip dante sec": "ipDanteSec",
-  "ip dante sécondaire": "ipDanteSec",
-  login: "login",
-  utilisateur: "login",
-  "nom d'utilisateur": "login",
-  "mot de passe": "password",
-  password: "password",
-  motdepasse: "password",
-  "n° serie": "serialNumber",
-  "n° série": "serialNumber",
-  "numero serie": "serialNumber",
-  "numéro de série": "serialNumber",
-  serial: "serialNumber",
-  serialnumber: "serialNumber",
-  mac: "mac",
-  "adresse mac": "mac",
-  "mac dante": "macDante",
-};
-
-function normalize(h: string): string {
-  return h
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, (m) => m) // garder accents — on map en deux temps
-    .toLowerCase()
-    .trim();
+/** Fichier lu, en attente de validation. */
+interface PendingImport {
+  fileName: string;
+  rows: ImportedRow[];
+  ignored: number;
 }
 
-function normalizeStrict(h: string): string {
-  return h
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
+const HEADERS_HELP =
+  "PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC (ou SECONDAIRE), LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE";
+
+/** Matrices de cellules des tableaux d'un .xls HTML. */
+function htmlTables(text: string): string[][][] {
+  const dom = new DOMParser().parseFromString(text, "text/html");
+  return Array.from(dom.querySelectorAll("table")).map((t) =>
+    Array.from(t.querySelectorAll("tr")).map((tr) =>
+      Array.from(tr.querySelectorAll("th,td")).map((td) => td.textContent ?? ""),
+    ),
+  );
 }
 
-function mapHeader(h: string): keyof IPTableRow | null {
-  const n1 = normalize(h);
-  if (HEADER_MAP[n1]) return HEADER_MAP[n1];
-  const n2 = normalizeStrict(h);
-  if (HEADER_MAP[n2]) return HEADER_MAP[n2];
-  return null;
-}
-
-/** Parser CSV simple (réutilise la logique éprouvée). */
-function parseCsv(text: string): string[][] {
-  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-  const firstLineEnd = text.indexOf("\n");
-  const firstLine = firstLineEnd === -1 ? text : text.slice(0, firstLineEnd);
-  const sep = firstLine.includes(";") ? ";" : ",";
-
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let inQuotes = false;
-  let i = 0;
-  while (i < text.length) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          cell += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
-      }
-      cell += ch;
-      i++;
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (ch === sep) {
-      row.push(cell);
-      cell = "";
-      i++;
-      continue;
-    }
-    if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell);
-      cell = "";
-      if (row.length > 1 || row[0] !== "") rows.push(row);
-      row = [];
-      i++;
-      continue;
-    }
-    cell += ch;
-    i++;
-  }
-  if (cell !== "" || row.length > 0) {
-    row.push(cell);
-    if (row.length > 1 || row[0] !== "") rows.push(row);
-  }
-  return rows;
-}
+const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
 export function IPTableImportModal({
   tabId,
@@ -131,164 +41,200 @@ export function IPTableImportModal({
   tabId: string;
   onClose: () => void;
 }) {
+  const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
+  const ipTableColumns = useAppStore((s) => s.ipTableColumns);
   const addIPRows = useAppStore((s) => s.addIPRows);
+  const updateIPRow = useAppStore((s) => s.updateIPRow);
+
   const [info, setInfo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [updateByLabel, setUpdateByLabel] = useState(true);
+  const [pending, setPending] = useState<PendingImport | null>(null);
 
-  const importText = (text: string, label: string) => {
-    const rows = parseCsv(text);
-    if (rows.length < 2) {
-      setInfo("Fichier vide ou sans en-tête.");
-      return;
-    }
-    const headers = rows[0].map((h) => mapHeader(h));
-    const newRows: IPTableRow[] = [];
-    let ignored = 0;
+  const existingRows: IPTableRow[] = useMemo(
+    () => (tab && isIPTableTab(tab) ? tab.rows ?? [] : []),
+    [tab],
+  );
+  const plan = useMemo(
+    () => (pending ? planIPImport(existingRows, pending.rows, updateByLabel) : null),
+    [pending, existingRows, updateByLabel],
+  );
 
-    for (let i = 1; i < rows.length; i++) {
-      const cells = rows[i];
-      if (cells.every((c) => c.trim() === "")) continue;
-      const r = makeEmptyRow(true);
-      let hasContent = false;
-      for (let j = 0; j < headers.length; j++) {
-        const k = headers[j];
-        if (!k || k === "id") continue;
-        const v = (cells[j] ?? "").trim();
-        if (v) hasContent = true;
-        // r[k] doit être un string (IPTableRow contient des strings éditables)
-        // sauf id (skipped) et productInstanceIds / manual (non importables)
-        if (
-          k === "product" ||
-          k === "label" ||
-          k === "deviceId" ||
-          k === "ip" ||
-          k === "ipDante" ||
-          k === "ipDanteSec" ||
-          k === "login" ||
-          k === "password" ||
-          k === "serialNumber" ||
-          k === "mac" ||
-          k === "macDante"
-        ) {
-          r[k] = v;
-        }
-      }
-      if (hasContent) newRows.push(r);
-      else ignored++;
-    }
-
-    if (newRows.length === 0) {
-      setInfo(
-        "Aucune ligne valide trouvée. Vérifiez les en-têtes : PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC, LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE.",
-      );
-      return;
-    }
-
-    addIPRows(tabId, newRows);
-    setInfo(
-      `${newRows.length} ligne(s) ajoutée(s) depuis ${label}.${ignored ? ` ${ignored} ligne(s) vide(s) ignorée(s).` : ""}`,
-    );
-  };
-
-  const importFile = async (file: File) => {
-    setBusy(true);
+  const readFile = async (file: File) => {
     setInfo(null);
+    setError(null);
+    setPending(null);
+    const check = checkImportFile(file);
+    if (!check.ok) {
+      setError(check.message);
+      return;
+    }
+    setBusy(true);
     try {
-      const lower = file.name.toLowerCase();
-      const text = await file.text();
-      if (lower.endsWith(".csv")) {
-        importText(text, file.name);
-        return;
-      }
-      if (lower.endsWith(".xls")) {
-        // Tenter de parser comme HTML → CSV
-        if (text.includes("<table")) {
-          const dom = new DOMParser().parseFromString(text, "text/html");
-          const tables = Array.from(dom.querySelectorAll("table"));
-          const dataTable = tables.reduce<HTMLTableElement | null>(
-            (best, t) => {
-              const rc = t.querySelectorAll("tr").length;
-              const bestRows = best?.querySelectorAll("tr").length ?? 0;
-              return rc > bestRows ? (t as HTMLTableElement) : best;
-            },
-            null,
-          );
-          if (!dataTable) {
-            setInfo("Aucune table trouvée dans le fichier .xls.");
-            return;
-          }
-          const csv = Array.from(dataTable.querySelectorAll("tr"))
-            .map((tr) =>
-              Array.from(tr.querySelectorAll("th,td"))
-                .map(
-                  (td) =>
-                    `"${(td.textContent ?? "").replace(/"/g, '""')}"`,
-                )
-                .join(";"),
-            )
-            .join("\n");
-          importText(csv, file.name);
+      const { text } = decodeImportBytes(new Uint8Array(await file.arrayBuffer()));
+      let matrix: string[][];
+      if (check.kind === "xls") {
+        if (!text.includes("<table")) {
+          setError("Fichier .xls non reconnu (classeur Excel binaire). Réenregistrez-le en CSV depuis Excel.");
           return;
         }
-        setInfo(
-          "Fichier .xls non reconnu. Réenregistrez-le en CSV UTF-8 depuis Excel.",
-        );
+        const tables = htmlTables(text);
+        const index = pickDataTable(tables, ipTableColumns);
+        if (index < 0) {
+          setError(`Aucun tableau avec des colonnes reconnues dans ce fichier. En-têtes attendus : ${HEADERS_HELP}.`);
+          return;
+        }
+        matrix = tables[index];
+      } else {
+        matrix = parseDelimited(text);
+      }
+      if (matrix.length < 2) {
+        setError("Fichier vide ou sans en-tête.");
         return;
       }
-      if (lower.endsWith(".xlsx")) {
-        setInfo(
-          "Format XLSX binaire non supporté. Réenregistrez en CSV depuis Excel (Fichier → Enregistrer sous → CSV UTF-8).",
-        );
+      const { rows, ignored, recognized } = readImportedRows(matrix, ipTableColumns);
+      if (recognized === 0 || rows.length === 0) {
+        setError(`Aucune ligne valide trouvée. Vérifiez les en-têtes : ${HEADERS_HELP}.`);
         return;
       }
-      setInfo("Format non reconnu. Acceptés : .csv, .xls.");
+      setPending({ fileName: file.name, rows, ignored });
     } catch (e) {
-      setInfo(
-        "Lecture impossible : " +
-          (e instanceof Error ? e.message : String(e)),
-      );
+      setError("Lecture impossible : " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }
   };
+
+  const applyImport = () => {
+    if (!pending || !plan) return;
+    for (const u of plan.updates) updateIPRow(tabId, u.rowId, u.patch);
+    if (plan.additions.length > 0) addIPRows(tabId, plan.additions);
+    setInfo(
+      `${plural(plan.updates.length, "ligne mise à jour", "lignes mises à jour")}, ` +
+        `${plural(plan.additions.length, "ajoutée", "ajoutées")} depuis ${pending.fileName}.`,
+    );
+    setPending(null);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    if (busy) return;
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length === 0) {
+      setInfo(null);
+      setPending(null);
+      setError("Aucun fichier déposé. Glissez un fichier .csv, .tsv, .txt ou .xls.");
+      return;
+    }
+    void readFile(files[0]).then(() => {
+      if (files.length > 1) setInfo(`Un seul fichier à la fois : seul « ${files[0].name} » est lu.`);
+    });
+  };
+
+  const nothingToDo = !plan || (plan.updates.length === 0 && plan.additions.length === 0);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
+        // Un fichier lâché hors de la zone ne doit pas être ouvert par le navigateur.
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => e.preventDefault()}
         style={{ maxWidth: 560 }}
       >
         <div className="modal-header">
           <h2>Importer dans le Tableau IP</h2>
-          <button onClick={onClose}>✕</button>
+          <button onClick={onClose} aria-label="Fermer">✕</button>
         </div>
         <div className="modal-body">
           <p className="muted" style={{ fontSize: 12 }}>
-            Importez une liste de matériel CSV ou XLS. Les colonnes reconnues sont
-            associées automatiquement (PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE
-            SEC, LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE). Les colonnes
-            inconnues sont ignorées. Le LABEL peut rester vide et être complété
-            ensuite directement dans le tableau.
+            Importez une liste de matériel CSV, TSV ou XLS (fichier exporté par
+            SynoX). Les colonnes reconnues sont associées automatiquement
+            ({HEADERS_HELP}), ainsi que les colonnes personnalisées de même
+            libellé. Les colonnes inconnues sont ignorées. Les fichiers
+            enregistrés par Excel en Windows-1252 sont acceptés.
           </p>
 
-          <div className="form-row">
-            <label>Fichier</label>
+          <div
+            className={`ip-import-drop${dragOver ? " is-over" : ""}${busy ? " is-busy" : ""}`}
+            role="group"
+            aria-label="Zone d'import : glissez un fichier ou choisissez-le"
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (!busy) setDragOver(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = busy ? "none" : "copy";
+              if (!busy && !dragOver) setDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+            }}
+            onDrop={onDrop}
+          >
+            <p className="ip-import-drop-text">
+              {dragOver ? "Déposez le fichier pour le lire" : "Glissez-déposez un fichier ici, ou"}
+            </p>
+            <label className="ip-import-drop-button" htmlFor="ip-import-file">
+              Choisir un fichier…
+            </label>
             <input
+              id="ip-import-file"
+              className="ip-import-file-input"
               type="file"
-              accept=".csv,.xls,text/csv,application/vnd.ms-excel"
+              accept=".csv,.tsv,.txt,.xls,text/csv,text/tab-separated-values,application/vnd.ms-excel"
               disabled={busy}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void importFile(f);
+                if (f) void readFile(f);
                 e.target.value = "";
               }}
             />
+            <p className="ip-import-drop-hint muted">.csv, .tsv, .txt ou .xls</p>
           </div>
 
-          {info && <div className="info-banner">{info}</div>}
+          <label className="ip-import-option">
+            <input
+              type="checkbox"
+              checked={updateByLabel}
+              onChange={(e) => setUpdateByLabel(e.target.checked)}
+            />
+            Mettre à jour les lignes existantes de même label
+          </label>
+          <p className="muted ip-import-option-help">
+            Une ligne du fichier dont le LABEL existe déjà dans le tableau (sans
+            tenir compte de la casse) y remplit ses colonnes non vides, sans
+            créer de doublon. Les autres lignes sont ajoutées comme lignes
+            manuelles.
+          </p>
+
+          {error && <div className="info-banner ip-import-error" role="alert">{error}</div>}
+
+          {pending && plan && (
+            <div className="ip-import-preview" role="status">
+              <strong>{pending.fileName}</strong> :{" "}
+              {plural(plan.updates.length, "ligne mise à jour", "lignes mises à jour")},{" "}
+              {plural(plan.additions.length, "ajoutée", "ajoutées")}
+              {plan.unchanged > 0 && `, ${plural(plan.unchanged, "déjà identique", "déjà identiques")}`}
+              {pending.ignored > 0 && `, ${plural(pending.ignored, "ligne ignorée", "lignes ignorées")} (aucune colonne reconnue remplie)`}
+              .
+            </div>
+          )}
+
+          {info && <div className="info-banner" role="status">{info}</div>}
         </div>
         <div className="modal-footer">
+          {pending && (
+            <button className="primary" onClick={applyImport} disabled={nothingToDo}>
+              Importer
+            </button>
+          )}
           <button onClick={onClose}>Fermer</button>
         </div>
       </div>

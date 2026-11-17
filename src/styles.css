@@ -12826,3 +12826,95 @@ select {
   cursor: pointer;
 }
 .pe-mark-done:hover { background: #15803d; }
+
+/* ── Lot 4 : import et contrôles du Tableau IP ── */
+
+/* Zone d'import : glisser-déposer en plus du bouton classique */
+.ip-import-drop {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 18px 12px;
+  margin: 10px 0 12px;
+  text-align: center;
+  background: var(--bg);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.ip-import-drop.is-over {
+  border-color: var(--primary);
+  background: #eef4ff;
+}
+.ip-import-drop.is-busy {
+  opacity: 0.6;
+}
+.ip-import-drop-text {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.ip-import-drop.is-over .ip-import-drop-text {
+  color: var(--primary);
+  font-weight: 600;
+}
+.ip-import-drop-button {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  color: var(--primary);
+  background: var(--panel);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Le champ reste dans la page (clavier, lecteurs d'écran) mais invisible :
+   le libellé ci-dessus sert de bouton. */
+.ip-import-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.ip-import-drop:has(.ip-import-file-input:focus-visible) .ip-import-drop-button {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.ip-import-drop-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+.ip-import-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ip-import-option-help {
+  margin: 4px 0 10px 22px;
+  font-size: 11.5px;
+}
+.ip-import-preview {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+.info-banner.ip-import-error {
+  background: #fff1f1;
+  border-color: #f5b5b5;
+  color: #a12020;
+  font-size: 12px;
+}
+
+/* Cellule IP ou MAC au format invalide : signalée, la saisie n'est pas bloquée */
+.ip-table td.ip-cell-invalid {
+  box-shadow: inset 0 -2px 0 #d97706;
+}
+.ip-table td.ip-cell-invalid input {
+  text-decoration: underline wavy #d97706;
+  text-underline-offset: 3px;
+}

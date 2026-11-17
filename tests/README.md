@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute quatre-vingt-cinq tests ciblés : synchronisation IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute cent douze tests ciblés : synchronisation IP, import et contrôles du Tableau IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -21,6 +21,8 @@ Les fixtures `atomic-project-fixture.sql`, les migrations `20261009034950_atomic
 `tab-state.test.mjs` exécute le vrai store : images et groupes de l'onglet actif dans la sauvegarde, groupes rechargés à chaque changement d'onglet ou de projet, zones conservées à la création d'un Tableau IP et à la duplication d'une baie, historique d'annulation vidé aux changements d'onglet ou de projet et sans entrée pour une modification hors canevas, label renouvelé au collage dans le même onglet, câbles des formes reliés à leurs copies à la duplication, époque du projet (une réponse de sauvegarde ne s'applique pas à un autre projet ouvert entre-temps).
 
 `ip-orphans.test.mjs` vérifie que la synchronisation IP ne perd aucune saisie : produit supprimé puis remis, ligne remplie gardée orpheline puis reprise, ligne vide retirée, colonnes personnalisées, deux équipements renommés avec le même label puis séparés, label vidé puis redonné, anciennes lignes de même label.
+
+`ip-import.test.mjs` vérifie l'import et les contrôles du Tableau IP : décodage des octets (BOM UTF-8, UTF-8 strict, sinon Windows-1252 pour « N° SERIE »), en-têtes (IP DANTE SECONDAIRE avec ou sans accent, colonnes personnalisées), séparateurs « ; », « , » et tabulation, choix du tableau de données plutôt que du cartouche d'un .xls, mise à jour par label sans modifier l'entrée (champs non vides, colonnes personnalisées, produit d'une ligne liée préservé), fichiers acceptés ou refusés au glisser-déposer, doublons IP normalisés et doublons MAC, validation des formats IPv4 et MAC.
 
 `user-isolation.test.mjs` exécute le vrai store avec un stockage local simulé : changement de compte, purge des buffers de migration, impossibilité de restaurer les données par annulation, maintien du travail sur rafraîchissement du même compte et purge à la déconnexion.
 

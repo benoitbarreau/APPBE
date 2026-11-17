@@ -172,6 +172,15 @@ L'onglet Tableau IP regroupe les informations réseau du projet :
 - **Import** : importez un fichier CSV pour remplir le tableau automatiquement.
 - **Export** : exportez le tableau en CSV ou XLS.
 
+### Import et contrôles
+- **Fichiers acceptés** : CSV (séparés par « ; », « , » ou tabulation), TSV, TXT et le .xls exporté par SynoX. Un CSV enregistré par Excel en Windows-1252 est lu correctement (« N° SERIE », accents). Le format XLSX n'est pas pris en charge : réenregistrez le fichier en CSV.
+- **Glisser-déposer** : déposez le fichier dans la zone en pointillés de la fenêtre d'import, ou utilisez le bouton **« Choisir un fichier… »** (accessible au clavier). Un fichier d'un autre type est refusé avec un message.
+- **Colonnes reconnues** : PRODUIT, LABEL, ID, IP, IP DANTE, IP DANTE SEC (ou SECONDAIRE), LOGIN, MOT DE PASSE, N° SERIE, MAC, MAC DANTE, ainsi que les colonnes personnalisées dont l'en-tête reprend le libellé. Dans un .xls, le tableau retenu est celui dont l'en-tête a le plus de colonnes reconnues (le cartouche réseau est écarté).
+- **Mettre à jour les lignes existantes de même label** (coché par défaut) : une ligne du fichier dont le LABEL existe déjà (casse et espaces autour ignorés) remplit les colonnes non vides de cette ligne au lieu d'en créer une nouvelle ; le réimport d'un fichier ne crée donc plus de doublons et les IP rejoignent les lignes des équipements. Le produit d'une ligne liée à un synoptique n'est pas remplacé. Les autres lignes sont ajoutées comme lignes manuelles. Décoché, toutes les lignes sont ajoutées.
+- **Aperçu** : avant validation, la fenêtre indique « N lignes mises à jour, M ajoutées » ; rien n'est modifié avant le clic sur **Importer**.
+- **Doublons** : les IP sont comparées normalisées (« 192.168.1.010 » = « 192.168.1.10 », espaces ignorés) et les adresses MAC (MAC, MAC DANTE) sans tenir compte de la casse ni des séparateurs « : », « - » ou « . ». Les cellules en doublon sont en rouge.
+- **Formats** : une cellule IP qui n'est pas une IPv4, ou une cellule MAC qui n'est pas une adresse MAC, est soulignée en orange avec l'infobulle « Format IP invalide » ou « Format MAC invalide ». La saisie n'est jamais bloquée.
+
 ### Synchronisation avec les synoptiques
 Utilisez le bouton **"Synchroniser"** pour mettre à jour automatiquement le Tableau IP depuis les produits et câbles des onglets Synoptique.
 
