@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppStore } from "../../store";
 import { useEditorState } from "../../store";
-import { ensureRacks, isBayTab } from "../../types";
+import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
+import { rackResizeProblem } from "../../lib/rackLayout";
+import { confirmDialog } from "../dialogs/dialogStore";
 import type { CartoucheData } from "../../export";
 import { BayProductLibrary } from "./BayProductLibrary";
 import { RackView } from "./RackView";
@@ -18,13 +20,24 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const syncBayItems = useAppStore((s) => s.syncBayItems);
   const addRackToTab = useAppStore((s) => s.addRackToTab);
   const removeRackFromTab = useAppStore((s) => s.removeRackFromTab);
+  const updateRack = useAppStore((s) => s.updateRack);
   const projectMeta = useAppStore((s) => s.projectMeta);
   const currentProjectName = useAppStore((s) => s.currentProjectName);
   const readOnly = useEditorState((s) => s.readOnly);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeRackId, setActiveRackId] = useState<string | null>(null);
   const [addRackOpen, setAddRackOpen] = useState(false);
+  const [editingRackId, setEditingRackId] = useState<string | null>(null);
+  const [editRackError, setEditRackError] = useState<string | null>(null);
   const [synced, setSynced] = useState(false);
+
+  // Nœuds encore présents dans les synoptiques : un équipement « synoptique »
+  // dont le nœud a disparu est signalé orphelin dans la baie.
+  const synopticNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const t of tabs) if (isSynopticTab(t)) for (const n of t.nodes ?? []) ids.add(n.id);
+    return ids;
+  }, [tabs]);
 
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab || !isBayTab(tab)) return null;
@@ -100,13 +113,26 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
                 onSelectItem={(itemId) => handleSelectItem(rack.id, itemId)}
                 onRackClick={() => setActiveRackId(rack.id)}
                 canDelete={!readOnly && racks.length > 1}
-                onDeleteRack={() => {
+                onDeleteRack={async () => {
+                  // Supprimer une baie efface ses équipements : toujours confirmé.
+                  const n = rack.items.length;
+                  const ok = await confirmDialog({
+                    title: `Supprimer la baie « ${rack.name} » ?`,
+                    message: n > 0
+                      ? `Ses ${n} équipement(s) et leurs annotations seront supprimés. Cette action ne s'annule pas.`
+                      : "Cette action ne s'annule pas.",
+                    confirmLabel: "🗑 Supprimer la baie",
+                    danger: true,
+                  });
+                  if (!ok) return;
                   if (activeRackId === rack.id) {
                     setSelectedItemId(null);
                     setActiveRackId(null);
                   }
                   removeRackFromTab(tabId, rack.id);
                 }}
+                onEditRack={() => { setEditRackError(null); setEditingRackId(rack.id); }}
+                synopticNodeIds={synopticNodeIds}
                 isActive={effectiveRackId === rack.id}
                 readOnly={readOnly}
               />
@@ -136,6 +162,33 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
         selectedItemId={selectedItemId}
         onDeselect={() => { setSelectedItemId(null); }}
       />
+
+      {/* Modal modification baie */}
+      {editingRackId && (() => {
+        const rack = racks.find((r) => r.id === editingRackId);
+        if (!rack) return null;
+        return (
+          <BayCreateModal
+            title="Modifier la baie"
+            confirmLabel="Enregistrer"
+            showNumbering
+            initial={{ name: rack.name, widthInch: rack.widthInch, heightU: rack.heightU, numberingFromBottom: rack.numberingFromBottom }}
+            error={editRackError}
+            onConfirm={(values) => {
+              if (updateRack(tabId, rack.id, values)) {
+                setEditingRackId(null);
+                setEditRackError(null);
+                return;
+              }
+              setEditRackError(
+                rackResizeProblem(rack, values.heightU)
+                  ?? "Un équipement 19\" ne rentre pas dans une baie 10\" : retirez-le ou gardez le format 19\".",
+              );
+            }}
+            onCancel={() => { setEditingRackId(null); setEditRackError(null); }}
+          />
+        );
+      })()}
 
       {/* Modal ajout baie */}
       {addRackOpen && (

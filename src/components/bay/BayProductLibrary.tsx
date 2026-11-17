@@ -4,6 +4,7 @@ import { useAuth } from "../../auth/useAuth";
 import type { Product, RackItem } from "../../types";
 import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
 import type { BayAccessory } from "./bay-accessories";
+import { findFreeSlot } from "../../lib/rackLayout";
 import { BayAccessoryEditor } from "./BayAccessoryEditor";
 
 interface BayProductLibraryProps {
@@ -164,12 +165,20 @@ export function BayProductLibrary({ tabId, activeRackId }: BayProductLibraryProp
       showWarn(item.label ?? item.reference ?? "Ce produit", alreadyInRack.get(nodeId));
       return;
     }
-    // Placer à la suite du dernier item dans la baie active
+    // Première place libre de la baie active (du bas vers le haut), sinon message.
     const bayTab = tabs.find((t) => t.id === tabId && isBayTab(t));
     const rack = bayTab ? ensureRacks(bayTab).find((r) => r.id === activeRackId) : undefined;
-    const existing = rack?.items ?? [];
-    const maxU = existing.reduce((m, it) => Math.max(m, it.uStart + it.heightU - 1), 0);
-    addRackItem(tabId, { ...item, uStart: maxU + 1, colStart: 0 }, activeRackId);
+    if (!rack) return;
+    const slot = findFreeSlot(rack, item.heightU, item.widthCols);
+    if (!slot) {
+      setWarnMsg(`Plus de place pour « ${item.label ?? item.reference ?? "cet équipement"} » (${item.heightU} U) dans « ${rack.name} ».`);
+      setTimeout(() => setWarnMsg(null), 4000);
+      return;
+    }
+    if (!addRackItem(tabId, { ...item, ...slot }, activeRackId)) {
+      setWarnMsg(`« ${item.label ?? item.reference ?? "Cet équipement"} » ne peut pas aller dans « ${rack.name} » (format ou taille).`);
+      setTimeout(() => setWarnMsg(null), 4000);
+    }
   };
 
   // ── Drag start (bloqué si déjà présent dans n'importe quelle baie) ──────

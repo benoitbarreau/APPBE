@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore, useEditorState } from "../../store";
 import type { Rack, RackAnnotations, RackItem, Tab } from "../../types";
 import { ensureRacks, isIPTableTab } from "../../types";
+import { placementProblem, uLabel } from "../../lib/rackLayout";
 
 interface BayItemPropertiesProps {
   tab: Tab;
@@ -27,10 +28,18 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
   const allTabs        = useAppStore((s) => s.tabs);
   const readOnly       = useEditorState((s) => s.readOnly);
 
+  const products       = useAppStore((s) => s.products);
+  // Message quand une position ou une taille demandée est refusée.
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  useEffect(() => { setPlaceError(null); }, [selectedItemId]);
+
   // Cherche l'item dans la baie sélectionnée, ou dans toutes les baies de l'onglet
   const item = (rack?.items ?? ensureRacks(tab).flatMap((r) => r.items))
     .find((it) => it.id === selectedItemId) ?? null;
-  const rackHeightU = rack?.heightU ?? tab.bayHeightU ?? 42;
+  // Baie qui contient réellement l'équipement (sert aux contrôles de placement).
+  const ownerRack = item ? ensureRacks(tab).find((r) => r.items.some((it) => it.id === item.id)) ?? null : null;
+  const rackHeightU = ownerRack?.heightU ?? rack?.heightU ?? tab.bayHeightU ?? 42;
+  const locked = item?.locked ?? false;
 
   /**
    * Ligne du Tableau IP correspondant au produit synoptique (le cas échéant).
@@ -57,6 +66,22 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
   const patchItem = (patch: Partial<RackItem>) => {
     if (!item || readOnly) return;
     updateRackItem(tab.id, item.id, patch);
+  };
+
+  /** Position ou taille : même règle que le glisser-déposer (limites, chevauchement,
+   *  format), avec le motif du refus affiché sous les champs. */
+  const placeItem = (patch: Partial<Pick<RackItem, "uStart" | "heightU" | "widthCols" | "colStart">>) => {
+    if (!item || !ownerRack || readOnly || locked) return;
+    const next = { ...item, ...patch };
+    // Changer de largeur garde l'équipement dans la baie (colonne recalée à gauche si besoin).
+    if (patch.widthCols !== undefined && next.colStart + next.widthCols > 4) {
+      next.colStart = (4 - next.widthCols) as RackItem["colStart"];
+    }
+    const rackSize = products.find((p) => p.id === item.productId)?.rackSize;
+    const problem = placementProblem(ownerRack, next, item.id, rackSize);
+    if (problem) { setPlaceError(problem); return; }
+    setPlaceError(null);
+    updateRackItem(tab.id, item.id, { uStart: next.uStart, heightU: next.heightU, widthCols: next.widthCols, colStart: next.colStart });
   };
 
   const patchAnnotation = (key: keyof RackAnnotations, value: string) => {
@@ -144,13 +169,16 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
             type="number"
             min={1}
             max={rackHeightU}
-            value={item.uStart}
+            value={ownerRack ? uLabel(ownerRack, item.uStart) : item.uStart}
             onChange={(e) => {
               const v = parseInt(e.target.value);
-              if (v >= 1 && v <= rackHeightU) patchItem({ uStart: v });
+              if (!ownerRack || Number.isNaN(v)) return;
+              // Le numéro saisi suit la numérotation affichée ; la position stockée part du bas.
+              placeItem({ uStart: ownerRack.numberingFromBottom ? v : rackHeightU - v + 1 });
             }}
-            readOnly={readOnly}
-            disabled={readOnly}
+            readOnly={readOnly || locked}
+            disabled={readOnly || locked}
+            title="U du bas de l'équipement, selon la numérotation de la baie"
           />
         </div>
         <div>
@@ -162,10 +190,10 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
             value={item.heightU}
             onChange={(e) => {
               const v = parseInt(e.target.value);
-              if (v >= 1) patchItem({ heightU: v });
+              if (!Number.isNaN(v)) placeItem({ heightU: v });
             }}
-            readOnly={readOnly}
-            disabled={readOnly}
+            readOnly={readOnly || locked}
+            disabled={readOnly || locked}
           />
         </div>
       </div>
@@ -175,8 +203,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           <label>Largeur</label>
           <select
             value={item.widthCols}
-            onChange={(e) => patchItem({ widthCols: parseInt(e.target.value) as 1 | 2 | 4 })}
-            disabled={readOnly}
+            onChange={(e) => placeItem({ widthCols: parseInt(e.target.value) as 1 | 2 | 4 })}
+            disabled={readOnly || locked}
           >
             <option value={4}>Pleine largeur</option>
             <option value={2}>Demi-largeur</option>
@@ -187,8 +215,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           <label>Colonne</label>
           <select
             value={item.colStart}
-            onChange={(e) => patchItem({ colStart: parseInt(e.target.value) as 0 | 1 | 2 | 3 })}
-            disabled={readOnly}
+            onChange={(e) => placeItem({ colStart: parseInt(e.target.value) as 0 | 1 | 2 | 3 })}
+            disabled={readOnly || locked}
           >
             <option value={0}>0</option>
             {item.widthCols <= 2 && <option value={1}>1</option>}
@@ -197,6 +225,10 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
           </select>
         </div>
       </div>
+      {placeError && <div className="bay-prop-error" role="alert">{placeError}</div>}
+      {locked && !readOnly && (
+        <div className="bay-prop-hint">🔒 Verrouillé : position, taille et suppression bloquées. Décochez « Verrouillé » pour les modifier.</div>
+      )}
 
       <div className="bay-prop-group bay-prop-row">
         <div>
@@ -247,7 +279,7 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
       })}
 
       {/* ── Actions — masquées en mode lecteur ─────────────────────────── */}
-      {!readOnly && (
+      {!readOnly && !locked && (
         <div className="bay-prop-actions">
           <button
             className="bay-prop-delete"

@@ -5911,6 +5911,25 @@ select {
   color: #dc2626;
 }
 
+/* Modifier la baie (format, hauteur, numérotation) */
+.rack-edit-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.6;
+}
+.rack-edit-btn:hover {
+  opacity: 1;
+  background: rgba(77, 166, 255, 0.12);
+}
+
 .bay-rack-view {
   display: flex;
   align-items: flex-start;
@@ -6004,6 +6023,11 @@ select {
   pointer-events: none;
   z-index: 10;
 }
+/* Emplacement refusé (hors baie, occupé, format) */
+.rack-drop-preview.invalid {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: #dc2626;
+}
 
 /* ── Rack items ──────────────────────────────────────────────────────────── */
 
@@ -6079,6 +6103,18 @@ select {
 .rack-badge {
   font-size: 9px;
   line-height: 1;
+}
+/* Équipement dont le produit n'est plus sur aucun synoptique */
+.rack-badge-orphan {
+  background: #fff1db;
+  color: #9a5300;
+  border-radius: 3px;
+  padding: 1px 3px;
+  font-weight: 700;
+}
+.rack-item.orphan {
+  outline: 2px dashed #d97706;
+  outline-offset: -2px;
 }
 
 .rack-item-u {
@@ -6239,6 +6275,19 @@ select {
   padding: 4px 0;
 }
 
+/* Placement refusé (limites, chevauchement, format) et aide du verrou */
+.bay-prop-error {
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
+  margin: -2px 0 8px;
+}
+.bay-prop-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: -2px 0 8px;
+}
+
 .bay-prop-section-title {
   font-size: 11px;
   font-weight: 600;
@@ -6392,6 +6441,13 @@ select {
   font-weight: 600;
 }
 
+/* Hauteur hors limites, ou modification de baie refusée */
+.bay-create-error {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+}
 .bay-create-custom-height {
   margin-top: 8px;
   width: 100%;

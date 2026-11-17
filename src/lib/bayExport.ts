@@ -8,6 +8,7 @@
  *  Le cartouche est dessiné avec la même fonction que les synoptiques (drawCartouche).
  */
 
+import { uLabel } from "./rackLayout";
 import { toPng } from "html-to-image";
 import type { Rack } from "../types";
 import {
@@ -48,7 +49,8 @@ function buildRows(racks: Rack[]): TRow[] {
     const sorted = [...rack.items].sort((a, b) => b.uStart - a.uStart);
     for (const item of sorted) {
       rows.push({
-        posU:   multi ? `${rack.name} U${item.uStart}` : `U${item.uStart}`,
+        // Numéro affiché à l'écran (selon la numérotation de la baie), pas la position brute.
+        posU:   multi ? `${rack.name} U${uLabel(rack, item.uStart)}` : `U${uLabel(rack, item.uStart)}`,
         hU:     `${item.heightU}U`,
         mfr:    item.manufacturer ?? "",
         ref:    item.reference ?? "",

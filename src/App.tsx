@@ -1368,6 +1368,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
       {bayCreateOpen && (
         <BayCreateModal
+          nameLabel="Nom de l'onglet"
           onConfirm={({ name, widthInch, heightU }) => {
             setBayCreateOpen(false);
             addBayTab({ name, widthInch, heightU });

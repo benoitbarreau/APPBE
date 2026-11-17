@@ -29,6 +29,7 @@ import type { ProjectData } from "./lib/projectsApi";
 import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
 import { BLANK_BLOCK_PRODUCT_ID, DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
+import { placementProblem, rackResizeProblem } from "./lib/rackLayout";
 
 const DEFAULT_ZONES: Zone[] = [
   { id: "baie", label: "Baie", color: "#FF8A3D" },
@@ -114,11 +115,16 @@ interface State {
   removeRackFromTab: (tabId: string, rackId: string) => void;
   /** Renomme une baie physique. */
   renameRack: (tabId: string, rackId: string, name: string) => void;
-  /** Ajoute un équipement dans la baie. rackId optionnel : défaut = première baie. Retourne l'ID créé. */
+  /** Modifie une baie (nom, format, hauteur, numérotation). Refusé (false) si un
+   *  équipement dépasserait la nouvelle hauteur ou ne tiendrait plus dans le format. */
+  updateRack: (tabId: string, rackId: string, patch: Partial<Pick<Rack, 'name' | 'widthInch' | 'heightU' | 'numberingFromBottom'>>) => boolean;
+  /** Ajoute un équipement dans la baie. rackId optionnel : défaut = première baie.
+   *  Retourne l'ID créé, ou '' si l'emplacement est invalide (règle de rackLayout). */
   addRackItem: (tabId: string, item: Omit<RackItem, 'id'>, rackId?: string) => string;
-  /** Met à jour un équipement (cherche dans toutes les baies de l'onglet). */
+  /** Met à jour un équipement (cherche dans toutes les baies de l'onglet). Position et
+   *  taille : refusées si invalides, ou si l'équipement est verrouillé. */
   updateRackItem: (tabId: string, itemId: string, patch: Partial<RackItem>) => void;
-  /** Supprime un équipement (cherche dans toutes les baies de l'onglet). */
+  /** Supprime un équipement (cherche dans toutes les baies de l'onglet). Refusé s'il est verrouillé. */
   removeRackItem: (tabId: string, itemId: string) => void;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
@@ -556,13 +562,20 @@ export const useAppStore = create<State>()(
                 const node = t.nodes?.find((n) => n.id === item.nodeId);
                 if (node) {
                   const product = s.products.find((p) => p.id === node.productId);
+                  // Hauteur du catalogue : reprise seulement si elle tient à sa place
+                  // (sinon l'équipement chevaucherait ses voisins ou sortirait de la baie).
+                  const newHeight = product?.rackHeightU ?? item.heightU;
+                  const rack = ensureRacks(target).find((r) => r.items.some((it) => it.id === item.id));
+                  const heightU = rack && placementProblem(rack, { ...item, heightU: newHeight }, item.id)
+                    ? item.heightU
+                    : newHeight;
                   return {
                     ...item,
                     label: node.label ?? item.label,
                     manufacturer: product?.manufacturer ?? item.manufacturer,
                     reference: product?.reference ?? item.reference,
                     category: product?.category ?? item.category,
-                    heightU: product?.rackHeightU ?? item.heightU,
+                    heightU,
                   };
                 }
               }
@@ -617,17 +630,47 @@ export const useAppStore = create<State>()(
             ),
           })),
 
+        updateRack: (tabId, rackId, patch) => {
+          const tab = get().tabs.find((t) => t.id === tabId && isBayTab(t));
+          const rack = tab ? ensureRacks(tab).find((r) => r.id === rackId) : undefined;
+          if (!tab || !rack) return false;
+          const next: Rack = { ...rack, ...patch };
+          if (next.heightU !== rack.heightU && rackResizeProblem(rack, next.heightU)) return false;
+          if (next.widthInch !== rack.widthInch) {
+            const products = get().products;
+            const misfit = next.items.some((it) =>
+              placementProblem(next, it, it.id, products.find((p) => p.id === it.productId)?.rackSize));
+            if (misfit) return false;
+          }
+          set((s) => ({
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t)
+                ? { ...t, racks: ensureRacks(t).map((r) => (r.id === rackId ? { ...r, ...patch } : r)) }
+                : t,
+            ),
+          }));
+          return true;
+        },
+
         addRackItem: (tabId, item, rackId?) => {
+          const tab = get().tabs.find((t) => t.id === tabId && isBayTab(t));
+          const racks = tab ? ensureRacks(tab) : [];
+          const target = racks.find((r) => r.id === (rackId ?? racks[0]?.id));
+          if (!tab || !target) return "";
+          const rackSize = get().products.find((p) => p.id === item.productId)?.rackSize;
+          const problem = placementProblem(target, item, undefined, rackSize);
+          if (problem) {
+            console.warn(`Baie : ajout refusé (${problem})`);
+            return "";
+          }
           const newId = uid();
           set((s) => ({
             tabs: s.tabs.map((t) => {
               if (t.id !== tabId || !isBayTab(t)) return t;
-              const racks = ensureRacks(t);
-              const targetId = rackId ?? racks[0]?.id;
               return {
                 ...t,
-                racks: racks.map((r) =>
-                  r.id === targetId
+                racks: ensureRacks(t).map((r) =>
+                  r.id === target.id
                     ? { ...r, items: [...r.items, { ...item, id: newId }] }
                     : r,
                 ),
@@ -637,7 +680,23 @@ export const useAppStore = create<State>()(
           return newId;
         },
 
-        updateRackItem: (tabId, itemId, patch) =>
+        updateRackItem: (tabId, itemId, patch) => {
+          const tab = get().tabs.find((t) => t.id === tabId && isBayTab(t));
+          const rack = tab ? ensureRacks(tab).find((r) => r.items.some((it) => it.id === itemId)) : undefined;
+          const current = rack?.items.find((it) => it.id === itemId);
+          if (!rack || !current) return;
+          const movesOrResizes = (["uStart", "heightU", "widthCols", "colStart"] as const)
+            .some((k) => k in patch && patch[k] !== current[k]);
+          if (movesOrResizes) {
+            // Verrouillé : position et taille figées (déverrouiller d'abord).
+            if (current.locked && patch.locked !== false) return;
+            const rackSize = get().products.find((p) => p.id === current.productId)?.rackSize;
+            const problem = placementProblem(rack, { ...current, ...patch }, itemId, rackSize);
+            if (problem) {
+              console.warn(`Baie : modification refusée (${problem})`);
+              return;
+            }
+          }
           set((s) => ({
             tabs: s.tabs.map((t) =>
               t.id === tabId && isBayTab(t)
@@ -650,7 +709,8 @@ export const useAppStore = create<State>()(
                   }
                 : t,
             ),
-          })),
+          }));
+        },
 
         removeRackItem: (tabId, itemId) =>
           set((s) => ({
@@ -660,7 +720,8 @@ export const useAppStore = create<State>()(
                     ...t,
                     racks: ensureRacks(t).map((r) => ({
                       ...r,
-                      items: r.items.filter((it) => it.id !== itemId),
+                      // Un équipement verrouillé ne se supprime pas (déverrouiller d'abord).
+                      items: r.items.filter((it) => it.id !== itemId || it.locked),
                     })),
                   }
                 : t,
@@ -2053,7 +2114,7 @@ export const useEditorState = create<EditorState>()((set) => ({
 const READ_ONLY_BLOCKED = [
   "addBayAccessory", "updateBayAccessory", "removeBayAccessory",
   "addTab", "addIPTableTab", "addBayTab", "updateBayConfig", "syncBayItems",
-  "addRackToTab", "removeRackFromTab", "renameRack", "addRackItem", "updateRackItem", "removeRackItem",
+  "addRackToTab", "removeRackFromTab", "renameRack", "updateRack", "addRackItem", "updateRackItem", "removeRackItem",
   "removeTab", "renameTab", "duplicateTab", "reorderTabs", "setActiveTabTrade",
   "syncIPTable", "updateIPRow", "addIPRow", "removeIPRow", "addIPRows", "updateIPNetwork", "updateIPTitle",
   "setIPTableColumns", "addIPTableColumn",

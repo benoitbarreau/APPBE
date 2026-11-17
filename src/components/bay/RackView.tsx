@@ -2,19 +2,14 @@ import { useRef, useState } from "react";
 import type { Rack, RackItem, Tab } from "../../types";
 import { useAppStore } from "../../store";
 import { getDragItem, clearDragItem } from "./BayProductLibrary";
+import { placementProblem, uLabel as displayedU } from "../../lib/rackLayout";
+import { notify } from "../dialogs/dialogStore";
 
 const U_PX = 44;
 const RACK_INNER_WIDTH_19 = 400;
 const RACK_INNER_WIDTH_10 = 200;
 const EAR_WIDTH = 28;
 const U_LABEL_WIDTH = 32;
-
-/** Détecte la collision entre deux items. */
-function collides(a: RackItem, b: RackItem): boolean {
-  const uOver = a.uStart < b.uStart + b.heightU && b.uStart < a.uStart + a.heightU;
-  const cOver = a.colStart < b.colStart + b.widthCols && b.colStart < a.colStart + a.widthCols;
-  return uOver && cOver;
-}
 
 
 interface RackViewProps {
@@ -25,18 +20,23 @@ interface RackViewProps {
   onRackClick: () => void;
   canDelete: boolean;
   onDeleteRack: () => void;
+  /** Ouvre la modification de la baie (nom, format, hauteur, numérotation). */
+  onEditRack?: () => void;
   isActive: boolean;
   readOnly?: boolean;
+  /** Identifiants des nœuds encore présents dans les synoptiques (équipements orphelins). */
+  synopticNodeIds?: Set<string>;
 }
 
-export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick, canDelete, onDeleteRack, isActive, readOnly = false }: RackViewProps) {
+export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick, canDelete, onDeleteRack, onEditRack, isActive, readOnly = false, synopticNodeIds }: RackViewProps) {
   const addRackItem = useAppStore((s) => s.addRackItem);
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const renameRack = useAppStore((s) => s.renameRack);
+  const products = useAppStore((s) => s.products);
+  const rackSizeOf = (productId?: string) => products.find((p) => p.id === productId)?.rackSize;
 
   const heightU = rack.heightU;
   const widthInch = rack.widthInch;
-  const fromBottom = rack.numberingFromBottom;
   const items = rack.items;
   const innerWidth = widthInch === 19 ? RACK_INNER_WIDTH_19 : RACK_INNER_WIDTH_10;
   const colWidth = innerWidth / 4;
@@ -45,6 +45,8 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   // ── Drag state (for moving items already in rack) ────────────────────────
   const [dragOverU, setDragOverU] = useState<number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<number>(0);
+  // Aperçu de dépôt en rouge quand l'emplacement survolé est refusé.
+  const [dragOverInvalid, setDragOverInvalid] = useState(false);
   // Ref synchrone + state pour draggingId (évite les stales closures dans dragover)
   const draggingIdRef = useRef<string | null>(null);
   const [draggingId, _setDraggingId] = useState<string | null>(null);
@@ -54,7 +56,8 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   };
   const rackRef = useRef<HTMLDivElement>(null);
 
-  /** Calcule uStart et colStart depuis les coordonnées souris relatives au rack. */
+  /** Calcule uStart (compté depuis le bas, quelle que soit la numérotation affichée)
+   *  et colStart depuis les coordonnées souris : le haut de l'équipement suit le pointeur. */
   const posFromEvent = (e: React.DragEvent, itemHeightU: number, itemWidthCols: number): { uStart: number; colStart: 0 | 1 | 2 | 3 } => {
     const rect = rackRef.current!.getBoundingClientRect();
     const relY = e.clientY - rect.top;
@@ -73,41 +76,38 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   };
 
   // ── Drop from library ────────────────────────────────────────────────────
+  // Aperçu et pose calculés par la même fonction (posFromEvent) : l'aperçu montre
+  // exactement l'emplacement où l'équipement sera posé.
   const handleDragOver = (e: React.DragEvent) => {
     if (readOnly) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     const dragItem = getDragItem();
-    if (!dragItem) return;
-    const rect = rackRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const relY = e.clientY - rect.top;
-    const uFromTop = Math.max(0, Math.min(heightU - 1, Math.floor(relY / U_PX)));
-    const uStart = fromBottom ? heightU - uFromTop : uFromTop + 1;
+    if (!dragItem || !rackRef.current) return;
+    const { uStart, colStart } = posFromEvent(e, dragItem.heightU, dragItem.widthCols);
     setDragOverU(uStart);
+    setDragOverCol(colStart);
+    setDragOverInvalid(!!placementProblem(rack, { ...dragItem, uStart, colStart }, undefined, rackSizeOf(dragItem.productId)));
   };
 
   const handleDragLeave = () => {
     setDragOverU(null);
+    setDragOverInvalid(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     if (readOnly) return;
     e.preventDefault();
     setDragOverU(null);
+    setDragOverInvalid(false);
     const dragItem = getDragItem();
     clearDragItem();
     if (!dragItem) return;
 
     const { uStart, colStart } = posFromEvent(e, dragItem.heightU, dragItem.widthCols);
     const candidate: Omit<RackItem, "id"> = { ...dragItem, uStart, colStart };
-
-    // Collision check
-    const hasCollision = items.some((it) =>
-      it.id !== draggingId && collides(candidate as RackItem, it),
-    );
-    if (hasCollision) return;
-
+    const problem = placementProblem(rack, candidate, undefined, rackSizeOf(dragItem.productId));
+    if (problem) { notify(problem, "error"); return; }
     addRackItem(tab.id, candidate, rack.id);
   };
 
@@ -123,6 +123,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
     setDraggingId(null);
     setDragOverU(null);
     setDragOverCol(0);
+    setDragOverInvalid(false);
   };
 
   const handleRackDragOver = (e: React.DragEvent) => {
@@ -135,6 +136,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
     const { uStart, colStart } = posFromEvent(e, item.heightU, item.widthCols);
     setDragOverU(uStart);
     setDragOverCol(colStart);
+    setDragOverInvalid(!!placementProblem(rack, { ...item, uStart, colStart }, item.id, rackSizeOf(item.productId)));
   };
 
   const handleRackDrop = (e: React.DragEvent) => {
@@ -147,29 +149,24 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
     const { uStart, colStart } = posFromEvent(e, item.heightU, item.widthCols);
 
     const candidate: RackItem = { ...item, uStart, colStart };
-    const hasCollision = items.some((it) => it.id !== currentDragging && collides(candidate, it));
-    if (!hasCollision) {
-      updateRackItem(tab.id, currentDragging, { uStart, colStart });
-    }
+    const problem = placementProblem(rack, candidate, item.id, rackSizeOf(item.productId));
+    if (problem) notify(problem, "error");
+    else updateRackItem(tab.id, currentDragging, { uStart, colStart });
     setDraggingId(null);
     setDragOverU(null);
+    setDragOverInvalid(false);
   };
 
-  /** Convertit uStart (1-indexed from bottom when fromBottom) to CSS top offset. */
-  const itemTop = (item: RackItem): number => {
-    if (fromBottom) {
-      return (heightU - item.uStart - item.heightU + 1) * U_PX;
-    }
-    return (item.uStart - 1) * U_PX;
-  };
+  /** Décalage CSS depuis le haut : uStart est toujours compté depuis le bas (U1 = U du
+   *  bas) ; la numérotation choisie ne change que les numéros affichés. */
+  const itemTop = (item: RackItem): number => (heightU - item.uStart - item.heightU + 1) * U_PX;
 
   const itemLeft = (item: RackItem): number => item.colStart * colWidth;
   const itemWidth = (item: RackItem): number => item.widthCols * colWidth;
   const itemHeight = (item: RackItem): number => item.heightU * U_PX;
 
-  /** Label affiché sur le repère U. */
-  const uLabel = (slotIndex: number): number =>
-    fromBottom ? heightU - slotIndex : slotIndex + 1;
+  /** Numéro affiché sur le repère U de la ligne `slotIndex` (0 = ligne du haut). */
+  const uLabel = (slotIndex: number): number => displayedU(rack, heightU - slotIndex);
 
   return (
     <div
@@ -191,10 +188,19 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
           title={readOnly ? rack.name : "Cliquer pour renommer la baie"}
           style={readOnly ? { cursor: "default", pointerEvents: "none" } : undefined}
         />
+        {!readOnly && onEditRack && (
+          <button
+            className="rack-edit-btn"
+            title="Modifier la baie (format, hauteur, numérotation)"
+            aria-label="Modifier la baie"
+            onClick={(e) => { e.stopPropagation(); onEditRack(); }}
+          >⚙</button>
+        )}
         {canDelete && (
           <button
             className="rack-delete-btn"
             title="Supprimer cette baie"
+            aria-label="Supprimer cette baie"
             onClick={(e) => { e.stopPropagation(); onDeleteRack(); }}
           >×</button>
         )}
@@ -251,11 +257,9 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
               const previewW = libItem?.widthCols ?? rackItem?.widthCols ?? 4;
               return (
                 <div
-                  className="rack-drop-preview"
+                  className={`rack-drop-preview${dragOverInvalid ? " invalid" : ""}`}
                   style={{
-                    top: fromBottom
-                      ? (heightU - dragOverU - previewH + 1) * U_PX
-                      : (dragOverU - 1) * U_PX,
+                    top: (heightU - dragOverU - previewH + 1) * U_PX,
                     left: dragOverCol * colWidth,
                     height: previewH * U_PX,
                     width: previewW * colWidth,
@@ -276,6 +280,8 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
                 width={itemWidth(item)}
                 height={itemHeight(item)}
                 readOnly={readOnly}
+                orphan={item.sourceType === "synoptic" && !!item.nodeId && !!synopticNodeIds && !synopticNodeIds.has(item.nodeId)}
+                displayedUStart={displayedU(rack, item.uStart)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectItem(item.id === selectedItemId ? null : item.id);
@@ -309,12 +315,16 @@ interface RackItemCardProps {
   width: number;
   height: number;
   readOnly?: boolean;
+  /** Équipement d'un synoptique dont le produit n'est plus sur aucun synoptique. */
+  orphan?: boolean;
+  /** Numéro du U du bas, selon la numérotation de la baie. */
+  displayedUStart: number;
   onClick: (e: React.MouseEvent) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
 }
 
-function RackItemCard({ item, selected, dragging, top, left, width, height, readOnly = false, onClick, onDragStart, onDragEnd }: RackItemCardProps) {
+function RackItemCard({ item, selected, dragging, top, left, width, height, readOnly = false, orphan = false, displayedUStart, onClick, onDragStart, onDragEnd }: RackItemCardProps) {
   const bg = item.color ?? "#3a3d44";
   const textColor = isLightHex(bg) ? "#1c1f24" : "#ffffff";
 
@@ -325,7 +335,7 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, read
 
   return (
     <div
-      className={`rack-item${selected ? " selected" : ""}${dragging ? " dragging" : ""}${item.locked ? " locked" : ""}`}
+      className={`rack-item${selected ? " selected" : ""}${dragging ? " dragging" : ""}${item.locked ? " locked" : ""}${orphan ? " orphan" : ""}`}
       style={{
         position: "absolute",
         top,
@@ -340,7 +350,7 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, read
       onClick={onClick}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      title={`${item.manufacturer ?? ""} ${item.reference ?? ""} — U${item.uStart} (${item.heightU}U)`}
+      title={`${item.manufacturer ?? ""} ${item.reference ?? ""} — U${displayedUStart} (${item.heightU}U)${orphan ? " — absent des synoptiques" : ""}`}
     >
       {/* Logo en haut à droite */}
       {item.logoUrl && (
@@ -360,6 +370,7 @@ function RackItemCard({ item, selected, dragging, top, left, width, height, read
         </div>
         <div className="rack-item-badges">
           {item.locked && <span className="rack-badge" title="Verrouillé">🔒</span>}
+          {orphan && <span className="rack-badge rack-badge-orphan" title="Ce produit n'est plus sur aucun synoptique">⚠ orphelin</span>}
           {hasAnnotation && <span className="rack-badge" title="Annoté">📋</span>}
         </div>
       </div>
