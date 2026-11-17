@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { useAppStore } from '../store'
 import { listProjects, fetchProject, deleteProject, saveProject, setProjectArchived, getMyShareRole } from '../lib/projectsApi'
 import type { ProjectRow, VersionMeta } from '../lib/projectsApi'
+import { usedProducts } from '../lib/projectSerialization'
 import { ShareModal } from '../components/ShareModal'
 import { AdminSettings } from '../components/AdminSettings'
 import { confirmDialog } from '../components/dialogs/dialogStore'
@@ -146,17 +147,18 @@ export function ProjectsPage({ onOpenEditor, onOpenAdminDashboard, onOpenVersion
       const projectData = {
         tabs: state.tabs, activeTabId: state.activeTabId,
         projectMeta: state.projectMeta, signals: state.signals, zones: state.zones,
-        products: state.products, accessories: state.accessories, ipTableColumns: state.ipTableColumns,
+        products: usedProducts(state.tabs, state.products), accessories: state.accessories, ipTableColumns: state.ipTableColumns,
       }
       const { id, updatedAt } = await saveProject(null, name, projectData)
       if (!isCurrentAccount()) return
       loadProjectData(id, name, projectData, [], updatedAt)
       onOpenEditor()
-    } catch {
+    } catch (e) {
+      // Échec de création : on reste sur la liste avec le motif. Ouvrir l'éditeur
+      // sur un projet sans identifiant (sans auto-save) risquait un travail non
+      // enregistré, puis un doublon si l'insertion avait en fait réussi.
       if (!isCurrentAccount()) return
-      resetProject()
-      useAppStore.setState({ currentProjectName: name })
-      onOpenEditor()
+      setError('Le projet n’a pas pu être créé : ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setCreatingNew(false)
     }

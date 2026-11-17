@@ -7077,6 +7077,12 @@ select {
   background: #e0e7ff;
   color: #3730a3;
 }
+/* Export : la colonne mot de passe cochée part en clair dans le fichier */
+.ip-col-password-warning {
+  font-size: 10px;
+  font-weight: 700;
+  color: #b42318;
+}
 .ip-col-mgr-delete {
   font-size: 11px;
   padding: 2px 6px;
@@ -12162,6 +12168,15 @@ select {
 .save-status--dirty {
   color: var(--danger);
   font-weight: 600;
+}
+/* Échec d'enregistrement : motif complet au survol */
+.save-status--error {
+  color: #fff;
+  background: var(--danger);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: help;
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -84,6 +84,8 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
   const [lanView, setLanView] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Mots de passe des équipements masqués par défaut ; affichage à la demande.
+  const [showPasswords, setShowPasswords] = useState(false);
 
   // ── Gestionnaire de colonnes ─────────────────────────────────────────────
   const [colMgrOpen, setColMgrOpen] = useState(false);
@@ -410,6 +412,15 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
               </button>
             </>
           )}
+          {!readOnly && (
+            <button
+              onClick={() => setShowPasswords((v) => !v)}
+              aria-pressed={showPasswords}
+              title={showPasswords ? "Masquer les mots de passe" : "Afficher les mots de passe"}
+            >
+              {showPasswords ? "🙈 Masquer les mots de passe" : "👁 Mots de passe"}
+            </button>
+          )}
           <button
             onClick={() => setExportOpen(true)}
             disabled={rows.length === 0}
@@ -538,6 +549,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                 duplicates={duplicateMap.get(row.id) ?? new Set<IPColumn>()}
                 zoneColor={zoneColorForRow(row)}
                 readOnly={readOnly}
+                showPasswords={showPasswords && !readOnly}
                 isLanEligible={lanEligibleIds.has(row.id)}
                 onChange={(patch) => updateIPRow(tabId, row.id, patch)}
                 onRemove={() => handleRemoveRow(row)}
@@ -593,7 +605,7 @@ function hexToRgba(hex: string, alpha: number): string {
 
 // ── IPRow ──────────────────────────────────────────────────────────────────
 function IPRow({
-  row, columns, duplicates, zoneColor, readOnly, isLanEligible, onChange, onRemove,
+  row, columns, duplicates, zoneColor, readOnly, showPasswords, isLanEligible, onChange, onRemove,
 }: {
   tabId: string;
   row: IPTableRow;
@@ -601,6 +613,8 @@ function IPRow({
   duplicates: Set<IPColumn>;
   zoneColor?: string;
   readOnly: boolean;
+  /** Mots de passe en clair (bouton de la barre, jamais en lecture seule). */
+  showPasswords: boolean;
   isLanEligible: boolean;
   onChange: (patch: Partial<IPTableRow>) => void;
   onRemove: () => void;
@@ -648,10 +662,18 @@ function IPRow({
             className={cellClass}
             title={isDup ? "Cette IP est en doublon avec une autre cellule." : undefined}
           >
-            <input
-              value={value} readOnly={readOnly} placeholder=""
-              onChange={(e) => handleChange(e.target.value)}
-            />
+            {col.id === "password" && readOnly ? (
+              // Lecture seule : le mot de passe n'est jamais affiché, même masqué
+              // dans un champ (sa valeur resterait lisible dans la page).
+              <input value={value ? "••••••" : ""} readOnly aria-label="Mot de passe masqué" />
+            ) : (
+              <input
+                type={col.id === "password" && !showPasswords ? "password" : "text"}
+                autoComplete={col.id === "password" ? "off" : undefined}
+                value={value} readOnly={readOnly} placeholder=""
+                onChange={(e) => handleChange(e.target.value)}
+              />
+            )}
           </td>
         );
       })}

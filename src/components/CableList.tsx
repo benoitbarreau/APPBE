@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { notify } from "./dialogs/dialogStore";
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import { isSynopticTab, type Cable } from "../types";
 
 export function CableList() {
@@ -12,6 +12,7 @@ export function CableList() {
   const products     = useAppStore((s) => s.products);
   const updateCable  = useAppStore((s) => s.updateCable);
   const removeCable  = useAppStore((s) => s.removeCable);
+  const readOnly     = useEditorState((s) => s.readOnly);
   const reverseCable = useAppStore((s) => s.reverseCable);
   const selectedCableId  = useAppStore((s) => s.selectedCableId);
   const setSelectedCable = useAppStore((s) => s.setSelectedCable);
@@ -280,7 +281,7 @@ export function CableList() {
                 from={from}
                 to={to}
                 selected={cable.id === selectedCableId}
-                editable={g.editable}
+                editable={g.editable && !readOnly}
                 onChange={(patch) => updateCable(cable.id, patch)}
                 onRemove={() => removeCable(cable.id)}
                 onReverse={() => reverseCable(cable.id)}

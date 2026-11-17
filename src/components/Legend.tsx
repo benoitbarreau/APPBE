@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import { confirmDialog } from "./dialogs/dialogStore";
 import type { SignalDef } from "../types";
 import { DEFAULT_SIGNAL_DEFS } from "../types";
@@ -32,11 +32,13 @@ export function Legend() {
 
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
+  const readOnly = useEditorState((s) => s.readOnly);
 
   const list = useMemo(() => Object.values(signals), [signals]);
 
   /** Réinitialise la légende à la liste par défaut (admin uniquement). */
   const handleReset = async () => {
+    if (readOnly) return;
     const defaultIds = new Set(Object.keys(DEFAULT_SIGNAL_DEFS));
     const usedSignalIds = new Set<string>();
     for (const c of cables) usedSignalIds.add(c.signal);
@@ -81,6 +83,7 @@ export function Legend() {
   };
 
   const handleAdd = () => {
+    if (readOnly) return;
     let baseId = "NOUVEAU";
     let id = baseId;
     let n = 1;
@@ -100,6 +103,7 @@ export function Legend() {
   };
 
   const handleRemove = async (id: string) => {
+    if (readOnly) return;
     // Seul un admin peut supprimer les types par défaut
     if (!isAdmin && isDefaultSignal(id)) return;
     const used = cables.filter((c) => c.signal === id).length;
@@ -118,6 +122,8 @@ export function Legend() {
   };
 
   const handleUpsert = (def: SignalDef) => {
+    // Lecture seule : ni le projet ni la légende globale (admin) ne changent.
+    if (readOnly) return;
     // Seul un admin peut modifier les types par défaut
     if (!isAdmin && isDefaultSignal(def.id)) return;
     upsert(def);
@@ -135,7 +141,7 @@ export function Legend() {
         <h3>Types de câbles</h3>
         <div className="legend-editor-header-actions">
           {/* Réinitialiser : admin uniquement */}
-          {isAdmin && (
+          {isAdmin && !readOnly && (
             <button
               onClick={() => void handleReset()}
               title="Remplacer la liste par les 10 types de câbles par défaut"
@@ -143,7 +149,7 @@ export function Legend() {
               ↻ Réinitialiser
             </button>
           )}
-          <button onClick={handleAdd}>+ Ajouter</button>
+          {!readOnly && <button onClick={handleAdd}>+ Ajouter</button>}
         </div>
       </div>
       <div className="legend-editor-hint muted">
@@ -167,7 +173,7 @@ export function Legend() {
           const used = cables.filter((c) => c.signal === def.id).length;
           const isDefault = isDefaultSignal(def.id);
           // Un user peut éditer uniquement ses propres types (non-défaut)
-          const canEdit = isAdmin || !isDefault;
+          const canEdit = !readOnly && (isAdmin || !isDefault);
 
           return (
             <div
@@ -180,7 +186,7 @@ export function Legend() {
                 value={def.color}
                 onChange={(e) => canEdit && upsert({ ...def, color: e.target.value })}
                 onBlur={(e) => canEdit && handleUpsert({ ...def, color: e.target.value })}
-                title={canEdit ? "Couleur" : "Lecture seule — admin uniquement"}
+                title={canEdit ? "Couleur" : readOnly ? "Lecture seule" : "Lecture seule — admin uniquement"}
                 disabled={!canEdit}
               />
               <input
@@ -188,7 +194,7 @@ export function Legend() {
                 onChange={(e) => canEdit && handleChangeLabel(def, e.target.value)}
                 placeholder="Nom affiché"
                 readOnly={!canEdit}
-                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
+                title={canEdit ? undefined : readOnly ? "Lecture seule" : "Lecture seule — admin uniquement"}
               />
               <input
                 value={def.numberPrefix}
@@ -197,14 +203,14 @@ export function Legend() {
                 className="legend-prefix"
                 maxLength={6}
                 readOnly={!canEdit}
-                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
+                title={canEdit ? undefined : readOnly ? "Lecture seule" : "Lecture seule — admin uniquement"}
               />
               <input
                 value={def.defaultCable}
                 onChange={(e) => canEdit && handleUpsert({ ...def, defaultCable: e.target.value })}
                 placeholder="Câble par défaut"
                 readOnly={!canEdit}
-                title={canEdit ? undefined : "Lecture seule — admin uniquement"}
+                title={canEdit ? undefined : readOnly ? "Lecture seule" : "Lecture seule — admin uniquement"}
               />
               {/* Bouton supprimer : admin = tout, user = uniquement ses types perso */}
               {canEdit ? (

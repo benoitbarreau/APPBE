@@ -9,8 +9,9 @@ import { fetchUserProducts } from '../lib/userProductsApi'
 import { fetchUserSignals, fetchUserZones } from '../lib/userSignalsZonesApi'
 import { fetchBrands, fetchCategories } from '../lib/catalogMetaApi'
 import { notify } from '../components/dialogs/dialogStore'
-import { fetchProject, fetchProjectVersion, saveProject } from '../lib/projectsApi'
+import { fetchProject, fetchProjectVersion, getMyShareRole, saveProject } from '../lib/projectsApi'
 import { linkProjectToRoom } from '../lib/referentielApi'
+import { usedProducts } from '../lib/projectSerialization'
 
 const ProjectsPage = lazy(() => import('../pages/ProjectsPage').then(module => ({ default: module.ProjectsPage })))
 const App = lazy(() => import('../App'))
@@ -204,6 +205,17 @@ function ProtectedRouteContent() {
       setPage('editor')
       setReadOnly(saved.readOnly)
       setReadOnlyVersion(saved.readOnlyVersion)
+      // Le rôle a pu changer depuis (partage passé en lecture) : on le revérifie
+      // pour ne pas rouvrir en édition un projet qu'on ne peut plus modifier.
+      if (!saved.readOnly) {
+        const projectId = storeState.currentProjectId
+        void getMyShareRole(projectId).then((role) => {
+          if (role !== 'viewer' || useAppStore.getState().currentProjectId !== projectId) return
+          setReadOnly(true)
+          setReadOnlyVersion('Mode Lecteur')
+          savePersistedView({ userId: user.id, page: 'editor', readOnly: true, readOnlyVersion: 'Mode Lecteur' })
+        }).catch(() => { /* rôle inconnu : la base refusera de toute façon l'enregistrement */ })
+      }
     } else if (saved.page === 'projects' || saved.page === 'referentiel' || saved.page === 'catalogue') {
       setPage(saved.page)
     }
@@ -256,6 +268,20 @@ function ProtectedRouteContent() {
       setReadOnlyVersion(undefined)
     }
   }, [user])
+
+  // La lecture seule ne vaut que dans l'éditeur : hors de l'éditeur, le drapeau
+  // est levé pour ne pas bloquer d'autres écrans (catalogue, nouveau projet).
+  // Seulement en quittant l'éditeur : au premier rendu, la restauration de la vue
+  // (F5) pose la lecture seule dans le même cycle et ne doit pas être annulée.
+  const previousPageRef = useRef<Page>(page)
+  useEffect(() => {
+    const leftEditor = previousPageRef.current === 'editor' && page !== 'editor'
+    previousPageRef.current = page
+    if (leftEditor) {
+      setReadOnly(false)
+      setReadOnlyVersion(undefined)
+    }
+  }, [page, setReadOnly])
 
   const isCurrentAccount = () => Boolean(user && useAppStore.getState().lastUserId === user.id)
 
@@ -327,7 +353,7 @@ function ProtectedRouteContent() {
         projectMeta: { ...state.projectMeta, client: clientName, lieu: siteName },
         signals: state.signals,
         zones: state.zones,
-        products: state.products,
+        products: usedProducts(state.tabs, state.products),
       })
       if (!isCurrentAccount()) return
       await linkProjectToRoom(id, roomId)
@@ -343,16 +369,20 @@ function ProtectedRouteContent() {
     }
   }
 
-  /** Ouvre un projet existant depuis le Référentiel */
-  const handleOpenProjectFromRef = async (projectId: string, projectName: string) => {
+  /** Ouvre un projet existant depuis le Référentiel, en lecture seule si le
+   *  projet n'est partagé qu'en lecture avec ce compte (comme depuis la page Projets). */
+  const handleOpenProjectFromRef = async (projectId: string, _projectName: string) => {
     try {
-      const { data, updatedAt, versionsMeta } = await fetchProject(projectId)
+      const { name, data, updatedAt, versionsMeta } = await fetchProject(projectId)
       if (!isCurrentAccount()) return
-      loadProjectData(projectId, projectName, data, versionsMeta, updatedAt)
-      setReadOnly(false)
-      setReadOnlyVersion(undefined)
+      const role = await getMyShareRole(projectId)
+      if (!isCurrentAccount()) return
+      loadProjectData(projectId, name, data, versionsMeta, updatedAt)
+      const viewer = role === 'viewer'
+      setReadOnly(viewer)
+      setReadOnlyVersion(viewer ? 'Mode Lecteur' : undefined)
       setPage('editor')
-      persistView('editor', false)
+      persistView('editor', viewer, viewer ? 'Mode Lecteur' : undefined)
     } catch (e) {
       notify('Impossible d\'ouvrir le projet : ' + (e instanceof Error ? e.message : String(e)), 'error')
     }

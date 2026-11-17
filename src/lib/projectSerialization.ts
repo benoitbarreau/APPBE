@@ -52,3 +52,25 @@ export function createProjectExport(
     ipTableColumns: state.ipTableColumns,
   }
 }
+
+/** Produits réellement utilisés par le projet : nœuds des synoptiques et
+ *  équipements des baies (format multi-baies et ancien format). Seuls ceux-là
+ *  sont enregistrés avec le projet : le catalogue complet (produits en attente
+ *  de modération d'autres comptes compris) ne part plus chez les destinataires
+ *  d'un partage. */
+export function usedProducts<P extends { id: string }>(tabs: Tab[], products: P[]): P[] {
+  const ids = new Set<string>()
+  for (const tab of tabs) {
+    for (const node of tab.nodes ?? []) if (node.productId) ids.add(node.productId)
+    for (const rack of tab.racks ?? []) for (const item of rack.items ?? []) if (item.productId) ids.add(item.productId)
+    for (const item of tab.bayItems ?? []) if (item.productId) ids.add(item.productId)
+  }
+  return products.filter((p) => ids.has(p.id))
+}
+
+/** Copie des onglets sans les mots de passe des équipements (Tableau IP). */
+export function redactPasswords(tabs: Tab[]): Tab[] {
+  return tabs.map((tab) =>
+    tab.rows ? { ...tab, rows: tab.rows.map((row) => ({ ...row, password: '' })) } : tab,
+  )
+}

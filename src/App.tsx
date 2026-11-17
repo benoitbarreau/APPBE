@@ -3,7 +3,8 @@ import { useStore } from "zustand";
 import { createPortal } from "react-dom";
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
-import { notify } from "./components/dialogs/dialogStore";
+import { confirmDialog, notify } from "./components/dialogs/dialogStore";
+import { describeSaveError } from "./lib/saveErrors";
 import { ProductPalette } from "./components/ProductPalette";
 import { FormattingPanel } from "./components/FormattingPanel";
 import { ProductEditor } from "./components/ProductEditor";
@@ -42,7 +43,7 @@ import {
   fetchProject,
   ProjectConflictError,
 } from "./lib/projectsApi";
-import { buildSignature, createProjectExport } from "./lib/projectSerialization";
+import { buildSignature, createProjectExport, redactPasswords, usedProducts } from "./lib/projectSerialization";
 import { getProjectRoomInfo, type ProjectRoomInfo } from "./lib/referentielApi";
 
 interface AppProps {
@@ -180,6 +181,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   // Concurrence optimiste : date serveur de référence + état de conflit détecté.
   const loadedUpdatedAt = useRef<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  // Dernier échec d'enregistrement, affiché dans l'en-tête. Un refus de droit ou un
+  // projet supprimé met l'auto-save en pause (inutile de réessayer toutes les 4 s).
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveBlockedRef = useRef(false);
   const conflictRef = useRef(false);
   conflictRef.current = conflict;
 
@@ -340,6 +345,20 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
    *    AUCUN incrément de version.
    *  - force=true : ignore la vérification de concurrence (écrasement assumé).
    *  Lève ProjectConflictError si le projet a été modifié ailleurs entre-temps. */
+  const recordSaveError = (e: unknown) => {
+    const code = (e as { code?: string } | null)?.code;
+    const blocked = code === "42501" || code === "P0002" || /Projet introuvable/i.test(e instanceof Error ? e.message : "");
+    const message = describeSaveError(e);
+    // Refus de droit ou projet supprimé : un message, une seule fois (l'auto-save s'arrête).
+    if (blocked && !saveBlockedRef.current) notify(message, "error");
+    saveBlockedRef.current = blocked;
+    setSaveError(message);
+  };
+  const clearSaveError = () => {
+    saveBlockedRef.current = false;
+    setSaveError(null);
+  };
+
   const persistProject = async (createVersion: boolean, force = false): Promise<void> => {
     const state = useAppStore.getState();
     const epoch = getProjectEpoch();
@@ -350,7 +369,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     const shouldVersion = createVersion && isExistingProject && baseHash !== lastVersionedHash.current;
     const projectData = {
       tabs: flushedTabs, activeTabId: state.activeTabId,
-      projectMeta: state.projectMeta, signals: state.signals, products: state.products,
+      projectMeta: state.projectMeta, signals: state.signals, products: usedProducts(flushedTabs, state.products),
       accessories: state.accessories, ipTableColumns: state.ipTableColumns, zones: state.zones,
     };
     const saved = state.currentProjectId
@@ -413,6 +432,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       });
       updateProjectMeta({ date: todayStr });
       await persistProject(true);
+      clearSaveError();
       setLastSavedAt(new Date());
       setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
       setSavedOk(true);
@@ -421,7 +441,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     } catch (e) {
       if (e instanceof ProjectConflictError) { setConflict(true); return false; }
       if (e instanceof ProjectChangedDuringSaveError) return false;
-      notify("Erreur de sauvegarde : " + (e instanceof Error ? e.message : String(e)), "error");
+      const wasBlocked = saveBlockedRef.current;
+      recordSaveError(e);
+      // recordSaveError a déjà affiché le message d'un premier refus de droit.
+      if (wasBlocked || !saveBlockedRef.current) notify(describeSaveError(e), "error");
       return false;
     } finally {
       setSaving(false);
@@ -437,6 +460,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     setAutoSaving(true);
     try {
       await persistProject(false);
+      clearSaveError();
       setLastSavedAt(new Date());
       setIsDirty(buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current);
     } catch (e) {
@@ -447,8 +471,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         return;
       }
       console.error("Échec auto-save :", e);
-      // Pas de toast intrusif : l'indicateur reste « non enregistré » et la prochaine
-      // vérification réessaiera automatiquement.
+      // Pas de toast intrusif : le motif s'affiche dans l'en-tête ; la prochaine
+      // vérification réessaiera, sauf refus de droit ou projet supprimé.
+      recordSaveError(e);
     } finally {
       setAutoSaving(false);
       saveInFlight.current = false;
@@ -498,6 +523,21 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     }
   };
 
+  // Fermeture de l'onglet du navigateur ou F5 avec des modifications non
+  // enregistrées (ou un enregistrement en cours) : le navigateur demande confirmation.
+  useEffect(() => {
+    if (readOnly) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const pending = saveInFlight.current
+        || buildSignature(getFlushedTabs(), useAppStore.getState()).full !== lastSavedHash.current;
+      if (!pending) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [readOnly]);
+
   // Référence toujours à jour vers autoSave (évite les closures périmées du setInterval).
   const autoSaveRef = useRef(autoSave);
   autoSaveRef.current = autoSave;
@@ -514,7 +554,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     let prevDirty = false;
 
     const timer = setInterval(() => {
-      if (saveInFlight.current || conflictRef.current) return; // en conflit : auto-save en pause
+      if (saveInFlight.current || conflictRef.current || saveBlockedRef.current) return; // en conflit ou sans droit : auto-save en pause
       const state = useAppStore.getState();
       if (!state.currentProjectId) return; // pas d'auto-save tant que le projet n'est pas enregistré
 
@@ -546,8 +586,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const exportProject = () => {
     const state = useAppStore.getState();
     const flushedTabs = getFlushedTabs();
+    // En lecture seule (version archivée, Mode Lecteur), les mots de passe des
+    // équipements ne quittent pas l'application.
+    const tabsToExport = readOnly ? redactPasswords(flushedTabs) : flushedTabs;
     const blob = new Blob(
-      [JSON.stringify(createProjectExport(state, flushedTabs), null, 2)],
+      [JSON.stringify(createProjectExport({ ...state, products: usedProducts(flushedTabs, state.products) }, tabsToExport), null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
@@ -822,6 +865,47 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
   // ── Gestion des onglets ───────────────────────────────────────────────
 
+  /** Fermer un onglet efface son contenu : confirmation, sauf onglet vide. */
+  const confirmRemoveTab = async (tabId: string, name: string) => {
+    const tab = getFlushedTabs().find((t) => t.id === tabId);
+    const empty = !!tab && (tab.nodes ?? []).length === 0 && (tab.cables ?? []).length === 0
+      && (tab.textNodes ?? []).length === 0 && (tab.shapeNodes ?? []).length === 0
+      && (tab.imageNodes ?? []).length === 0 && (tab.rows ?? []).length === 0
+      && (tab.racks ?? []).every((r) => r.items.length === 0) && (tab.bayItems ?? []).length === 0;
+    if (!empty) {
+      const ok = await confirmDialog({
+        title: `Fermer l'onglet « ${name} » ?`,
+        message: "Son contenu sera supprimé du projet. Ctrl+Z ne le rétablit pas.",
+        confirmLabel: "Fermer l'onglet",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    removeTab(tabId);
+  };
+
+  /** Conflit : recharger abandonne le travail local, après confirmation. */
+  const confirmReloadRemoteVersion = async () => {
+    const ok = await confirmDialog({
+      title: "Recharger la version enregistrée ailleurs ?",
+      message: "Vos modifications non enregistrées seront perdues.\nPour les garder, exportez d'abord le projet en JSON.",
+      confirmLabel: "Recharger",
+      danger: true,
+    });
+    if (ok) await reloadRemoteVersion();
+  };
+
+  /** Conflit : écraser détruit la version de l'autre utilisateur, après confirmation. */
+  const confirmOverwriteWithMyVersion = async () => {
+    const ok = await confirmDialog({
+      title: "Écraser la version enregistrée ailleurs ?",
+      message: "Les modifications faites par l'autre utilisateur depuis votre ouverture seront perdues.",
+      confirmLabel: "Écraser",
+      danger: true,
+    });
+    if (ok) await overwriteWithMyVersion();
+  };
+
   const startTabEdit = (tabId: string, currentName: string) => {
     setEditingTabId(tabId);
     setEditingTabName(currentName);
@@ -836,7 +920,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
   return (
     <div className="app">
-      {/* ── Sidebar gauche : Catalogue ───────────────────────────────────── */}
+      {/* ── Sidebar gauche : Catalogue (absent en lecture seule) ───────────── */}
+      {!readOnly && (
       <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
         {paletteOpen ? (
           <ProductPalette
@@ -861,9 +946,10 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           </button>
         )}
       </aside>
+      )}
 
       {/* ── Sidebar gauche : Mises en formes (synoptique uniquement) ─────── */}
-      {!activeIsIPTab && !activeIsBayTab && (
+      {!readOnly && !activeIsIPTab && !activeIsBayTab && (
         <aside className={`sidebar left formatting-sidebar${formattingOpen ? "" : " collapsed"}`}>
           {formattingOpen ? (
             <FormattingPanel
@@ -967,7 +1053,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                       ⚠ Modifié ailleurs
                     </span>
                     <button
-                      onClick={() => void reloadRemoteVersion()}
+                      onClick={() => void confirmReloadRemoteVersion()}
                       disabled={saving}
                       title="Abandonner mes modifications et recharger la version la plus récente"
                     >
@@ -975,7 +1061,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                     </button>
                     <button
                       className="danger"
-                      onClick={() => void overwriteWithMyVersion()}
+                      onClick={() => void confirmOverwriteWithMyVersion()}
                       disabled={saving}
                       title="Écraser la version distante avec la mienne"
                     >
@@ -984,6 +1070,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                   </>
                 ) : (
                   <>
+                    {saveError && !saving && !autoSaving && (
+                      <span className="save-status save-status--error" role="alert" title={saveError}>
+                        ⚠ Non enregistré
+                      </span>
+                    )}
                     <span
                       className={`save-status${isDirty && !saving && !autoSaving ? " save-status--dirty" : ""}`}
                       aria-live="polite"
@@ -1033,7 +1124,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
           <div className="header-actions">
             <button
-              onClick={() => void signOut()}
+              onClick={() => guardedLeave(() => void signOut())}
               title="Se déconnecter"
               className="btn-signout"
             >
@@ -1071,7 +1162,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
               onDragEnd={() => { setDragTabId(null); setDragOverTabId(null); }}
             >
               {/* Poignée de glissement dédiée */}
-              <span
+              {!readOnly && <span
                 className="tab-drag-handle"
                 draggable
                 onDragStart={(e) => {
@@ -1083,7 +1174,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                 title="Glisser pour réorganiser"
               >
                 ⠿
-              </span>
+              </span>}
               {editingTabId === tab.id ? (
                 <input
                   ref={tabInputRef}
@@ -1112,13 +1203,13 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                       );
                     }
                   }}
-                  onDoubleClick={() => startTabEdit(tab.id, tab.name)}
-                  title="Double-clic pour renommer"
+                  onDoubleClick={() => { if (!readOnly) startTabEdit(tab.id, tab.name); }}
+                  title={readOnly ? tab.name : "Double-clic pour renommer"}
                 >
                   {tab.name}
                 </button>
               )}
-              {!isIPTableTab(tab) && (
+              {!readOnly && !isIPTableTab(tab) && (
                 <button
                   className="tab-dup"
                   draggable={false}
@@ -1128,11 +1219,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
                   ⎘
                 </button>
               )}
-              {tabs.length > 1 && (
+              {!readOnly && tabs.length > 1 && (
                 <button
                   className="tab-close"
                   draggable={false}
-                  onClick={() => removeTab(tab.id)}
+                  onClick={() => void confirmRemoveTab(tab.id, tab.name)}
                   title="Fermer ce synoptique"
                 >
                   ×
@@ -1140,14 +1231,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
               )}
             </div>
           ))}
-          <button
+          {!readOnly && <button
             ref={addTabBtnRef}
             className="tab-add"
             onClick={toggleAddTabMenu}
             title="Ajouter un onglet"
           >
             +
-          </button>
+          </button>}
         </div>
 
         {/* Menu d'ajout d'onglet (rendu via portail pour éviter le clipping

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NodeResizer, NodeToolbar, Position } from "@xyflow/react";
-import { useAppStore } from "../store";
+import { useAppStore, useEditorState } from "../store";
 import type { TextNodeData } from "../types";
 
 const FONTS = [
@@ -27,6 +27,8 @@ export function TextNodeComponent({ id, data, selected }: {
     [id, updateTextNode],
   );
 
+  const readOnly = useEditorState((s) => s.readOnly);
+
   // Quitter le mode édition si le canvas émet l'événement exitTextEdit
   // (déclenché par un clic sur le fond du canvas dans DiagramCanvas).
   useEffect(() => {
@@ -38,6 +40,7 @@ export function TextNodeComponent({ id, data, selected }: {
   // Ouvrir le mode édition au double-clic
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return; // lecture seule : pas d'édition du texte
     setEditing(true);
   };
 

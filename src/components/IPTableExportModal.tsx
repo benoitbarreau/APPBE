@@ -8,33 +8,12 @@ import {
 import type { IPNetworkInfo, IPTableColumnConfig, IPTableRow } from "../types";
 import { useAuth } from "../auth/useAuth";
 import { notify } from "./dialogs/dialogStore";
+import { useEditorState } from "../store";
+import { IP_EXPORT_TEMPLATES as TEMPLATES, exportableColumns } from "../lib/ipExportTemplates";
 
 type Format = "pdf" | "xlsx" | "print";
 type Scope  = "all" | "filtered";
 
-// Modèles prédéfinis (colonnes fixes uniquement)
-const TEMPLATES: { id: string; label: string; columns: string[] }[] = [
-  {
-    id: "complet",
-    label: "Modèle complet",
-    columns: ["product","label","deviceId","ip","ipDante","ipDanteSec","login","password","serialNumber","mac","macDante"],
-  },
-  {
-    id: "reseau",
-    label: "Modèle réseau",
-    columns: ["product","label","deviceId","ip","ipDante","ipDanteSec","mac","macDante"],
-  },
-  {
-    id: "client",
-    label: "Modèle client",
-    columns: ["product","label","ip","login","password"],
-  },
-  {
-    id: "maintenance",
-    label: "Modèle maintenance",
-    columns: ["product","label","deviceId","ip","login","password","serialNumber","mac","macDante"],
-  },
-];
 
 export function IPTableExportModal({
   rows,
@@ -53,6 +32,10 @@ export function IPTableExportModal({
   onClose: () => void;
 }) {
   const { profile } = useAuth();
+  // Les mots de passe ne s'exportent jamais en lecture seule, et seulement
+  // quand la colonne est cochée à la main (aucun modèle ne l'inclut).
+  const readOnly = useEditorState((s) => s.readOnly);
+  const exportColumns = readOnly ? columns.filter((c) => c.id !== "password") : columns;
   const isExternal = !(profile?.email ?? "").endsWith("@videosynergie.com");
   const logoUrl = isExternal
     ? (profile?.company_logo_url ?? `${import.meta.env.BASE_URL}company-logo.png`)
@@ -85,8 +68,9 @@ export function IPTableExportModal({
 
   const handleExport = async () => {
     // Préserver l'ordre du tableau principal
+    const allowed = new Set(exportableColumns([...selectedColumns], { passwords: !readOnly }));
     const cols: IPExportColumn[] = columns
-      .filter((c) => selectedColumns.has(c.id))
+      .filter((c) => allowed.has(c.id))
       .map((c)  => ({ key: c.id, label: c.label }));
 
     if (cols.length === 0) { notify("Sélectionnez au moins une colonne.", "error"); return; }
@@ -141,7 +125,7 @@ export function IPTableExportModal({
           <div className="form-row" style={{ alignItems: "flex-start" }}>
             <label>Colonnes</label>
             <div className="ip-export-columns">
-              {columns.map((c) => (
+              {exportColumns.map((c) => (
                 <label key={c.id} className="ip-export-col-checkbox">
                   <input
                     type="checkbox"
@@ -150,6 +134,9 @@ export function IPTableExportModal({
                   />
                   {c.label}
                   {c.custom && <span className="ip-col-custom-chip" style={{ marginLeft: 4 }}>perso</span>}
+                  {c.id === "password" && selectedColumns.has(c.id) && (
+                    <span className="ip-col-password-warning" style={{ marginLeft: 4 }}>⚠ en clair dans le fichier</span>
+                  )}
                 </label>
               ))}
             </div>

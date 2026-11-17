@@ -42,7 +42,9 @@ export interface ProjectRow {
   profiles?: { email: string; full_name: string | null }
 }
 
-const pgErr = (e: { message: string }) => new Error(e.message)
+/** Erreur PostgREST convertie en Error, avec son code SQL (ex. 42501 : droit
+ *  refusé, P0002 : introuvable) pour que l'interface puisse expliquer l'échec. */
+const pgErr = (e: { message: string; code?: string }) => Object.assign(new Error(e.message), { code: e.code })
 
 // !left force un LEFT OUTER JOIN — sans ça PostgREST utilise un INNER JOIN
 // (FK NOT NULL), ce qui filtre les projets partagés quand l'utilisateur ne
@@ -313,10 +315,15 @@ export async function removeProjectShare(shareId: string): Promise<void> {
  * (ex. il est propriétaire ou admin — pas un partagé).
  */
 export async function getMyShareRole(projectId: string): Promise<'editor' | 'viewer' | null> {
+  // Filtre sur le compte connecté : un propriétaire ou un éditeur peut voir les
+  // partages des autres, et lirait sinon le rôle d'un autre utilisateur.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
   const { data, error } = await supabase
     .from('project_shares')
     .select('role')
     .eq('project_id', projectId)
+    .eq('user_id', user.id)
     .limit(1)
   if (error || !data || data.length === 0) return null
   return (data[0] as { role: 'editor' | 'viewer' }).role

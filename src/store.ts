@@ -2044,3 +2044,43 @@ export const useEditorState = create<EditorState>()((set) => ({
   cableLabelsHidden: true,
   setCableLabelsHidden: (cableLabelsHidden) => set({ cableLabelsHidden }),
 }));
+
+// ── Barrière de lecture seule ────────────────────────────────────────────
+// En lecture seule (version archivée, Mode Lecteur), toute action qui modifie
+// le contenu du projet est sans effet, quel que soit le bouton ou le raccourci
+// qui l'appelle. Restent permis : navigation entre onglets, sélection,
+// ouverture d'un projet, changement de compte et catalogue (hors projet).
+const READ_ONLY_BLOCKED = [
+  "addBayAccessory", "updateBayAccessory", "removeBayAccessory",
+  "addTab", "addIPTableTab", "addBayTab", "updateBayConfig", "syncBayItems",
+  "addRackToTab", "removeRackFromTab", "renameRack", "addRackItem", "updateRackItem", "removeRackItem",
+  "removeTab", "renameTab", "duplicateTab", "reorderTabs", "setActiveTabTrade",
+  "syncIPTable", "updateIPRow", "addIPRow", "removeIPRow", "addIPRows", "updateIPNetwork", "updateIPTitle",
+  "setIPTableColumns", "addIPTableColumn",
+  "addTextNode", "updateTextNode", "removeTextNode",
+  "addShapeNode", "updateShapeNode", "removeShapeNode", "bringShapeForward", "sendShapeBackward",
+  "addImageNode", "updateImageNode", "removeImageNode", "bringImageForward", "sendImageBackward",
+  "addNode", "addBlankBlock", "pasteNodes", "groupNodes", "ungroupNodes", "updateNode", "removeNode", "reorderNodes",
+  "addCable", "updateCable", "removeCable", "reverseCable",
+  "updateProjectMeta", "upsertSignal", "removeSignal", "resetSignalsToDefaults",
+  "upsertZone", "removeZone", "setNodeZone",
+  "setNodePortPlacement", "resetNodePortPlacement", "setNodePortLabel", "resetNodePortLabel", "setNodePortOrder",
+  "addNodePort", "removeNodePort", "setNodePortSignal", "resetNodePortSignal", "hideNodePort", "duplicateNodePort",
+  "setProjectName",
+] as const satisfies readonly (keyof State)[];
+
+{
+  const actions = useAppStore.getState();
+  const guarded: Partial<State> = {};
+  for (const name of READ_ONLY_BLOCKED) {
+    const action = actions[name] as (...args: unknown[]) => unknown;
+    (guarded as Record<string, unknown>)[name] = (...args: unknown[]) => {
+      if (useEditorState.getState().readOnly) {
+        console.warn(`Lecture seule : « ${name} » ignorée.`);
+        return undefined;
+      }
+      return action(...args);
+    };
+  }
+  useAppStore.setState(guarded);
+}
