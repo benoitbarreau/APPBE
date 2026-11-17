@@ -207,6 +207,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     setIsDirty(full !== lastSavedHash.current);
     setLastSavedAt(null);
     setConflict(false);
+    // Nouveau projet ouvert : l'échec d'enregistrement du précédent ne vaut plus.
+    setSaveError(null);
+    saveBlockedRef.current = false;
     // Keep the timestamp belonging to the data actually loaded, including F5.
     // A fresh timestamp fetched separately could silently bless stale local data.
     loadedUpdatedAt.current = state.currentProjectUpdatedAt ?? null;
@@ -498,6 +501,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       setIsDirty(false);
       setLastSavedAt(new Date());
       setConflict(false);
+      clearSaveError();
       notify("Projet rechargé depuis la version la plus récente.", "info");
     } catch (e) {
       notify("Impossible de recharger : " + (e instanceof Error ? e.message : String(e)), "error");

@@ -91,3 +91,9 @@ test('une erreur de sauvegarde est expliquée selon sa cause', () => {
   assert.match(describeSaveError(new TypeError('Failed to fetch')), /réseau|connexion/)
   assert.match(describeSaveError(new Error('autre')), /autre/)
 })
+
+test('une erreur de programmation n’est pas présentée comme une panne réseau', () => {
+  const msg = describeSaveError(new TypeError("Cannot read properties of undefined (reading 'id')"))
+  assert.doesNotMatch(msg, /réseau|connexion/)
+  assert.match(msg, /Cannot read properties/)
+})

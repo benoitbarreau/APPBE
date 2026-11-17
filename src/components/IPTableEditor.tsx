@@ -240,6 +240,7 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     if (lanView) list = list.filter((r) => lanEligibleIds.has(r.id));
     // Filtrer uniquement sur les colonnes visibles
     for (const col of visibleCols) {
+      if (readOnly && col.id === "password") continue; // jamais de filtre sur un mot de passe masqué
       const f = (filters[col.id] ?? "").trim().toLowerCase();
       if (!f) continue;
       list = list.filter((r) => getCellValue(r, col.id).toLowerCase().includes(f));
@@ -247,9 +248,11 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
     if (onlyDuplicates) list = filterDuplicateIpRows(list, duplicateMap);
     list = applySort(list, sortKey, sortDir);
     return list;
-  }, [rows, lanView, lanEligibleIds, filters, visibleCols, onlyDuplicates, duplicateMap, sortKey, sortDir]);
+  }, [rows, lanView, lanEligibleIds, filters, visibleCols, onlyDuplicates, duplicateMap, sortKey, sortDir, readOnly]);
 
   const onHeaderClick = (id: string) => {
+    // Lecture seule : trier par mot de passe révélerait leur ordre alphabétique.
+    if (readOnly && id === "password") return;
     if (sortKey === id) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(id); setSortDir("asc"); }
   };
@@ -530,6 +533,9 @@ export function IPTableEditor({ tabId }: { tabId: string }) {
                   <input
                     className="ip-filter-input"
                     value={filters[col.id] ?? ""}
+                    // Lecture seule : pas de filtre sur les mots de passe masqués
+                    // (taper un début de mot de passe révélerait s'il correspond).
+                    disabled={readOnly && col.id === "password"}
                     placeholder="🔍"
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setFilters({ ...filters, [col.id]: e.target.value })}
@@ -669,7 +675,11 @@ function IPRow({
             ) : (
               <input
                 type={col.id === "password" && !showPasswords ? "password" : "text"}
-                autoComplete={col.id === "password" ? "off" : undefined}
+                // « new-password » : Chrome ignore « off » sur un champ mot de passe et
+                // pourrait y remplir le mot de passe du compte SynoX enregistré.
+                autoComplete={col.id === "password" ? "new-password" : undefined}
+                data-lpignore={col.id === "password" ? "true" : undefined}
+                data-1p-ignore={col.id === "password" ? "true" : undefined}
                 value={value} readOnly={readOnly} placeholder=""
                 onChange={(e) => handleChange(e.target.value)}
               />

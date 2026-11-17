@@ -9,7 +9,9 @@ export function describeSaveError(e: unknown): string {
   if (code === "P0002" || /Projet introuvable/i.test(message)) {
     return "Ce projet est introuvable : il a peut-être été supprimé. Vos modifications ne sont pas enregistrées : exportez le projet en JSON pour les garder.";
   }
-  if (e instanceof TypeError || /Failed to fetch|NetworkError|network/i.test(message)) {
+  // fetch() lève une TypeError en cas de coupure, mais une erreur de programmation
+  // aussi : on ne retient que les messages des navigateurs pour une panne réseau.
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(message)) {
     return "Pas de connexion au serveur : l'enregistrement reprendra automatiquement dès le retour du réseau.";
   }
   return `Échec de l'enregistrement : ${message}`;

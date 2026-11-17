@@ -317,7 +317,9 @@ export async function removeProjectShare(shareId: string): Promise<void> {
 export async function getMyShareRole(projectId: string): Promise<'editor' | 'viewer' | null> {
   // Filtre sur le compte connecté : un propriétaire ou un éditeur peut voir les
   // partages des autres, et lirait sinon le rôle d'un autre utilisateur.
-  const { data: { user } } = await supabase.auth.getUser()
+  // Session locale : pas d'aller-retour au serveur Auth pour lire l'identifiant.
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
   if (!user) return null
   const { data, error } = await supabase
     .from('project_shares')
