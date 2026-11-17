@@ -3,7 +3,7 @@ import { useAppStore } from "../../store";
 import { useEditorState } from "../../store";
 import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
 import { rackResizeProblem } from "../../lib/rackLayout";
-import { confirmDialog } from "../dialogs/dialogStore";
+import { confirmDialog, notify } from "../dialogs/dialogStore";
 import type { CartoucheData } from "../../export";
 import { BayProductLibrary } from "./BayProductLibrary";
 import { RackView } from "./RackView";
@@ -114,6 +114,12 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
                 onRackClick={() => setActiveRackId(rack.id)}
                 canDelete={!readOnly && racks.length > 1}
                 onDeleteRack={async () => {
+                  // Le verrou protège aussi de la suppression de la baie entière.
+                  const lockedCount = rack.items.filter((it) => it.locked).length;
+                  if (lockedCount > 0) {
+                    notify(`La baie « ${rack.name} » contient ${lockedCount} équipement(s) verrouillé(s) : déverrouillez-les avant de la supprimer.`, "error");
+                    return;
+                  }
                   // Supprimer une baie efface ses équipements : toujours confirmé.
                   const n = rack.items.length;
                   const ok = await confirmDialog({

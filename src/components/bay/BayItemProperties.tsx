@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useAppStore, useEditorState } from "../../store";
 import type { Rack, RackAnnotations, RackItem, Tab } from "../../types";
 import { ensureRacks, isIPTableTab } from "../../types";
-import { placementProblem, uLabel } from "../../lib/rackLayout";
+import { fitColumn, placementProblem, productRackSize, uLabel, uStartFromLabel } from "../../lib/rackLayout";
 
 interface BayItemPropertiesProps {
   tab: Tab;
@@ -74,11 +74,8 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
     if (!item || !ownerRack || readOnly || locked) return;
     const next = { ...item, ...patch };
     // Changer de largeur garde l'équipement dans la baie (colonne recalée à gauche si besoin).
-    if (patch.widthCols !== undefined && next.colStart + next.widthCols > 4) {
-      next.colStart = (4 - next.widthCols) as RackItem["colStart"];
-    }
-    const rackSize = products.find((p) => p.id === item.productId)?.rackSize;
-    const problem = placementProblem(ownerRack, next, item.id, rackSize);
+    if (patch.widthCols !== undefined) next.colStart = fitColumn(next.colStart, next.widthCols);
+    const problem = placementProblem(ownerRack, next, item.id, productRackSize(products, item.productId));
     if (problem) { setPlaceError(problem); return; }
     setPlaceError(null);
     updateRackItem(tab.id, item.id, { uStart: next.uStart, heightU: next.heightU, widthCols: next.widthCols, colStart: next.colStart });
@@ -165,35 +162,25 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
       <div className="bay-prop-group bay-prop-row">
         <div>
           <label>Position (U)</label>
-          <input
-            type="number"
+          <NumberDraft
             min={1}
             max={rackHeightU}
             value={ownerRack ? uLabel(ownerRack, item.uStart) : item.uStart}
-            onChange={(e) => {
-              const v = parseInt(e.target.value);
-              if (!ownerRack || Number.isNaN(v)) return;
-              // Le numéro saisi suit la numérotation affichée ; la position stockée part du bas.
-              placeItem({ uStart: ownerRack.numberingFromBottom ? v : rackHeightU - v + 1 });
-            }}
-            readOnly={readOnly || locked}
+            // Le numéro saisi suit la numérotation affichée ; la position stockée part du bas.
+            onCommit={(v) => { if (ownerRack) placeItem({ uStart: uStartFromLabel(ownerRack, v) }); }}
             disabled={readOnly || locked}
-            title="U du bas de l'équipement, selon la numérotation de la baie"
+            title="U du bas de l'équipement, selon la numérotation de la baie (validé en quittant le champ ou par Entrée)"
           />
         </div>
         <div>
           <label>Hauteur (U)</label>
-          <input
-            type="number"
+          <NumberDraft
             min={1}
             max={rackHeightU}
             value={item.heightU}
-            onChange={(e) => {
-              const v = parseInt(e.target.value);
-              if (!Number.isNaN(v)) placeItem({ heightU: v });
-            }}
-            readOnly={readOnly || locked}
+            onCommit={(v) => placeItem({ heightU: v })}
             disabled={readOnly || locked}
+            title="Validé en quittant le champ ou par Entrée"
           />
         </div>
       </div>
@@ -295,5 +282,41 @@ export function BayItemProperties({ tab, rack, selectedItemId, onDeselect }: Bay
     </div>
     </div>,
     document.body,
+  );
+}
+
+/** Champ numérique saisi librement puis validé en quittant le champ ou par Entrée :
+ *  valider à chaque frappe rejetait les débuts de nombre (« 1 » pour « 12 ») quand
+ *  l'emplacement intermédiaire était occupé, et empêchait de taper la valeur voulue. */
+function NumberDraft({ value, onCommit, min, max, disabled, title }: {
+  value: number;
+  onCommit: (v: number) => void;
+  min: number;
+  max: number;
+  disabled: boolean;
+  title?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  const commit = () => {
+    const v = parseInt(draft);
+    if (Number.isNaN(v) || v === value) { setDraft(String(value)); return; }
+    onCommit(v);
+    // Refusé : le champ revient à la valeur réelle (le motif s'affiche sous les champs).
+    setDraft(String(value));
+  };
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setDraft(String(value)); }}
+      readOnly={disabled}
+      disabled={disabled}
+      title={title}
+    />
   );
 }

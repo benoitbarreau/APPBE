@@ -59,3 +59,18 @@ export function rackResizeProblem(rack: Rack, newHeightU: number): string | null
 export function uLabel(rack: Pick<Rack, "heightU" | "numberingFromBottom">, uFromBottom: number): number {
   return rack.numberingFromBottom ? uFromBottom : rack.heightU - uFromBottom + 1;
 }
+
+/** Position stockée (depuis le bas) d'un numéro saisi dans la numérotation affichée. */
+export function uStartFromLabel(rack: Pick<Rack, "heightU" | "numberingFromBottom">, label: number): number {
+  return rack.numberingFromBottom ? label : rack.heightU - label + 1;
+}
+
+/** Colonne de départ recalée pour qu'une largeur donnée reste dans la baie. */
+export function fitColumn(colStart: number, widthCols: RackItem["widthCols"]): RackItem["colStart"] {
+  return Math.min(colStart, 4 - widthCols) as RackItem["colStart"];
+}
+
+/** Format rack (19" ou 10") du produit d'un équipement, s'il est connu. */
+export function productRackSize(products: { id: string; rackSize?: RackSize }[], productId?: string): RackSize | undefined {
+  return productId ? products.find((p) => p.id === productId)?.rackSize : undefined;
+}

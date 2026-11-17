@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Rack, RackItem, Tab } from "../../types";
 import { useAppStore } from "../../store";
 import { getDragItem, clearDragItem } from "./BayProductLibrary";
-import { placementProblem, uLabel as displayedU } from "../../lib/rackLayout";
+import { placementProblem, productRackSize, uLabel as displayedU } from "../../lib/rackLayout";
 import { notify } from "../dialogs/dialogStore";
 
 const U_PX = 44;
@@ -33,7 +33,7 @@ export function RackView({ tab, rack, selectedItemId, onSelectItem, onRackClick,
   const updateRackItem = useAppStore((s) => s.updateRackItem);
   const renameRack = useAppStore((s) => s.renameRack);
   const products = useAppStore((s) => s.products);
-  const rackSizeOf = (productId?: string) => products.find((p) => p.id === productId)?.rackSize;
+  const rackSizeOf = (productId?: string) => productRackSize(products, productId);
 
   const heightU = rack.heightU;
   const widthInch = rack.widthInch;

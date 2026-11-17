@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import { loadStore, loadSource } from './support/load-store.mjs'
 
-const { placementProblem, findFreeSlot, rackResizeProblem, uLabel } = await import(loadSource(path.resolve('src/lib/rackLayout.ts')))
+const { placementProblem, findFreeSlot, rackResizeProblem, uLabel, uStartFromLabel, fitColumn, productRackSize } = await import(loadSource(path.resolve('src/lib/rackLayout.ts')))
 const { useAppStore, useEditorState } = await loadStore()
 const store = useAppStore
 
@@ -119,4 +119,34 @@ test('la synchronisation ne fait pas déborder un équipement agrandi au catalog
   const s = rackItems().find(i => i.id === 's')
   assert.equal(s.heightU, 1)
   assert.equal(s.label, 'AMPLI')
+})
+
+test('un numéro saisi dans la numérotation affichée redonne la position depuis le bas', () => {
+  assert.equal(uStartFromLabel(rack(), 4), 4)
+  assert.equal(uStartFromLabel(rack([], { numberingFromBottom: false }), 1), 12)
+  assert.equal(uStartFromLabel(rack([], { numberingFromBottom: false }), uLabel(rack([], { numberingFromBottom: false }), 7)), 7)
+})
+
+test('élargir un équipement le recale à gauche pour rester dans la baie', () => {
+  assert.equal(fitColumn(3, 2), 2)
+  assert.equal(fitColumn(3, 4), 0)
+  assert.equal(fitColumn(1, 1), 1)
+})
+
+test('le format d’un produit se lit par son identifiant', () => {
+  assert.equal(productRackSize([{ id: 'p', rackSize: '19' }], 'p'), '19')
+  assert.equal(productRackSize([{ id: 'p', rackSize: '19' }], undefined), undefined)
+})
+
+test('une baie qui contient un équipement verrouillé ne se supprime pas', () => {
+  store.getState().addRackToTab('baie', { name: 'Seconde' })
+  assert.equal(store.getState().removeRackFromTab('baie', 'r'), false)
+  assert.equal(store.getState().tabs.find(t => t.id === 'baie').racks.length, 2)
+  store.getState().updateRackItem('baie', 'lock', { locked: false })
+  assert.equal(store.getState().removeRackFromTab('baie', 'r'), true)
+})
+
+test('la suppression d’un équipement dit si elle a eu lieu', () => {
+  assert.equal(store.getState().removeRackItem('baie', 'lock'), false)
+  assert.equal(store.getState().removeRackItem('baie', 'a'), true)
 })

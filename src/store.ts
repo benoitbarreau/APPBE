@@ -29,7 +29,7 @@ import type { ProjectData } from "./lib/projectsApi";
 import type { FetchedUserProduct, UserProductMeta } from "./lib/userProductsApi";
 import { BLANK_BLOCK_PRODUCT_ID, DEFAULT_IP_NETWORK, DEFAULT_IP_TABLE_COLUMNS, DEFAULT_SIGNAL_DEFS, ensureRacks, isBayTab, isIPTableTab, isSynopticTab } from "./types";
 import { findNodesByInstanceIds, makeEmptyRow, syncIPRowsFromSynoptics } from "./lib/ipTableSync";
-import { placementProblem, rackResizeProblem } from "./lib/rackLayout";
+import { placementProblem, productRackSize, rackResizeProblem } from "./lib/rackLayout";
 
 const DEFAULT_ZONES: Zone[] = [
   { id: "baie", label: "Baie", color: "#FF8A3D" },
@@ -111,8 +111,9 @@ interface State {
   syncBayItems: (tabId: string) => void;
   /** Ajoute une baie physique dans un onglet baie. Retourne l'ID de la nouvelle baie. */
   addRackToTab: (tabId: string, opts?: { name?: string; widthInch?: 10 | 19; heightU?: number }) => string;
-  /** Supprime une baie physique (impossible si c'est la seule). */
-  removeRackFromTab: (tabId: string, rackId: string) => void;
+  /** Supprime une baie physique. Refusé (false) si c'est la seule ou si elle
+   *  contient un équipement verrouillé. */
+  removeRackFromTab: (tabId: string, rackId: string) => boolean;
   /** Renomme une baie physique. */
   renameRack: (tabId: string, rackId: string, name: string) => void;
   /** Modifie une baie (nom, format, hauteur, numérotation). Refusé (false) si un
@@ -125,7 +126,7 @@ interface State {
    *  taille : refusées si invalides, ou si l'équipement est verrouillé. */
   updateRackItem: (tabId: string, itemId: string, patch: Partial<RackItem>) => void;
   /** Supprime un équipement (cherche dans toutes les baies de l'onglet). Refusé s'il est verrouillé. */
-  removeRackItem: (tabId: string, itemId: string) => void;
+  removeRackItem: (tabId: string, itemId: string) => boolean;
   removeTab: (tabId: string) => void;
   renameTab: (tabId: string, name: string) => void;
   duplicateTab: (tabId: string) => void;
@@ -611,15 +612,21 @@ export const useAppStore = create<State>()(
           return newId;
         },
 
-        removeRackFromTab: (tabId, rackId) =>
+        removeRackFromTab: (tabId, rackId) => {
+          const tab = get().tabs.find((t) => t.id === tabId && isBayTab(t));
+          const racks = tab ? ensureRacks(tab) : [];
+          const rack = racks.find((r) => r.id === rackId);
+          // Le verrou protège aussi de la suppression de la baie entière.
+          if (!rack || racks.length <= 1 || rack.items.some((it) => it.locked)) return false;
           set((s) => ({
-            tabs: s.tabs.map((t) => {
-              if (t.id !== tabId || !isBayTab(t)) return t;
-              const racks = ensureRacks(t);
-              if (racks.length <= 1) return t;
-              return { ...t, racks: racks.filter((r) => r.id !== rackId) };
-            }),
-          })),
+            tabs: s.tabs.map((t) =>
+              t.id === tabId && isBayTab(t)
+                ? { ...t, racks: ensureRacks(t).filter((r) => r.id !== rackId) }
+                : t,
+            ),
+          }));
+          return true;
+        },
 
         renameRack: (tabId, rackId, name) =>
           set((s) => ({
@@ -639,7 +646,7 @@ export const useAppStore = create<State>()(
           if (next.widthInch !== rack.widthInch) {
             const products = get().products;
             const misfit = next.items.some((it) =>
-              placementProblem(next, it, it.id, products.find((p) => p.id === it.productId)?.rackSize));
+              placementProblem(next, it, it.id, productRackSize(products, it.productId)));
             if (misfit) return false;
           }
           set((s) => ({
@@ -657,7 +664,7 @@ export const useAppStore = create<State>()(
           const racks = tab ? ensureRacks(tab) : [];
           const target = racks.find((r) => r.id === (rackId ?? racks[0]?.id));
           if (!tab || !target) return "";
-          const rackSize = get().products.find((p) => p.id === item.productId)?.rackSize;
+          const rackSize = productRackSize(get().products, item.productId);
           const problem = placementProblem(target, item, undefined, rackSize);
           if (problem) {
             console.warn(`Baie : ajout refusé (${problem})`);
@@ -690,7 +697,7 @@ export const useAppStore = create<State>()(
           if (movesOrResizes) {
             // Verrouillé : position et taille figées (déverrouiller d'abord).
             if (current.locked && patch.locked !== false) return;
-            const rackSize = get().products.find((p) => p.id === current.productId)?.rackSize;
+            const rackSize = productRackSize(get().products, current.productId);
             const problem = placementProblem(rack, { ...current, ...patch }, itemId, rackSize);
             if (problem) {
               console.warn(`Baie : modification refusée (${problem})`);
@@ -712,7 +719,11 @@ export const useAppStore = create<State>()(
           }));
         },
 
-        removeRackItem: (tabId, itemId) =>
+        removeRackItem: (tabId, itemId) => {
+          const tab = get().tabs.find((t) => t.id === tabId && isBayTab(t));
+          const current = tab ? ensureRacks(tab).flatMap((r) => r.items).find((it) => it.id === itemId) : undefined;
+          // Un équipement verrouillé ne se supprime pas (déverrouiller d'abord).
+          if (!current || current.locked) return false;
           set((s) => ({
             tabs: s.tabs.map((t) =>
               t.id === tabId && isBayTab(t)
@@ -720,13 +731,14 @@ export const useAppStore = create<State>()(
                     ...t,
                     racks: ensureRacks(t).map((r) => ({
                       ...r,
-                      // Un équipement verrouillé ne se supprime pas (déverrouiller d'abord).
-                      items: r.items.filter((it) => it.id !== itemId || it.locked),
+                      items: r.items.filter((it) => it.id !== itemId),
                     })),
                   }
                 : t,
             ),
-          })),
+          }));
+          return true;
+        },
 
         removeTab: (tabId) => {
           const s = get();
