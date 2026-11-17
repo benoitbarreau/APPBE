@@ -217,3 +217,20 @@ test('à l’ouverture, un câble dont une extrémité n’existe plus est retir
   assert.deepEqual(store.getState().cables.map(c => c.id), ['ok'])
   assert.deepEqual(store.getState().tabs.find(t => t.id === 'B').cables, [])
 })
+
+test('un projet nettoyé de ses câbles orphelins est à enregistrer', async () => {
+  const { buildSignature } = await import((await import('./support/load-store.mjs')).loadSource((await import('node:path')).resolve('src/lib/projectSerialization.ts')))
+  store.getState().loadProjectData('p1', 'Projet', project([synoptic('A', {
+    nodes: [node('a1')],
+    cables: [{ id: 'orphelin', fromNodeId: 'a1', fromPortId: 'o', toNodeId: 'disparu', toPortId: 'i', signal: 'HDMI' }],
+  })]))
+  const now = buildSignature(getFlushedTabs(), store.getState()).full
+  assert.notEqual(store.getState().currentProjectSavedSignature, now)
+})
+
+test('un ancien projet sans câble orphelin ne paraît pas modifié à l’ouverture', async () => {
+  const { buildSignature } = await import((await import('./support/load-store.mjs')).loadSource((await import('node:path')).resolve('src/lib/projectSerialization.ts')))
+  // Onglet d'ancien format : ni textNodes, ni imageNodes, ni groups.
+  store.getState().loadProjectData('p1', 'Projet', { tabs: [{ id: 'A', name: 'A', nodes: [node('a1')], cables: [], zones: [] }], activeTabId: 'A', projectMeta: {} })
+  assert.equal(store.getState().currentProjectSavedSignature, buildSignature(getFlushedTabs(), store.getState()).full)
+})

@@ -191,6 +191,19 @@ export function obstaclesFor(
     .filter((o): o is Rect => o !== null);
 }
 
+/** Index des produits par catalogue (même tableau `products` = même Map) : tous les
+ *  câbles reçoivent ainsi le même objet, ce qui permet à baseRoutesFor de partager
+ *  ses tracés (un useMemo par câble donnait une Map par câble et ratait le cache). */
+const productIndexes = new WeakMap<object, Map<string, Product>>();
+export function indexProducts<P extends Product>(products: P[]): Map<string, P> {
+  let index = productIndexes.get(products) as Map<string, P> | undefined;
+  if (!index) {
+    index = new Map(products.map((p) => [p.id, p]));
+    productIndexes.set(products, index);
+  }
+  return index;
+}
+
 /** Dernier calcul des tracés de base, partagé par les câbles d'un même rendu. */
 let routeCache: {
   cables: Cable[];

@@ -437,6 +437,14 @@ export function DiagramCanvas({
   const onNodeDragStart = useCallback(() => {
     if (!dragGestureRef.current) dragGestureRef.current = beginHistoryGesture();
   }, []);
+  // Canevas démonté pendant un glisser (changement d'onglet) : le geste est fermé,
+  // sinon l'historique resterait suspendu.
+  useEffect(() => () => {
+    if (dragGestureRef.current) {
+      endHistoryGesture(dragGestureRef.current);
+      dragGestureRef.current = null;
+    }
+  }, []);
 
   // ── Drag natif React Flow : smart guides sur tous les types de nœuds ────────
   const onNodeDrag = useCallback(

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -11,6 +11,7 @@ import type { Cable } from "../types";
 import {
   baseRoutesFor,
   effectiveWaypoints,
+  indexProducts,
   obstaclesFor,
   type Point,
   type Rect,
@@ -199,8 +200,9 @@ const allNodes = useAppStore((s) => s.nodes);
   const source = { x: sourceX, y: sourceY };
   const target = { x: targetX, y: targetY };
 
-  // Produits indexés une fois par catalogue (au lieu d'un find par nœud et par câble).
-  const productMap = useMemo(() => new Map(allProducts.map((p) => [p.id, p])), [allProducts]);
+  // Produits indexés une fois par catalogue et partagés par tous les câbles (au lieu
+  // d'un find par nœud et par câble) : condition du partage des tracés de base.
+  const productMap = indexProducts(allProducts);
   const buildObstacles = (forCable: Cable | undefined): Rect[] => obstaclesFor(allNodes, productMap, forCable);
 
   /** Renvoie tous les segments de TOUS les autres câbles (pour le snap). */

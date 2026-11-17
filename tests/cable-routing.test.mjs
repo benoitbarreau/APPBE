@@ -49,3 +49,13 @@ test('un câble dont une extrémité est introuvable n’a pas de tracé', () =>
   const routes = baseRoutesFor([cable('k', 'a', 'absent')], nodes, products, lookup)
   assert.equal(routes.has('k'), false)
 })
+
+test('les produits sont indexés une fois par catalogue, ce qui partage les tracés entre câbles', async () => {
+  const { indexProducts } = await import(loadSource(path.resolve('src/lib/cableRouting.ts')))
+  const catalogue = [{ id: 'p', inputs: [{}], outputs: [{}], middle: [] }]
+  assert.equal(indexProducts(catalogue), indexProducts(catalogue))
+  const cables = [cable('k1', 'a', 'b')]
+  // Deux câbles d'un même rendu indexent chacun le catalogue : même tracé partagé.
+  const premier = baseRoutesFor(cables, nodes, indexProducts(catalogue), lookup)
+  assert.equal(baseRoutesFor(cables, nodes, indexProducts(catalogue), lookup), premier)
+})

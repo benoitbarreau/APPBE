@@ -168,5 +168,5 @@ Performance et dette (`docs/AUDIT_2026-11-17.md`, H6, H7, H9, M9, IP « lenteur 
 - **Tableau IP** : `IPRow` mémorisé, rappels stables, plus de hooks après un retour anticipé.
 - **Câbles orphelins** : supprimés avec leur forme, texte ou image ; retirés à l'ouverture (`withoutOrphanCables`).
 
-Non fait, à décider : découpe de `store.ts` (≈ 2 100 lignes) et `App.tsx` (≈ 1 450) sans tests d'interface ; persistance locale allégée (écriture différée du localStorage) ; réécriture du routage pour que les arcs suivent les vrais tracés (M8). Validation locale : 132 tests Node (dont 9 nouveaux), TypeScript et build ; non vérifié en navigateur (fluidité, annulation des glisser).
+Non fait, à décider : découpe de `store.ts` (≈ 2 100 lignes) et `App.tsx` (≈ 1 450) sans tests d'interface ; persistance locale allégée (écriture différée du localStorage) ; réécriture du routage pour que les arcs suivent les vrais tracés (M8). Validation locale : 135 tests Node (dont 12 nouveaux), TypeScript et build ; non vérifié en navigateur (fluidité, annulation des glisser).
 

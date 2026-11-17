@@ -1713,6 +1713,8 @@ export const useAppStore = create<State>()(
 
           // Câbles dont une extrémité n'existe plus (laissés par d'anciennes versions) :
           // invisibles sur le canevas mais comptés, numérotés et exportés « ? • ? ».
+          // Le projet nettoyé paraît modifié : l'enregistrement automatique le corrige en base.
+          const tabsAsLoaded = tabs;
           tabs = tabs.map(withoutOrphanCables);
 
           const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
@@ -1788,7 +1790,13 @@ export const useAppStore = create<State>()(
             selectedCableId: null,
           }));
           const signature = buildSignature(flushActive(get()), get());
-          set({ currentProjectSavedSignature: signature.full, currentProjectVersionedHash: signature.base });
+          // Câbles orphelins retirés : l'empreinte de référence ne correspond plus à
+          // l'état affiché, le projet paraît modifié et s'enregistre (une seule fois).
+          const cleaned = tabs.some((t, i) => t !== tabsAsLoaded[i]);
+          set({
+            currentProjectSavedSignature: cleaned ? `${signature.full}|câbles orphelins retirés` : signature.full,
+            currentProjectVersionedHash: signature.base,
+          });
           // Réinitialiser l'état éditeur volatile : étiquettes câbles masquées par défaut
           useEditorState.setState({ cableLabelsHidden: true });
         },

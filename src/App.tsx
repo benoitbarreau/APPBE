@@ -409,6 +409,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     const savedSignature = buildSignature(flushedTabs, { ...state, projectMeta: metaToSave }).full;
     // Commit only server acknowledgements; preserve edits made during the request.
     const temporal = useAppStore.temporal.getState();
+    // Ne reprendre l'historique que s'il tournait : pendant un geste (glisser), il
+    // est suspendu et doit le rester jusqu'à la fin du geste.
+    const wasTracking = temporal.isTracking;
     temporal.pause();
     try {
       // Do not restore captured tabs: edits made during the request must survive.
@@ -422,7 +425,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         updateProjectMeta({ version: metaToSave.version });
       }
     } finally {
-      temporal.resume();
+      if (wasTracking) temporal.resume();
     }
 
     lastSavedHash.current = savedSignature;
