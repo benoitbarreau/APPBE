@@ -2,6 +2,17 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
+## [2026-11-17] Lot 4 : exports et Tableau IP
+
+### Corrigé (exports)
+- « Exporter / imprimer tout le projet » : pages calculées comme à l'écran (textes, formes, images et repères de page compris), total « PAGE n » juste ; écran d'attente pendant la capture ; la fenêtre de choix ne compte que les synoptiques.
+- Export JPEG : vrai JPEG (c'était un PNG renommé).
+- Impression : la fenêtre s'ouvre au clic et n'est plus bloquée par le navigateur.
+- Cartouche identique à l'écran sur tous les exports : campus saisi, lot de l'onglet, bureau d'étude.
+- Baie : IP et n° de série du Tableau IP dans le CSV et le XLS, capture sans boutons, petite baie nette en PDF, nom de feuille XLS valide.
+- Protection contre les formules : cellules CSV de la baie neutralisées, cellules XLS du Tableau IP en texte (zéros de tête et identifiants conservés).
+- Tableau IP : masque exporté sous « MASQUE », lignes orphelines marquées « (orpheline) ».
+
 ## [2026-11-17] Lot 3 : baie
 
 ### Corrigé

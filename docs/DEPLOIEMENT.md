@@ -147,3 +147,11 @@ Module Baie (`docs/AUDIT_2026-11-17.md`, H2 à H5, M5 à M7). Frontend seulement
 
 Validation locale : 85 tests Node (dont 19 nouveaux), TypeScript et build. Non vérifié en navigateur : glisser-déposer, aperçu rouge, fenêtre ⚙.
 
+## Lot 4 de l'audit — 17 novembre 2026
+
+Exports et Tableau IP (`docs/AUDIT_2026-11-17.md`, H5, constats « Baie et exports » et « Tableau IP »). Frontend seulement, aucune migration.
+
+- **Exports** : pages de « tout le projet » calculées sur `reactFlow.getNodes()` après passage sur chaque onglet (`collectSynopticPages`), écran d'attente `exportingAll` ; vrai JPEG (`composedImageType`) ; fenêtre d'impression ouverte au clic (`openPrintWindow`, synoptique, tout le projet, baie) ; cartouche commun `src/lib/cartouche.ts`.
+- **Baie** : lignes d'export dans `src/lib/bayRows.ts` (IP et n° de série du Tableau IP par `ipLinksByNode`), `safeCsvCell`, nom de feuille XLS nettoyé, capture sans ⚙ ni × ni cadre actif, résolution de capture adaptée.
+- **Tableau IP (exports)** : `src/lib/ipExportValues.ts` (`NET_LABELS` avec « MASQUE », `exportCellValue` qui marque les orphelines), style texte `XLS_TEXT_CELL`, logo échappé.
+
