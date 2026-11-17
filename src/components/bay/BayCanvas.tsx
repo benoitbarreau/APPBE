@@ -3,6 +3,8 @@ import { useAppStore } from "../../store";
 import { useEditorState } from "../../store";
 import { ensureRacks, isBayTab, isSynopticTab } from "../../types";
 import { rackResizeProblem } from "../../lib/rackLayout";
+import { buildCartouche } from "../../lib/cartouche";
+import { ipLinksByNode } from "../../lib/bayRows";
 import { confirmDialog, notify } from "../dialogs/dialogStore";
 import type { CartoucheData } from "../../export";
 import { BayProductLibrary } from "./BayProductLibrary";
@@ -59,16 +61,9 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
   const totalItems = racks.reduce((n, r) => n + r.items.length, 0);
   const selectedRack = racks.find((r) => r.id === activeRackId) ?? null;
 
-  // Identique à buildCartoucheForTab dans App.tsx (champ "lot" = nom de l'onglet)
-  const cartouche: CartoucheData = {
-    client:     projectMeta.client,
-    lieu:       projectMeta.lieu,
-    campus:     currentProjectName || projectMeta.campus || "Sans titre",
-    tabName:    tab.name,
-    date:       projectMeta.date || new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-    authorName: projectMeta.authorName,
-    version:    projectMeta.version || "V1.0",
-  };
+  // Même cartouche que l'écran et les synoptiques (lot saisi pour l'onglet, campus saisi).
+  const cartouche: CartoucheData = buildCartouche(projectMeta, currentProjectName, tab);
+  const ipLinks = ipLinksByNode(tabs);
 
   return (
     <div className="bay-canvas">
@@ -94,7 +89,7 @@ export function BayCanvas({ tabId }: BayCanvasProps) {
             {synced ? "✓ Synchronisé" : "⟳ Synchroniser"}
           </button>
         )}
-        <BayExportMenu racks={racks} cartouche={cartouche} tabName={tab.name} />
+        <BayExportMenu racks={racks} cartouche={cartouche} tabName={tab.name} ipLinks={ipLinks} />
       </div>
 
       {/* ── Main layout ──────────────────────────────────────────────────── */}

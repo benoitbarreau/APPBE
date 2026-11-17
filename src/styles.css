@@ -12212,6 +12212,26 @@ select {
   color: var(--muted);
 }
 
+/* Export ou impression de tous les synoptiques : bloque les clics pendant la capture */
+.export-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(17, 24, 39, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: progress;
+}
+.export-busy-box {
+  background: #fff;
+  color: #111827;
+  padding: 14px 22px;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
 /* ── Indicateur d'état de sauvegarde (barre du haut) ── */
 .save-status {
   font-size: 11.5px;

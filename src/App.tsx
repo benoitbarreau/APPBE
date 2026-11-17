@@ -5,6 +5,7 @@ import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { DiagramCanvas } from "./components/DiagramCanvas";
 import { confirmDialog, notify } from "./components/dialogs/dialogStore";
 import { describeSaveError } from "./lib/saveErrors";
+import { buildCartouche } from "./lib/cartouche";
 import { ProductPalette } from "./components/ProductPalette";
 import { FormattingPanel } from "./components/FormattingPanel";
 import { ProductEditor } from "./components/ProductEditor";
@@ -29,6 +30,7 @@ import {
   exportDiagram,
   printDiagram,
   openPrintPreview,
+  openPrintWindow,
   captureAndComposePage,
   buildAndSavePDF,
   computePageRects,
@@ -606,6 +608,9 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   };
 
   const [printing, setPrinting] = useState(false);
+  // Export de tous les onglets en cours : l'éditeur change d'onglet pour capturer
+  // chaque synoptique ; un écran d'attente empêche les clics qui fausseraient la capture.
+  const [exportingAll, setExportingAll] = useState(false);
   const [scopeModal, setScopeModal] = useState<{
     action: "export" | "print";
     format?: "png" | "jpeg" | "svg" | "pdf";
@@ -613,26 +618,22 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
   // ── Helpers export ────────────────────────────────────────────────────
 
+  // Même cartouche que l'écran (et que les baies) : src/lib/cartouche.ts.
   const buildCartoucheForTab = (tabId: string): CartoucheData => {
     const s = useAppStore.getState();
-    const tab = s.tabs.find((t) => t.id === tabId);
-    const meta = s.projectMeta;
-    return {
-      client: meta.client,
-      lieu: meta.lieu,
-      campus: s.currentProjectName || meta.campus || "Sans titre",
-      tabName: tab?.trade || tab?.name || "",
-      date:
-        meta.date ||
-        new Date().toLocaleDateString("fr-FR", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      authorName: meta.authorName,
-      version: meta.version,
-    };
+    return buildCartouche(s.projectMeta, s.currentProjectName, s.tabs.find((t) => t.id === tabId));
+  };
+
+  /** Pages de chaque synoptique, calculées comme à l'écran : sur les éléments
+   *  affichés par React Flow (repères de page, textes, formes, images, tailles
+   *  mesurées) après passage sur l'onglet, et non sur les seuls produits du store. */
+  const collectSynopticPages = async (tabIds: string[]) => {
+    const perTab: { tabId: string; pages: ReturnType<typeof computePageRects> }[] = [];
+    for (const tabId of tabIds) {
+      await switchTabAndWait(tabId);
+      perTab.push({ tabId, pages: computePageRects(reactFlow.getNodes()) });
+    }
+    return perTab;
   };
 
   const switchTabAndWait = (tabId: string): Promise<void> =>
@@ -646,11 +647,15 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   const handlePrintCurrentTab = async () => {
     try {
       setPrinting(true);
+      // Fenêtre ouverte tout de suite, au clic : ouverte après la capture, le
+      // navigateur la bloquait.
+      const win = openPrintWindow();
       const state = useAppStore.getState();
       await printDiagram(reactFlow, {
         cartouche: buildCartoucheForTab(state.activeTabId),
         cables:    state.cables,
         signals:   state.signals,
+        win,
       });
     } catch (e) {
       notify("Échec impression : " + (e instanceof Error ? e.message : String(e)), "error");
@@ -660,25 +665,26 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   };
 
   const handlePrintAllTabs = async () => {
+    if (exportingAll) return;
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
     const signals = state.signals;
     // Filtrer les onglets Tableau IP et Baie — ils ont leur propre export
     const flushedTabs = getFlushedTabs().filter((t) => !isIPTableTab(t) && !isBayTab(t));
-    let totalPages = 0;
-    for (const tab of flushedTabs) totalPages += computePageRects(tab.nodes).length;
+    let win: Window | undefined;
 
     try {
       setPrinting(true);
+      setExportingAll(true);
+      win = openPrintWindow();
+      const perTab = await collectSynopticPages(flushedTabs.map((t) => t.id));
+      const totalPages = perTab.reduce((n, t) => n + t.pages.length, 0);
       const allPageUrls: string[] = [];
       let pageNum = 1;
-      for (const tab of flushedTabs) {
-        await switchTabAndWait(tab.id);
-        const tabState = useAppStore.getState();
-        const nodes = tabState.nodes;
-        const cables = tabState.cables;
-        const pages = computePageRects(nodes);
-        const cartouche = buildCartoucheForTab(tab.id);
+      for (const { tabId, pages } of perTab) {
+        await switchTabAndWait(tabId);
+        const cables = useAppStore.getState().cables;
+        const cartouche = buildCartoucheForTab(tabId);
         for (const page of pages) {
           allPageUrls.push(
             await captureAndComposePage(reactFlow, page, {
@@ -692,12 +698,14 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
           pageNum++;
         }
       }
-      await openPrintPreview(allPageUrls, totalPages);
+      await openPrintPreview(allPageUrls, totalPages, win);
     } catch (e) {
+      win?.close();
       notify("Échec impression : " + (e instanceof Error ? e.message : String(e)), "error");
     } finally {
       await switchTabAndWait(originalTabId);
       setPrinting(false);
+      setExportingAll(false);
     }
   };
 
@@ -780,6 +788,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
   };
 
   const handleExportAllTabs = async (format: "png" | "jpeg" | "svg" | "pdf") => {
+    if (exportingAll) return;
     const state = useAppStore.getState();
     const originalTabId = state.activeTabId;
     const signals = state.signals;
@@ -788,23 +797,17 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
     const refLabel =
       state.projectMeta.client?.replace(/[^a-z0-9]+/gi, "-") || "synoptique";
 
-    // Calcul du nombre total de pages
-    let totalPages = 0;
-    for (const tab of flushedTabs) {
-      totalPages += computePageRects(tab.nodes).length;
-    }
-
     try {
+      setExportingAll(true);
+      const perTab = await collectSynopticPages(flushedTabs.map((t) => t.id));
+      const totalPages = perTab.reduce((n, t) => n + t.pages.length, 0);
       if (format === "pdf") {
         const allPageUrls: string[] = [];
         let pageNum = 1;
-        for (const tab of flushedTabs) {
-          await switchTabAndWait(tab.id);
-          const tabState = useAppStore.getState();
-          const nodes = tabState.nodes;
-          const cables = tabState.cables;
-          const pages = computePageRects(nodes);
-          const cartouche = buildCartoucheForTab(tab.id);
+        for (const { tabId, pages } of perTab) {
+          await switchTabAndWait(tabId);
+          const cables = useAppStore.getState().cables;
+          const cartouche = buildCartoucheForTab(tabId);
           for (const page of pages) {
             allPageUrls.push(
               await captureAndComposePage(reactFlow, page, {
@@ -821,13 +824,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
         await buildAndSavePDF(allPageUrls, `${refLabel}.pdf`);
       } else {
         let pageNum = 1;
-        for (const tab of flushedTabs) {
-          await switchTabAndWait(tab.id);
-          const tabState = useAppStore.getState();
-          const nodes = tabState.nodes;
-          const cables = tabState.cables;
-          const pages = computePageRects(nodes);
-          const cartouche = buildCartoucheForTab(tab.id);
+        for (const { tabId, pages } of perTab) {
+          const tab = flushedTabs.find((t) => t.id === tabId)!;
+          await switchTabAndWait(tabId);
+          const cables = useAppStore.getState().cables;
+          const cartouche = buildCartoucheForTab(tabId);
           const tabSlug = (tab.trade || tab.name)
             .replace(/[^a-z0-9]+/gi, "-")
             .toLowerCase();
@@ -854,6 +855,7 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       notify("Échec export : " + (e instanceof Error ? e.message : String(e)), "error");
     } finally {
       await switchTabAndWait(originalTabId);
+      setExportingAll(false);
     }
   };
 
@@ -924,6 +926,11 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
 
   return (
     <div className="app">
+      {exportingAll && (
+        <div className="export-busy-overlay" role="status" aria-live="polite">
+          <div className="export-busy-box">Export de tous les synoptiques en cours… Ne changez pas d'onglet.</div>
+        </div>
+      )}
       {/* ── Sidebar gauche : Catalogue (absent en lecture seule) ───────────── */}
       {!readOnly && (
       <aside className={`sidebar left${paletteOpen ? "" : " collapsed"}`}>
@@ -1445,7 +1452,8 @@ function AppInner({ onOpenAdminDashboard, onBackToProjects, onGoToReferentiel, r
       )}
       {scopeModal && (
         <ExportScopeModal
-          tabs={tabs}
+          // Seuls les synoptiques s'exportent ici (Tableau IP et Baie ont leur propre export).
+          tabs={tabs.filter((t) => !isIPTableTab(t) && !isBayTab(t))}
           activeTabName={tabs.find((t) => t.id === activeTabId)?.trade || tabs.find((t) => t.id === activeTabId)?.name || ""}
           action={scopeModal.action}
           onCurrentTab={() => {

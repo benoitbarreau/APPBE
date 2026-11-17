@@ -1,5 +1,7 @@
 import type { IPNetworkInfo, IPTableRow } from "../types";
 import { notify } from "../components/dialogs/dialogStore";
+import { NET_LABELS, exportCellValue } from "./ipExportValues";
+import { XLS_TEXT_CELL } from "./exportCells";
 
 // ─────────────────────────────────────────────────────────────────────
 // Types partagés
@@ -18,13 +20,7 @@ export interface IPExportPayload {
   network: IPNetworkInfo;
 }
 
-const NET_LABELS: { key: keyof IPNetworkInfo; label: string }[] = [
-  { key: "plageIp", label: "PLAGE IP" },
-  { key: "dhcp", label: "DHCP" },
-  { key: "dns", label: "DNS" },
-  { key: "passerelle", label: "PASSERELLE" },
-  { key: "ntp", label: "NTP" },
-];
+// Intitulés du cartouche réseau : NET_LABELS (ipExportValues.ts), « MASQUE » compris.
 
 const escapeHtml = (v: string): string =>
   v
@@ -90,10 +86,9 @@ export function exportIPTableXls(payload: IPExportPayload, logoUrl?: string) {
         columns
           .map(
             (c) => {
-              const val = c.key.startsWith("custom_")
-                ? (r.customFields?.[c.key] ?? "")
-                : String((r as unknown as Record<string, unknown>)[c.key] ?? "");
-              return `<td style="border:1px solid #000;padding:4px 8px;">${escapeHtml(val)}</td>`;
+              const val = exportCellValue(r, c.key);
+              // Texte pour Excel : ni formule, ni zéros de tête perdus, ni « 1-2 » lu comme une date.
+              return `<td style="border:1px solid #000;padding:4px 8px;${XLS_TEXT_CELL}">${escapeHtml(val)}</td>`;
             },
           )
           .join("") +
@@ -103,7 +98,7 @@ export function exportIPTableXls(payload: IPExportPayload, logoUrl?: string) {
 
   const titleHtml = `<h1 style="font-family:sans-serif;margin:0 0 12px;">${escapeHtml(title)}</h1>`;
   const logoHtml = logoUrl
-    ? `<div style="margin-bottom:12px;"><img src="${logoUrl}" alt="Logo" style="height:40px;" /></div>`
+    ? `<div style="margin-bottom:12px;"><img src="${escapeHtml(logoUrl)}" alt="Logo" style="height:40px;" /></div>`
     : "";
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -250,9 +245,7 @@ export async function exportIPTablePdf(
     for (let i = 0; i < cols.length; i++) {
       pdf.rect(x, y, colWidths[i], rowH, "S");
       const colKey = cols[i].key;
-      const raw = colKey.startsWith("custom_")
-        ? (row.customFields?.[colKey] ?? "")
-        : String((row as unknown as Record<string, unknown>)[colKey] ?? "");
+      const raw = exportCellValue(row, colKey);
       const text = pdf.splitTextToSize(raw, colWidths[i] - 2)[0] ?? "";
       pdf.text(text, x + 1.5, y + 4);
       x += colWidths[i];
@@ -316,9 +309,7 @@ export function printIPTable(payload: IPExportPayload, logoUrl?: string) {
         "<tr>" +
         columns
           .map((c) => {
-            const val = c.key.startsWith("custom_")
-              ? (r.customFields?.[c.key] ?? "")
-              : String((r as unknown as Record<string, unknown>)[c.key] ?? "");
+            const val = exportCellValue(r, c.key);
             return `<td>${escapeHtml(val)}</td>`;
           })
           .join("") +

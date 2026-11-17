@@ -2,6 +2,7 @@ import { toPng, toJpeg, toSvg } from "html-to-image";
 import { getViewportForBounds } from "@xyflow/react";
 import { PAGE_BOUNDS, PAGE_NODE_ID } from "./page";
 import type { Cable, SignalDef } from "./types";
+import { composedImageType } from "./lib/exportCells";
 
 type ExportFormat = "png" | "jpeg" | "svg" | "pdf";
 
@@ -13,6 +14,8 @@ export interface CartoucheData {
   date: string;
   authorName: string;
   version: string;
+  /** Bureau d'étude saisi au cartouche (sinon l'intitulé « BUREAU D'ÉTUDE »). */
+  bureauEtude?: string;
 }
 
 interface ExportOptions {
@@ -31,6 +34,8 @@ interface PrintOptions {
   cartouche?: CartoucheData;
   cables?: Cable[];
   signals?: Record<string, SignalDef>;
+  /** Fenêtre d'impression déjà ouverte au clic (voir openPrintWindow). */
+  win?: Window;
 }
 
 interface ReactFlowAccess {
@@ -394,7 +399,7 @@ export async function drawCartouche(
     `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
   cell(
-    "BUREAU D'ÉTUDE",
+    data.bureauEtude || "BUREAU D'ÉTUDE",
     x2col, y3, col2W, rowH,
     `bold ${11 * sc}px Arial, sans-serif`, "#000000",
   );
@@ -693,6 +698,7 @@ async function composePage(
   pageNum: number,
   totalPages: number,
   signalDefs: SignalDef[] = [],
+  format: "png" | "jpeg" = "png",
 ): Promise<string> {
   const diagImg = await loadImage(diagramDataUrl);
   const sc = PIX;
@@ -735,7 +741,8 @@ async function composePage(
   // Numéro de page (bas à gauche de la zone notice, décalé si légende)
   drawPageNumber(ctx, pageNum, totalPages, botY, botH, sc, legW);
 
-  return canvas.toDataURL("image/png");
+  // Un export JPEG est un vrai JPEG (il était composé en PNG puis seulement renommé).
+  return canvas.toDataURL(composedImageType(format), 0.92);
 }
 
 // ── Captures viewport ─────────────────────────────────────────────────────
@@ -840,7 +847,7 @@ export async function captureAndComposePage(
   const allNodes = rf.getNodes() as RFNodeLike[];
   const signalDefs = getPageSignalDefs(cables, allNodes, page, signals);
   const diag = await snapshotDiagram("png", page, background);
-  return composePage(diag, cartouche, pageNum, totalPages, signalDefs);
+  return composePage(diag, cartouche, pageNum, totalPages, signalDefs, format === "jpeg" ? "jpeg" : "png");
 }
 
 /**
@@ -894,7 +901,7 @@ export async function exportDiagram(
     if (format === "svg") return snapshotFull("svg", p, background);
     const signalDefs = getPageSignalDefs(cables, allNodes, p, signals);
     const diag = await snapshotDiagram("png", p, background);
-    return composePage(diag, cartouche, pageNum, effectiveTotalPages, signalDefs);
+    return composePage(diag, cartouche, pageNum, effectiveTotalPages, signalDefs, format === "jpeg" ? "jpeg" : "png");
   };
 
   if (format === "pdf") {
@@ -924,18 +931,34 @@ export async function exportDiagram(
 }
 
 /**
- * Ouvre une fenêtre de prévisualisation impression.
- * dataUrls = pages déjà rendues (PNG) ou vide pour capturer l'onglet courant.
+ * Ouvre la fenêtre d'impression tout de suite, au clic, avec un message d'attente.
+ * Ouverte après la capture (plusieurs secondes), elle était bloquée par le
+ * navigateur : le geste de l'utilisateur avait expiré.
  */
-export async function openPrintPreview(
-  dataUrls: string[],
-  totalPages: number,
-): Promise<void> {
+export function openPrintWindow(): Window {
   const win = window.open("", "_blank", "width=1200,height=850");
   if (!win)
     throw new Error(
       "La fenêtre de prévisualisation a été bloquée par le navigateur.\nAutorisez les popups pour ce site.",
     );
+  win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8" /><title>Préparation — SynoX</title></head>
+<body style="font-family:-apple-system,Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:90vh;color:#374151">
+<p>Préparation de l'impression…</p></body></html>`);
+  win.document.close();
+  return win;
+}
+
+/**
+ * Remplit la fenêtre de prévisualisation impression (ouverte au clic par
+ * openPrintWindow, sinon ouverte ici).
+ */
+export async function openPrintPreview(
+  dataUrls: string[],
+  totalPages: number,
+  existingWin?: Window,
+): Promise<void> {
+  const win = existingWin && !existingWin.closed ? existingWin : openPrintWindow();
+  win.document.open();
 
   const pagesHtml = dataUrls
     .map(
@@ -1017,13 +1040,16 @@ export async function printDiagram(
   rf: ReactFlowAccess,
   opts: PrintOptions = {},
 ): Promise<void> {
-  const { background = "#ffffff", cartouche, cables = [], signals = {} } = opts;
+  const { background = "#ffffff", cartouche, cables = [], signals = {}, win } = opts;
 
   const allNodes = rf.getNodes() as RFNodeLike[];
   const productNodes = allNodes.filter(
     (n) => typeof n.id === "string" && !n.id.startsWith(PAGE_NODE_ID),
   );
-  if (productNodes.length === 0) throw new Error("Aucun produit sur le synoptique");
+  if (productNodes.length === 0) {
+    win?.close();
+    throw new Error("Aucun produit sur le synoptique");
+  }
 
   const pages = computePages(allNodes);
   const totalPages = pages.length;
@@ -1035,5 +1061,5 @@ export async function printDiagram(
     dataUrls.push(await composePage(diag, cartouche, i + 1, totalPages, signalDefs));
   }
 
-  await openPrintPreview(dataUrls, totalPages);
+  await openPrintPreview(dataUrls, totalPages, win);
 }

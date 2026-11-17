@@ -8,7 +8,8 @@
  *  Le cartouche est dessiné avec la même fonction que les synoptiques (drawCartouche).
  */
 
-import { uLabel } from "./rackLayout";
+import { buildBayRows } from "./bayRows";
+import { safeCsvCell } from "./exportCells";
 import { toPng } from "html-to-image";
 import type { Rack } from "../types";
 import {
@@ -16,6 +17,7 @@ import {
   loadImage,
   drawCartouche,
   drawConfidentialityNotice,
+  openPrintWindow,
 } from "../export";
 
 // ── Constantes identiques à export.ts ────────────────────────────────────────
@@ -38,40 +40,21 @@ function safeFilename(tabName: string): string {
   return tabName.replace(/[^a-z0-9À-ɏ_-]/gi, "_").slice(0, 60);
 }
 
-// ── Données CSV / XLS ─────────────────────────────────────────────────────────
-
-interface TRow { posU: string; hU: string; mfr: string; ref: string; label: string; ip: string; swPort: string; vlan: string; serial: string }
-
-function buildRows(racks: Rack[]): TRow[] {
-  const multi = racks.length > 1;
-  const rows: TRow[] = [];
-  for (const rack of racks) {
-    const sorted = [...rack.items].sort((a, b) => b.uStart - a.uStart);
-    for (const item of sorted) {
-      rows.push({
-        // Numéro affiché à l'écran (selon la numérotation de la baie), pas la position brute.
-        posU:   multi ? `${rack.name} U${uLabel(rack, item.uStart)}` : `U${uLabel(rack, item.uStart)}`,
-        hU:     `${item.heightU}U`,
-        mfr:    item.manufacturer ?? "",
-        ref:    item.reference ?? "",
-        label:  item.label ?? "",
-        ip:     item.annotations?.ip ?? "",
-        swPort: item.annotations?.switchPort ?? "",
-        vlan:   item.annotations?.vlan ?? "",
-        serial: item.annotations?.serial ?? "",
-      });
-    }
-  }
-  return rows;
-}
+// ── Données CSV / XLS : src/lib/bayRows.ts (testées) ───────────────────────────
 
 // ── Composition de la page ────────────────────────────────────────────────────
 
-/** Masque temporairement le bouton "+ Ajouter une baie" pendant la capture. */
+/** Masque pendant la capture ce qui n'a rien à faire sur le document : bouton
+ *  « + Ajouter une baie », boutons ⚙ et × des baies, cadre de la baie active. */
 function hideAddRackButton(): () => void {
-  const els = Array.from(document.querySelectorAll<HTMLElement>(".bay-add-rack-col"));
+  const els = Array.from(document.querySelectorAll<HTMLElement>(".bay-add-rack-col, .rack-delete-btn, .rack-edit-btn"));
   els.forEach((el) => { el.style.visibility = "hidden"; });
-  return () => els.forEach((el) => { el.style.visibility = ""; });
+  const active = Array.from(document.querySelectorAll<HTMLElement>(".bay-rack-wrapper.rack-active"));
+  active.forEach((el) => el.classList.remove("rack-active"));
+  return () => {
+    els.forEach((el) => { el.style.visibility = ""; });
+    active.forEach((el) => el.classList.add("rack-active"));
+  };
 }
 
 async function composeBayPage(
@@ -89,10 +72,18 @@ async function composeBayPage(
 
   const restoreBtn = hideAddRackButton();
   let rackPng: string;
+  // Résolution de capture adaptée à l'agrandissement final : une petite baie (10" 6U)
+  // agrandie environ 5 fois à partir d'une capture ×2 sortait pixelisée.
+  const PADDING = 24 * PIX;
+  const fitScale = Math.min(
+    (RASTER_W * PIX - PADDING * 2) / Math.max(1, rackEl.offsetWidth),
+    ((RASTER_H - BOTTOM_H) * PIX - PADDING * 2) / Math.max(1, rackEl.offsetHeight),
+  );
+  const capturePixelRatio = Math.min(6, Math.max(PIX, Math.ceil(fitScale)));
   try {
     rackPng = await toPng(rackEl, {
       backgroundColor: "#ffffff",   // fond blanc
-      pixelRatio: PIX,
+      pixelRatio: capturePixelRatio,
       cacheBust: true,
       skipFonts: true,
     });
@@ -163,11 +154,18 @@ export async function exportBayToJPEG(
 export async function printBay(
   _racks: Rack[],
   cartouche: CartoucheData,
+  existingWin?: Window,
 ): Promise<void> {
-  const dataUrl = await composeBayPage(cartouche);
-  const win = window.open("", "_blank", "width=1200,height=850");
-  if (!win) throw new Error("La fenêtre d'impression a été bloquée. Autorisez les popups pour ce site.");
-
+  // Fenêtre ouverte au clic par l'appelant (sinon le navigateur la bloque après la capture).
+  const win = existingWin && !existingWin.closed ? existingWin : openPrintWindow();
+  let dataUrl: string;
+  try {
+    dataUrl = await composeBayPage(cartouche);
+  } catch (e) {
+    win.close();
+    throw e;
+  }
+  win.document.open();
   win.document.write(`<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -209,13 +207,14 @@ export async function printBay(
 
 // ── CSV ───────────────────────────────────────────────────────────────────────
 
-export function exportBayToCSV(racks: Rack[], tabName: string): void {
-  const rows = buildRows(racks);
+export function exportBayToCSV(racks: Rack[], tabName: string, links?: Map<string, { ip: string; serial: string }>): void {
+  const rows = buildBayRows(racks, links);
   const headers = ["Position U","Hauteur U","Fabricant","Référence","Label","IP","Port switch","VLAN","N° série"];
   const keys = ["posU","hU","mfr","ref","label","ip","swPort","vlan","serial"] as const;
   const lines = [
     headers.join(";"),
-    ...rows.map((r) => keys.map((k) => `"${(r[k] ?? "").replace(/"/g, '""')}"`).join(";")),
+    // Cellule qui ressemblerait à une formule (= + - @) : neutralisée par une apostrophe.
+    ...rows.map((r) => keys.map((k) => `"${safeCsvCell(r[k] ?? "").replace(/"/g, '""')}"`).join(";")),
   ];
   const csv = "﻿" + lines.join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -226,12 +225,13 @@ export function exportBayToCSV(racks: Rack[], tabName: string): void {
 
 // ── XLS (SpreadsheetML) ───────────────────────────────────────────────────────
 
-export function exportBayToXLS(racks: Rack[], tabName: string): void {
-  const rows = buildRows(racks);
+export function exportBayToXLS(racks: Rack[], tabName: string, links?: Map<string, { ip: string; serial: string }>): void {
+  const rows = buildBayRows(racks, links);
   const headers = ["Position U","Hauteur U","Fabricant","Référence","Label","IP","Port switch","VLAN","N° série"];
   const keys = ["posU","hU","mfr","ref","label","ip","swPort","vlan","serial"] as const;
   const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const sheetName = esc(tabName.slice(0, 31));
+  // Excel refuse un nom de feuille vide, de plus de 31 caractères ou avec [ ] : * ? / \.
+  const sheetName = esc(tabName.replace(/[[\]:*?/\\]/g, " ").trim().slice(0, 31) || "Baie");
   const hdrCells = headers.map((h) => `<Cell ss:StyleID="hdr"><Data ss:Type="String">${esc(h)}</Data></Cell>`).join("");
   const dataRows = rows.map((r) => `<Row>${keys.map((k) => `<Cell><Data ss:Type="String">${esc(r[k] ?? "")}</Data></Cell>`).join("")}</Row>`).join("\n");
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

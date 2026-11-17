@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Rack } from "../../types";
 import type { CartoucheData } from "../../export";
+import { openPrintWindow } from "../../export";
 import {
   exportBayToPDF,
   exportBayToJPEG,
@@ -15,9 +16,11 @@ interface BayExportMenuProps {
   racks: Rack[];
   cartouche: CartoucheData;
   tabName: string;
+  /** IP et n° de série du Tableau IP par nœud de synoptique (exports CSV et XLS). */
+  ipLinks?: Map<string, { ip: string; serial: string }>;
 }
 
-export function BayExportMenu({ racks, cartouche, tabName }: BayExportMenuProps) {
+export function BayExportMenu({ racks, cartouche, tabName, ipLinks }: BayExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFmt | null>(null);
   const [err,  setErr]  = useState<string | null>(null);
@@ -33,16 +36,16 @@ export function BayExportMenu({ racks, cartouche, tabName }: BayExportMenuProps)
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const runExport = async (fmt: ExportFmt) => {
+  const runExport = async (fmt: ExportFmt, printWin?: Window) => {
     setBusy(fmt);
     setErr(null);
     try {
       switch (fmt) {
         case "pdf":   await exportBayToPDF(racks, cartouche, tabName); break;
         case "jpeg":  await exportBayToJPEG(racks, cartouche, tabName); break;
-        case "print": await printBay(racks, cartouche); break;
-        case "csv":   exportBayToCSV(racks, tabName); break;
-        case "xls":   exportBayToXLS(racks, tabName); break;
+        case "print": await printBay(racks, cartouche, printWin); break;
+        case "csv":   exportBayToCSV(racks, tabName, ipLinks); break;
+        case "xls":   exportBayToXLS(racks, tabName, ipLinks); break;
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur d'export");
@@ -53,7 +56,15 @@ export function BayExportMenu({ racks, cartouche, tabName }: BayExportMenuProps)
 
   const handleFmt = (fmt: ExportFmt) => {
     setOpen(false);
-    void runExport(fmt);
+    // Impression : fenêtre ouverte tout de suite, pendant le clic (sinon bloquée).
+    let printWin: Window | undefined;
+    if (fmt === "print") {
+      try { printWin = openPrintWindow(); } catch (e) {
+        setErr(e instanceof Error ? e.message : "Fenêtre d'impression bloquée");
+        return;
+      }
+    }
+    void runExport(fmt, printWin);
   };
 
   const isWorking = busy !== null;
