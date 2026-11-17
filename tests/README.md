@@ -1,6 +1,6 @@
 # Vérifications des correctifs
 
-`npm test` exécute cent douze tests ciblés : synchronisation IP, import et contrôles du Tableau IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
+`npm test` exécute cent vingt et un tests ciblés : synchronisation IP, import et contrôles du Tableau IP, sérialisation complète, renommage authentification de la notification et contrat de sauvegarde atomique. Les sources TypeScript sont transpilées en mémoire. Les dépendances réseau de la notification sont simulées ; aucun email réel n'est envoyé.
 
 Les fichiers SQL sont réservés à une base PostgreSQL jetable. Ils créent un schéma minimal compatible avec les fonctions d'identité Supabase, puis vérifient les règles de la nouvelle migration. Ils ne valident pas toutes les politiques de l'installation distante.
 
@@ -39,3 +39,5 @@ Les assertions `referentiel-assertions.sql` sont intégrées au test complet des
 `lot2-droits.test.mjs` : barrière de lecture seule du store (modifications sans effet, navigation et ouverture permises), produits embarqués limités à ceux utilisés (synoptiques, baies, ancien format), mots de passe retirés d'une copie, aucun modèle d'export avec mot de passe, motifs d'échec d'enregistrement.
 
 `rack-layout.test.mjs` : règle de placement des baies (haut et hauteur de la baie, position et largeur, chevauchement, 19" en 10", première place libre, réduction de hauteur, numéro affiché) et son application par le store (ajout, modification, verrou, modification de la baie, synchronisation).
+
+`exports.test.mjs` : cartouche commun des exports (campus, lot, bureau d'étude, date), cellules CSV neutralisées, vrai JPEG, style texte XLS, intitulé MASQUE, lignes orphelines marquées, IP et n° de série du Tableau IP dans les exports de baie.

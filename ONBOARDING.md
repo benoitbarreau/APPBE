@@ -278,7 +278,11 @@ Cliquez sur **"⬇ Exporter ▾"** dans la barre d'outils pour choisir le format
 
 Cliquez sur **"🖨 Imprimer"** pour ouvrir la prévisualisation impression.
 
-> **Export multi-onglets** : si votre projet contient plusieurs onglets Synoptique, une boîte de dialogue vous demande d'exporter l'onglet actif ou tous les onglets. Pour un PDF multi-onglets, toutes les pages sont regroupées dans un seul fichier.
+> **Export multi-onglets** : si votre projet contient plusieurs onglets Synoptique, une boîte de dialogue vous demande d'exporter l'onglet actif ou tous les synoptiques. Pour un PDF multi-onglets, toutes les pages sont regroupées dans un seul fichier. Les pages sont découpées exactement comme à l'écran (textes, formes et images compris). Pendant l'export, un écran d'attente bloque les clics : l'éditeur passe d'un onglet à l'autre pour les capturer.
+
+> **Impression** : la fenêtre de prévisualisation s'ouvre dès le clic, avec « Préparation de l'impression… », puis se remplit. Si le navigateur la bloque, autorisez les fenêtres pour ce site.
+
+> **Cartouche** : il reprend celui de l'écran, sur tous les exports (synoptiques et baies) : campus saisi (sinon le nom du projet), lot saisi pour l'onglet (sinon son nom), bureau d'étude, auteur, date et version.
 
 ### Export depuis un onglet Baie
 La barre de la baie contient ses propres boutons d'export :
@@ -286,7 +290,7 @@ La barre de la baie contient ses propres boutons d'export :
 |--------|-------------|
 | **PDF** | Baie en A3 paysage avec cartouche |
 | **JPEG** | Image JPEG de la baie |
-| **CSV** | Tableau des équipements (Position U, Hauteur, Fabricant, Référence, Label, IP, Port switch, VLAN, N° série) |
+| **CSV** | Tableau des équipements (Position U, Hauteur, Fabricant, Référence, Label, IP, Port switch, VLAN, N° série). Pour un équipement venu d'un synoptique, l'IP et le n° de série viennent du Tableau IP. Une valeur qui commence par = + - @ est précédée d'une apostrophe pour ne pas être lue comme une formule. |
 | **XLS** | Même tableau au format Excel |
 | **🖨 Imprimer** | Prévisualisation impression de la baie |
 

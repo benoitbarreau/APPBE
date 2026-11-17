@@ -13,6 +13,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraison
 - Protection contre les formules : cellules CSV de la baie neutralisées, cellules XLS du Tableau IP en texte (zéros de tête et identifiants conservés).
 - Tableau IP : masque exporté sous « MASQUE », lignes orphelines marquées « (orpheline) ».
 
+### Corrigé (import et contrôles du Tableau IP)
+- Import d'un CSV d'Excel en Windows-1252 lu correctement (« N° SERIE » n'était plus reconnu) ; fichiers séparés par tabulation ; « IP DANTE SECONDAIRE » reconnu ; réimport de son propre .xls sans prendre le cartouche réseau pour le tableau.
+- Import en « mise à jour par label » (coché par défaut) avec aperçu : plus de lignes en double à chaque réimport.
+- Doublons : IP normalisées (192.168.1.010 = 192.168.1.10) et MAC détectées (casse et séparateurs ignorés).
+- Format IP ou MAC invalide signalé sur la cellule, sans bloquer la saisie.
+
+### Ajouté
+- Glisser-déposer d'un fichier dans la fenêtre d'import du Tableau IP (le bouton reste disponible).
+
 ## [2026-11-17] Lot 3 : baie
 
 ### Corrigé
