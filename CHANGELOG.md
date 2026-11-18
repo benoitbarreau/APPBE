@@ -2,6 +2,11 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les livraisons antérieures sont décrites dans `docs/DEPLOIEMENT.md`.
 
+## [2026-11-18] Numérotation des câbles
+
+### Décidé
+- Les câbles restent numérotés par onglet (constat H8 de l'audit) : deux synoptiques peuvent avoir chacun un « IP1 », distingués par la colonne du synoptique dans les exports des câbles et des étiquettes. Aucun changement de code.
+
 ## [2026-11-17] Vérification des lots dans le navigateur
 
 ### Corrigé
